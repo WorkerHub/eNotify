@@ -6,6 +6,7 @@ import {
   CheckCircle, XCircle, ChevronDown, ChevronUp,
   QrCode, Key,
 } from 'lucide-react'
+import QRCode from 'qrcode'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
@@ -294,7 +295,8 @@ function SecurityTab() {
     setTotpLoading(true)
     try {
       const res = await api.post<any>('/auth/2fa/totp/setup')
-      setTotpSetupData(res)
+      const qrCode = await QRCode.toDataURL(res.uri)
+      setTotpSetupData({ qrCode, secret: res.secret })
       setTotpCode('')
     } catch (err: any) {
       setTotpError(err.message || t('common.error'))
