@@ -49,9 +49,13 @@ app.get('/api/system/info', async (c) => {
   const prefix = getTablePrefix(c.env)
   try {
     const settings = await getAllSettings(c.env.DB, prefix)
-    return c.json({ app_name: settings.app_name || 'eNotify', version: '1.0.0' })
+    return c.json({
+      app_name: settings.app_name || 'eNotify',
+      version: '1.0.0',
+      registration_enabled: settings.registration_enabled !== 'false',
+    })
   } catch {
-    return c.json({ app_name: 'eNotify', version: '1.0.0' })
+    return c.json({ app_name: 'eNotify', version: '1.0.0', registration_enabled: true })
   }
 })
 

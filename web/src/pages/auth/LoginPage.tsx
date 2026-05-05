@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
+import { api } from '@/lib/api'
 
 export function LoginPage() {
   const { t, i18n } = useTranslation()
@@ -15,6 +16,13 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registrationEnabled, setRegistrationEnabled] = useState(true)
+
+  useEffect(() => {
+    api.get<{ registration_enabled: boolean }>('/system/info')
+      .then((info) => setRegistrationEnabled(info.registration_enabled))
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,12 +129,14 @@ export function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            {t('auth.noAccount')}{' '}
-            <Link to="/register" className="text-primary hover:underline font-medium">
-              {t('auth.register')}
-            </Link>
-          </p>
+          {registrationEnabled && (
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              {t('auth.noAccount')}{' '}
+              <Link to="/register" className="text-primary hover:underline font-medium">
+                {t('auth.register')}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>
