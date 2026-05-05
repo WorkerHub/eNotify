@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   smtp_config: '{}',
   resend_config: '{}',
   email_provider: 'none',
+  app_name: 'eNotify',
 }
 
 setupRoutes.get('/:secret', async (c) => {
@@ -168,5 +169,19 @@ CREATE TABLE IF NOT EXISTS {prefix}system_settings (
   key        TEXT PRIMARY KEY,
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL
-)`
+);
+
+CREATE TABLE IF NOT EXISTS {prefix}notification_history (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  item_id    TEXT,
+  channel    TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  success    INTEGER NOT NULL DEFAULT 1,
+  error      TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
+  ON {prefix}notification_history(user_id, created_at)`
 }

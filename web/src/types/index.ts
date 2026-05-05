@@ -83,4 +83,17 @@ export interface SystemSettings {
   smtp_config: string
   resend_config: string
   email_provider: string
+  app_name?: string
+}
+
+export interface NotificationHistory {
+  id: string
+  user_id: string
+  item_id: string | null
+  item_name?: string
+  channel: string
+  title: string
+  success: number
+  error: string | null
+  created_at: string
 }

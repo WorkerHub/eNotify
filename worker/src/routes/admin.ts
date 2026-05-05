@@ -263,7 +263,7 @@ adminRoutes.put('/system/settings', async (c) => {
 
   const allowedKeys = [
     'email_verification_enabled', 'require_2fa', 'registration_enabled',
-    'smtp_config', 'resend_config', 'email_provider',
+    'smtp_config', 'resend_config', 'email_provider', 'app_name',
   ]
 
   const existingSettings = await getAllSettings(c.env.DB, prefix)

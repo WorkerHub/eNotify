@@ -2,8 +2,9 @@ import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, Info } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { api } from '@/lib/api'
 
 export function AppLayout() {
   const { t, i18n } = useTranslation()
@@ -11,6 +12,13 @@ export function AppLayout() {
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
+  const [appName, setAppName] = useState('eNotify')
+
+  useEffect(() => {
+    api.get<{ app_name: string; version: string }>('/system/info')
+      .then((info) => { if (info.app_name) setAppName(info.app_name) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const check = () => setImpersonating(!!sessionStorage.getItem('impersonate_user_id'))
@@ -66,7 +74,7 @@ export function AppLayout() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
         <div className="p-4 border-b">
-          <h1 className="text-xl font-bold text-primary">{t('app.name')}</h1>
+          <h1 className="text-xl font-bold text-primary">{appName}</h1>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
         <nav className="flex-1 p-2 space-y-1">
@@ -95,6 +103,17 @@ export function AppLayout() {
             <Globe className="w-4 h-4" />
             {i18n.language === 'zh' ? 'English' : '中文'}
           </button>
+          <NavLink
+            to="/about"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full transition-colors ${
+                isActive ? 'text-primary' : 'text-muted-foreground hover:bg-accent'
+              }`
+            }
+          >
+            <Info className="w-4 h-4" />
+            {t('nav.about')}
+          </NavLink>
           <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-muted-foreground hover:bg-accent text-destructive">
             <LogOut className="w-4 h-4" />
             {t('auth.logout')}
@@ -120,7 +139,7 @@ export function AppLayout() {
 
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center justify-between px-4 h-11 z-50">
-        <span className="text-base font-bold text-primary">{t('app.name')}</span>
+        <span className="text-base font-bold text-primary">{appName}</span>
         <div className="flex items-center gap-1">
           <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
             {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}

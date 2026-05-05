@@ -11,7 +11,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
 import { cn, serializeRegistrationCredential, prepareRegistrationOptions } from '@/lib/utils'
-import type { NotificationConfig } from '@/types'
+import type { NotificationConfig, NotificationHistory } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -690,6 +690,8 @@ function NotificationsTab() {
   const [config, setConfig] = useState<NotificationConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [history, setHistory] = useState<NotificationHistory[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -702,9 +704,21 @@ function NotificationsTab() {
     }
   }, [t])
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const data = await api.get<NotificationHistory[]>('/me/notification-history?limit=50')
+      setHistory(data)
+    } catch {
+      // ignore history errors
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchConfig()
-  }, [fetchConfig])
+    fetchHistory()
+  }, [fetchConfig, fetchHistory])
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
@@ -714,16 +728,49 @@ function NotificationsTab() {
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">{t('settings.notificationChannels')}</p>
-      {CHANNELS.map((ch) => (
-        <ChannelCard
-          key={ch.id}
-          channel={ch}
-          config={config}
-          onConfigChange={setConfig}
-        />
-      ))}
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">{t('settings.notificationChannels')}</p>
+        {CHANNELS.map((ch) => (
+          <ChannelCard
+            key={ch.id}
+            channel={ch}
+            config={config}
+            onConfigChange={setConfig}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">{t('settings.notificationHistory')}</p>
+        <div className="bg-card border rounded-lg overflow-hidden">
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground p-4">{t('common.loading')}</p>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4">{t('settings.noHistory')}</p>
+          ) : (
+            <div className="divide-y">
+              {history.map((h) => (
+                <div key={h.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{h.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {h.item_name && <span className="mr-2">{h.item_name}</span>}
+                      <span className="uppercase">{h.channel}</span>
+                      {' · '}
+                      {new Date(h.created_at).toLocaleString()}
+                    </p>
+                    {h.error && <p className="text-xs text-destructive mt-0.5 truncate">{h.error}</p>}
+                  </div>
+                  <span className={`text-xs font-medium shrink-0 ${h.success ? 'text-green-600' : 'text-destructive'}`}>
+                    {h.success ? t('settings.historySuccess') : t('settings.historyFailed')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -731,6 +778,46 @@ function NotificationsTab() {
 // ---------------------------------------------------------------------------
 // Preferences Tab
 // ---------------------------------------------------------------------------
+
+const TIMEZONES = [
+  { value: 'UTC', label: 'UTC' },
+  { value: 'America/New_York', label: 'New York (EST/EDT)' },
+  { value: 'America/Chicago', label: 'Chicago (CST/CDT)' },
+  { value: 'America/Denver', label: 'Denver (MST/MDT)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
+  { value: 'America/Anchorage', label: 'Anchorage (AKST)' },
+  { value: 'Pacific/Honolulu', label: 'Honolulu (HST)' },
+  { value: 'America/Toronto', label: 'Toronto (EST/EDT)' },
+  { value: 'America/Vancouver', label: 'Vancouver (PST/PDT)' },
+  { value: 'America/Mexico_City', label: 'Mexico City (CST/CDT)' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo (BRT)' },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (ART)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
+  { value: 'Europe/Madrid', label: 'Madrid (CET/CEST)' },
+  { value: 'Europe/Rome', label: 'Rome (CET/CEST)' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam (CET/CEST)' },
+  { value: 'Europe/Stockholm', label: 'Stockholm (CET/CEST)' },
+  { value: 'Europe/Moscow', label: 'Moscow (MSK)' },
+  { value: 'Europe/Istanbul', label: 'Istanbul (TRT)' },
+  { value: 'Africa/Cairo', label: 'Cairo (EET)' },
+  { value: 'Africa/Lagos', label: 'Lagos (WAT)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Karachi', label: 'Karachi (PKT)' },
+  { value: 'Asia/Kolkata', label: 'Mumbai / Kolkata (IST)' },
+  { value: 'Asia/Dhaka', label: 'Dhaka (BST)' },
+  { value: 'Asia/Bangkok', label: 'Bangkok (ICT)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Shanghai', label: '上海 / Shanghai (CST)' },
+  { value: 'Asia/Hong_Kong', label: '香港 / Hong Kong (HKT)' },
+  { value: 'Asia/Taipei', label: '台北 / Taipei (CST)' },
+  { value: 'Asia/Tokyo', label: '東京 / Tokyo (JST)' },
+  { value: 'Asia/Seoul', label: '서울 / Seoul (KST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+  { value: 'Australia/Melbourne', label: 'Melbourne (AEST/AEDT)' },
+  { value: 'Pacific/Auckland', label: 'Auckland (NZST/NZDT)' },
+]
 
 const CURRENCIES = ['USD', 'EUR', 'CNY', 'JPY', 'GBP', 'HKD', 'CAD', 'AUD', 'SGD', 'KRW']
 
@@ -835,11 +922,8 @@ function PreferencesTab() {
           onChange={(e) => setTimezone(e.target.value)}
           className={inputCls}
         >
-          {('supportedValuesOf' in Intl
-            ? (Intl as any).supportedValuesOf('timeZone') as string[]
-            : ['UTC']
-          ).map((tz: string) => (
-            <option key={tz} value={tz}>{tz}</option>
+          {TIMEZONES.map((tz) => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
           ))}
         </select>
       </div>

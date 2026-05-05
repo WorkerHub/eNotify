@@ -145,6 +145,8 @@ async function processSubscription(
           : `Expires in ${Math.round(daysUntilExpiry)} days (${sub.expiry_date})`,
       }
 
-  await sendNotifications(notifyConfig, message, env)
+  await sendNotifications(notifyConfig, message, env, {
+    db: env.DB, prefix, userId, itemId: sub.id,
+  })
   await kv.put(dedupeKey, '1', { expirationTtl: 172800 })
 }

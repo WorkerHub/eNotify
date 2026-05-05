@@ -4,6 +4,7 @@ import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { findUserById, updateUser } from '../db/queries/users'
 import { getNotificationConfig, upsertNotificationConfig } from '../db/queries/notifications'
+import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification_history'
 import { get2FAConfig } from '../db/queries/twofa'
 import { hashPassword, verifyPassword, generateJti, signJWT, verifyJWT } from '../core/auth'
 import { sendToChannel, type NotifyMessage } from '../services/notify/index'
@@ -228,7 +229,25 @@ meRoutes.post('/notifications/test', async (c) => {
   }
 
   const result = await sendToChannel(channel, channelConfig, message, c.env)
+
+  insertNotificationHistory(c.env.DB, prefix, {
+    id: generateJti(),
+    user_id: userId,
+    channel,
+    title: message.title,
+    success: result.success,
+    error: result.error,
+  }).catch(() => {})
+
   return c.json(result)
+})
+
+meRoutes.get('/notification-history', async (c) => {
+  const userId = getEffectiveUserId(c)
+  const prefix = getTablePrefix(c.env)
+  const limit = Math.min(Number(c.req.query('limit') || 50), 200)
+  const history = await listNotificationHistory(c.env.DB, prefix, userId, limit)
+  return c.json(history)
 })
 
 meRoutes.post('/notifications/token', async (c) => {

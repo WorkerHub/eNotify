@@ -268,7 +268,9 @@ itemRoutes.post('/:id/test-notify', async (c) => {
     body: `This is a test notification for "${item.name}" expiring on ${item.expiry_date}.`,
   }
 
-  const results = await sendNotifications(notifyConfig, message, c.env)
+  const results = await sendNotifications(notifyConfig, message, c.env, {
+    db: c.env.DB, prefix, userId, itemId: id,
+  })
   return c.json({ results })
 })
 

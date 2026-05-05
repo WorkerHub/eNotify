@@ -63,7 +63,8 @@
     "dashboard": "Dashboard",
     "items": "Notifications",
     "settings": "Settings",
-    "admin": "Admin"
+    "admin": "Admin",
+    "about": "About"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -148,7 +149,19 @@
     "notificationHours": "Notification Hours",
     "totpDescription": "Use an authenticator app (Google Authenticator, Authy, etc.)",
     "emailOtpDescription": "Receive a one-time code via email when signing in.",
-    "passkeyDescription": "Use biometrics or a hardware key for sign-in."
+    "passkeyDescription": "Use biometrics or a hardware key for sign-in.",
+    "notificationHistory": "Notification History",
+    "noHistory": "No notification records yet",
+    "historySuccess": "Success",
+    "historyFailed": "Failed"
+  },
+  "about": {
+    "title": "About",
+    "version": "Version",
+    "description": "eNotify is a smart notification management system built on Cloudflare Workers, helping you track subscriptions, documents, and important expiry reminders.",
+    "builtWith": "Built With",
+    "sourceCode": "Source Code",
+    "license": "License"
   },
   "admin": {
     "title": "Admin Panel",
@@ -191,6 +204,8 @@
     "addUser": "Add User",
     "createUser": "Create User",
     "editUser": "Edit User",
-    "newPasswordOptional": "New password (leave blank to keep)"
+    "newPasswordOptional": "New password (leave blank to keep)",
+    "appName": "App Name",
+    "appSettings": "App Settings"
   }
 }

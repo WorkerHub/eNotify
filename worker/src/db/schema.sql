@@ -95,3 +95,17 @@ CREATE TABLE IF NOT EXISTS {prefix}system_settings (
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS {prefix}notification_history (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
+  item_id    TEXT REFERENCES {prefix}items(id) ON DELETE SET NULL,
+  channel    TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  success    INTEGER NOT NULL DEFAULT 1,
+  error      TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
+  ON {prefix}notification_history(user_id, created_at);

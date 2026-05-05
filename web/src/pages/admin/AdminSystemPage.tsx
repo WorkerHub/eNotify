@@ -66,6 +66,7 @@ export function AdminSystemPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
+  const [appName, setAppName] = useState('')
   const [emailProvider, setEmailProvider] = useState<EmailProvider>('none')
   const [smtp, setSmtp] = useState<SmtpConfig>(DEFAULT_SMTP)
   const [resend, setResend] = useState<ResendConfig>(DEFAULT_RESEND)
@@ -82,6 +83,7 @@ export function AdminSystemPage() {
     api
       .get<SystemSettings>('/admin/system/settings')
       .then((s) => {
+        setAppName(s.app_name || 'eNotify')
         setEmailProvider((s.email_provider as EmailProvider) || 'none')
         setEmailVerification(s.email_verification_enabled === 'true')
         setRequire2fa(s.require_2fa === 'true')
@@ -123,6 +125,7 @@ export function AdminSystemPage() {
     setSaveMsg('')
 
     const payload: Record<string, string> = {
+      app_name: appName.trim() || 'eNotify',
       email_provider: emailProvider,
       email_verification_enabled: String(emailVerification),
       require_2fa: String(require2fa),
@@ -180,6 +183,20 @@ export function AdminSystemPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* App settings */}
+        <section className="bg-card rounded-xl border p-5 space-y-4">
+          <h2 className="font-semibold">{t('admin.appSettings')}</h2>
+          <Field label={t('admin.appName')}>
+            <input
+              className={INPUT}
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+              placeholder="eNotify"
+              maxLength={64}
+            />
+          </Field>
+        </section>
+
         {/* Email provider */}
         <section className="bg-card rounded-xl border p-5 space-y-4">
           <h2 className="font-semibold">{t('admin.emailProvider')}</h2>

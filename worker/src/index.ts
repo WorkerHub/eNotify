@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { serveStatic } from 'hono/cloudflare-workers'
 import type { Env, HonoEnv } from './types'
+import { getTablePrefix } from './types'
 import { authRoutes } from './routes/auth'
 import { auth2faRoutes } from './routes/auth2fa'
 import { meRoutes } from './routes/me'
@@ -12,6 +13,7 @@ import { adminRoutes } from './routes/admin'
 import { notifyRoutes } from './routes/notify'
 import { setupRoutes } from './routes/setup'
 import { handleScheduled } from './services/scheduler'
+import { getAllSettings } from './db/queries/settings'
 
 const app = new Hono<HonoEnv>()
 
@@ -42,6 +44,16 @@ app.route('/api/notify', notifyRoutes)
 app.route('/api/setup', setupRoutes)
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
+
+app.get('/api/system/info', async (c) => {
+  const prefix = getTablePrefix(c.env)
+  try {
+    const settings = await getAllSettings(c.env.DB, prefix)
+    return c.json({ app_name: settings.app_name || 'eNotify', version: '1.0.0' })
+  } catch {
+    return c.json({ app_name: 'eNotify', version: '1.0.0' })
+  }
+})
 
 // SPA fallback: serve static assets, fall back to index.html for client-side routing
 app.get('*', async (c) => {
