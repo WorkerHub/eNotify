@@ -33,9 +33,9 @@ jobs:
           KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
         run: |
           sed -i "s/CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER/${CLOUDFLARE_ACCOUNT_ID}/" wrangler.toml
-          sed -i "s/D1_DATABASE_NAME_PLACEHOLDER/${D1_DATABASE_NAME}/g" worker/wrangler.toml
-          sed -i "s/D1_DATABASE_ID_PLACEHOLDER/${D1_DATABASE_ID}/g" worker/wrangler.toml
-          sed -i "s/KV_NAMESPACE_ID_PLACEHOLDER/${KV_NAMESPACE_ID}/g" worker/wrangler.toml
+          sed -i "s/D1_DATABASE_NAME_PLACEHOLDER/${D1_DATABASE_NAME}/g" wrangler.toml
+          sed -i "s/D1_DATABASE_ID_PLACEHOLDER/${D1_DATABASE_ID}/g" wrangler.toml
+          sed -i "s/KV_NAMESPACE_ID_PLACEHOLDER/${KV_NAMESPACE_ID}/g" wrangler.toml
 
       - name: Deploy Worker
         working-directory: worker
