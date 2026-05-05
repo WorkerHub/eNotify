@@ -39,6 +39,16 @@ async function runSetup(c: any) {
   const prefix = getTablePrefix(c.env)
   const db = c.env.DB
 
+  // Check if already initialized
+  const existing = await db
+    .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
+    .bind(`${prefix}users`)
+    .first()
+
+  if (existing) {
+    return c.json({ success: true, alreadyInitialized: true })
+  }
+
   const schemaSQL = getSchema()
   const resolvedSQL = schemaSQL.replace(/\{prefix\}/g, prefix)
 
@@ -47,14 +57,8 @@ async function runSetup(c: any) {
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
 
-  const tablesCreated: string[] = []
-
   for (const stmt of statements) {
     await db.prepare(stmt).run()
-    const match = stmt.match(/CREATE\s+(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s+(\S+)/i)
-    if (match) {
-      tablesCreated.push(match[1])
-    }
   }
 
   const now = new Date().toISOString()
@@ -67,7 +71,7 @@ async function runSetup(c: any) {
       .run()
   }
 
-  return c.json({ success: true, tablesCreated })
+  return c.json({ success: true })
 }
 
 function getSchema(): string {
@@ -98,19 +102,19 @@ CREATE TABLE IF NOT EXISTS {prefix}user_2fa (
   updated_at        TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS {prefix}subscriptions (
-  id                TEXT PRIMARY KEY,
-  user_id           TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
-  name              TEXT NOT NULL,
-  subscription_mode TEXT NOT NULL DEFAULT 'cycle',
-  custom_type       TEXT NOT NULL DEFAULT '',
-  category          TEXT NOT NULL DEFAULT '',
-  start_date        TEXT,
-  expiry_date       TEXT NOT NULL,
-  period_value      INTEGER NOT NULL DEFAULT 1,
-  period_unit       TEXT NOT NULL DEFAULT 'month',
-  reminder_unit     TEXT NOT NULL DEFAULT 'day',
-  reminder_value    INTEGER NOT NULL DEFAULT 7,
+CREATE TABLE IF NOT EXISTS {prefix}items (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  item_mode   TEXT NOT NULL DEFAULT 'cycle',
+  custom_type TEXT NOT NULL DEFAULT '',
+  category    TEXT NOT NULL DEFAULT '',
+  start_date  TEXT,
+  expiry_date TEXT NOT NULL,
+  period_value  INTEGER NOT NULL DEFAULT 1,
+  period_unit   TEXT NOT NULL DEFAULT 'month',
+  reminder_unit  TEXT NOT NULL DEFAULT 'day',
+  reminder_value INTEGER NOT NULL DEFAULT 7,
   notes             TEXT NOT NULL DEFAULT '',
   amount            REAL,
   currency          TEXT NOT NULL DEFAULT 'CNY',
@@ -122,25 +126,25 @@ CREATE TABLE IF NOT EXISTS {prefix}subscriptions (
   updated_at        TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_{prefix}subscriptions_user_id
-  ON {prefix}subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_{prefix}items_user_id
+  ON {prefix}items(user_id);
 
 CREATE TABLE IF NOT EXISTS {prefix}payment_history (
-  id              TEXT PRIMARY KEY,
-  subscription_id TEXT NOT NULL REFERENCES {prefix}subscriptions(id) ON DELETE CASCADE,
-  user_id         TEXT NOT NULL,
-  date            TEXT NOT NULL,
-  amount          REAL NOT NULL DEFAULT 0,
-  currency        TEXT NOT NULL DEFAULT 'CNY',
-  type            TEXT NOT NULL DEFAULT 'manual',
-  note            TEXT NOT NULL DEFAULT '',
-  period_start    TEXT,
-  period_end      TEXT,
-  created_at      TEXT NOT NULL
+  id          TEXT PRIMARY KEY,
+  item_id     TEXT NOT NULL REFERENCES {prefix}items(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL,
+  date        TEXT NOT NULL,
+  amount      REAL NOT NULL DEFAULT 0,
+  currency    TEXT NOT NULL DEFAULT 'CNY',
+  type        TEXT NOT NULL DEFAULT 'manual',
+  note        TEXT NOT NULL DEFAULT '',
+  period_start TEXT,
+  period_end   TEXT,
+  created_at   TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_subscription_id
-  ON {prefix}payment_history(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_item_id
+  ON {prefix}payment_history(item_id);
 CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_user_id
   ON {prefix}payment_history(user_id);
 
