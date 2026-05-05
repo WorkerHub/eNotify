@@ -62,8 +62,8 @@ In the Cloudflare dashboard, go to Workers → enotify → Settings → Variable
 
 | Secret | Description |
 |--------|-------------|
-| `JWT_SECRET` | JWT signing secret (random string) |
-| `SETUP_SECRET` | Database initialization secret (random string) |
+| `JWT_SECRET` | Any random 64-char string — e.g. `openssl rand -hex 32` |
+| `SETUP_SECRET` | Any random string — e.g. `openssl rand -hex 16` |
 
 Or via CLI:
 
@@ -121,4 +121,4 @@ pnpm dev:worker
 
 ## License
 
-MIT
+[MIT](LICENSE)

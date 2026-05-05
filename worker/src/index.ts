@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { serveStatic } from 'hono/cloudflare-workers'
 import type { Env, HonoEnv } from './types'
 import { authRoutes } from './routes/auth'
 import { auth2faRoutes } from './routes/auth2fa'
@@ -41,6 +42,13 @@ app.route('/api/notify', notifyRoutes)
 app.route('/api/setup', setupRoutes)
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
+
+// SPA fallback: serve static assets, fall back to index.html for client-side routing
+app.get('*', async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw)
+  if (res.status !== 404) return res
+  return c.env.ASSETS.fetch(new Request(new URL('/', c.req.url), c.req.raw))
+})
 
 export default {
   fetch: app.fetch,

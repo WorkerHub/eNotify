@@ -62,9 +62,8 @@ npx wrangler kv namespace create ENOTIFY_KV
 
 | Secret | 说明 |
 |--------|------|
-| `JWT_SECRET` | JWT 签名密钥（随机字符串） |
-| `SETUP_SECRET` | 数据库初始化密钥（随机字符串） |
-
+| `JWT_SECRET` | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
+| `SETUP_SECRET` | 任意随机字符串，例如 `openssl rand -hex 16` |
 也可以通过命令行配置：
 
 ```bash
@@ -121,4 +120,4 @@ pnpm dev:worker
 
 ## 许可证
 
-MIT
+[MIT](LICENSE)
