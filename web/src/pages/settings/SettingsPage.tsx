@@ -868,7 +868,7 @@ function PreferencesTab() {
             type="button"
             onClick={() => setShowLunar((p) => !p)}
             className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
+              'relative shrink-0 w-10 h-6 cursor-pointer rounded-full transition-colors',
               showLunar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
             )}
             role="switch"
@@ -876,7 +876,7 @@ function PreferencesTab() {
           >
             <span
               className={cn(
-                'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
+                'pointer-events-none absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                 showLunar ? 'translate-x-4' : 'translate-x-0'
               )}
             />

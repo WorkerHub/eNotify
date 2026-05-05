@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard } from 'lucide-react'
+import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Subscription } from '@/types'
@@ -55,6 +55,7 @@ export function SubscriptionListPage() {
   const [subs, setSubs] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [testingId, setTestingId] = useState<string | null>(null)
 
   const loadSubs = useCallback(async () => {
     setLoading(true)
@@ -78,6 +79,17 @@ export function SubscriptionListPage() {
       setSubs((prev) => prev.map((s) => s.id === sub.id ? { ...s, is_active: res.is_active } : s))
     } catch (e: any) {
       setError(e.message)
+    }
+  }
+
+  const handleTestNotify = async (sub: Subscription) => {
+    setTestingId(sub.id)
+    try {
+      await api.post(`/subscriptions/${sub.id}/test-notify`)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setTestingId(null)
     }
   }
 
@@ -195,6 +207,15 @@ export function SubscriptionListPage() {
                             )}
                           </button>
                           <button
+                            onClick={() => handleTestNotify(sub)}
+                            disabled={testingId === sub.id}
+                            className="p-1.5 rounded hover:bg-accent transition-colors disabled:opacity-50"
+                            title={t('subscriptions.testNotify')}
+                            aria-label={t('subscriptions.testNotify')}
+                          >
+                            <Bell className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDelete(sub)}
                             className="p-1.5 rounded hover:bg-accent transition-colors text-destructive"
                             title={t('common.delete')}
@@ -265,6 +286,14 @@ export function SubscriptionListPage() {
                         <ToggleLeft className="w-3 h-3" />
                       )}
                       {sub.is_active ? t('admin.deactivate') : t('admin.activate')}
+                    </button>
+                    <button
+                      onClick={() => handleTestNotify(sub)}
+                      disabled={testingId === sub.id}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                    >
+                      <Bell className="w-3 h-3" />
+                      {t('subscriptions.testNotify')}
                     </button>
                     <button
                       onClick={() => handleDelete(sub)}
