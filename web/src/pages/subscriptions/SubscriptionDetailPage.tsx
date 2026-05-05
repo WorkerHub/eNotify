@@ -5,6 +5,7 @@ import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X } from 'lucide-r
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Subscription, Payment } from '@/types'
+import { formatLunarDate } from '@/lib/lunar'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -277,6 +278,9 @@ export function SubscriptionDetailPage() {
                 value={sub.start_date ?? ''}
                 onChange={(e) => setField('start_date', e.target.value || null)}
               />
+              {!!sub.use_lunar && sub.start_date && (
+                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(sub.start_date)}</p>
+              )}
             </Field>
 
             <Field label={t('subscriptions.expiryDate')}>
@@ -287,6 +291,9 @@ export function SubscriptionDetailPage() {
                 onChange={(e) => setField('expiry_date', e.target.value)}
                 required
               />
+              {!!sub.use_lunar && sub.expiry_date && (
+                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(sub.expiry_date)}</p>
+              )}
             </Field>
           </div>
 

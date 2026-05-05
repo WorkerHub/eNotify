@@ -5,6 +5,7 @@ import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard } f
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Subscription } from '@/types'
+import { formatLunarDate } from '@/lib/lunar'
 
 type StatusKey = 'active' | 'expiringSoon' | 'expired' | 'inactive'
 
@@ -154,7 +155,12 @@ export function SubscriptionListPage() {
                       <td className="px-4 py-3 text-muted-foreground">{sub.category || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <span>{sub.expiry_date}</span>
+                          <div>
+                            <span>{sub.expiry_date}</span>
+                            {!!sub.use_lunar && (
+                              <span className="text-xs text-muted-foreground block">{formatLunarDate(sub.expiry_date)}</span>
+                            )}
+                          </div>
                           <DaysBadge days={days} />
                         </div>
                       </td>
@@ -227,7 +233,12 @@ export function SubscriptionListPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{sub.expiry_date}</span>
+                      <div>
+                        <span className="text-muted-foreground">{sub.expiry_date}</span>
+                        {sub.use_lunar && (
+                          <span className="text-xs text-muted-foreground block">{formatLunarDate(sub.expiry_date)}</span>
+                        )}
+                      </div>
                       <DaysBadge days={days} />
                     </div>
                     {sub.amount != null && (

@@ -5,6 +5,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { formatLunarDate } from '@/lib/lunar'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -156,6 +157,9 @@ export function SubscriptionNewPage() {
               value={form.start_date}
               onChange={(e) => set('start_date', e.target.value)}
             />
+            {form.use_lunar && form.start_date && (
+              <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(form.start_date)}</p>
+            )}
           </Field>
 
           <Field label={t('subscriptions.expiryDate')} required>
@@ -166,6 +170,9 @@ export function SubscriptionNewPage() {
               onChange={(e) => set('expiry_date', e.target.value)}
               required
             />
+            {form.use_lunar && form.expiry_date && (
+              <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(form.expiry_date)}</p>
+            )}
           </Field>
         </div>
 
