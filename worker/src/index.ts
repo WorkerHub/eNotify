@@ -18,7 +18,7 @@ const app = new Hono<HonoEnv>()
 app.use('*', logger())
 app.use('*', async (c, next) => {
   const prefix = c.env.TABLE_PREFIX || ''
-  if (prefix && !/^[a-z0-9_]+$/.test(prefix)) {
+  if (prefix && !/^[a-zA-Z0-9_]+$/.test(prefix)) {
     return c.json({ error: 'Invalid TABLE_PREFIX configuration' }, 500)
   }
   await next()

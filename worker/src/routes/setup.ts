@@ -36,7 +36,7 @@ setupRoutes.post('/', async (c) => {
 
 async function runSetup(c: any) {
   const prefix = c.env.TABLE_PREFIX || ''
-  if (prefix && !/^[a-z0-9_]+$/.test(prefix)) {
+  if (prefix && !/^[a-zA-Z0-9_]+$/.test(prefix)) {
     return c.json({ error: 'Invalid TABLE_PREFIX: only lowercase alphanumeric and underscore allowed' }, 400)
   }
   const db = c.env.DB
