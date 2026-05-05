@@ -103,7 +103,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 pb-16 md:pb-0">
+      <main className="flex-1 pt-11 pb-16 md:pt-0 md:pb-0">
         {impersonating && (
           <div className="bg-yellow-500/90 text-yellow-950 text-sm px-4 py-2 flex items-center justify-between">
             <span>{t('admin.impersonating', { defaultValue: 'Impersonating another user' })}</span>
@@ -117,6 +117,19 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Mobile top bar */}
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center justify-between px-4 h-11 z-50">
+        <span className="text-base font-bold text-primary">{t('app.name')}</span>
+        <div className="flex items-center gap-1">
+          <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
+            {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+          </button>
+          <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
+            {i18n.language === 'zh' ? 'EN' : '中'}
+          </button>
+        </div>
+      </header>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around py-2 z-50">
@@ -135,14 +148,6 @@ export function AppLayout() {
             {item.label}
           </NavLink>
         ))}
-        <button onClick={cycleTheme} className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-muted-foreground" aria-label={t('settings.theme')}>
-          {theme === 'light' ? <Sun className="w-5 h-5" /> : theme === 'dark' ? <Moon className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-          {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
-        </button>
-        <button onClick={toggleLanguage} className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-muted-foreground" aria-label={t('settings.language')}>
-          <Globe className="w-5 h-5" />
-          {i18n.language === 'zh' ? 'EN' : '中'}
-        </button>
       </nav>
     </div>
   )

@@ -248,7 +248,7 @@ export function SubscriptionNewPage() {
             >
               <span
                 className={cn(
-                  'absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                  'absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                   form.auto_renew && 'translate-x-4',
                 )}
               />
@@ -269,7 +269,7 @@ export function SubscriptionNewPage() {
             >
               <span
                 className={cn(
-                  'absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                  'absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                   form.use_lunar && 'translate-x-4',
                 )}
               />
