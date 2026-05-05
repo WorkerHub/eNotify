@@ -80,8 +80,7 @@ authRoutes.post('/register', async (c) => {
 
   await updateUser(c.env.DB, prefix, id, { email_verified: 1 })
 
-  await issueTokens(c, id, role)
-  return c.json({ success: true, user: { id, email, role } }, 201)
+  return c.json({ success: true, message: 'Registration successful' }, 201)
 })
 
 authRoutes.post('/login', async (c) => {

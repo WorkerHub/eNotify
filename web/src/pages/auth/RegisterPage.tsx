@@ -31,7 +31,7 @@ export function RegisterPage() {
       if (res.requiresVerification) {
         setMessage(t('auth.verifyEmailSent'))
       } else {
-        navigate('/')
+        setMessage(t('auth.registerSuccess'))
       }
     } catch (err: any) {
       setError(err.message || t('common.error'))

@@ -98,9 +98,11 @@ auth2faRoutes.post('/otp/send', async (c) => {
 // Protected routes below - require auth
 auth2faRoutes.use('/totp/*', authMiddleware)
 auth2faRoutes.use('/passkey/register/*', authMiddleware)
+auth2faRoutes.use('/passkey/disable', authMiddleware)
+auth2faRoutes.use('/email-otp/*', authMiddleware)
 
-// TOTP setup
-auth2faRoutes.get('/totp/setup', async (c) => {
+// TOTP setup (POST for frontend compatibility)
+auth2faRoutes.post('/totp/setup', async (c) => {
   const userId = c.get('userId')
   const prefix = getTablePrefix(c.env)
   const user = await findUserById(c.env.DB, prefix, userId)
@@ -108,7 +110,6 @@ auth2faRoutes.get('/totp/setup', async (c) => {
 
   const { secret, uri } = await generateTOTPSecret(user.email)
 
-  // Store secret temporarily in KV until user confirms with a valid code
   await c.env.KV.put(`totp_setup:${userId}`, secret, { expirationTtl: 600 })
 
   return c.json({ secret, uri })
@@ -130,7 +131,6 @@ auth2faRoutes.post('/totp/enable', async (c) => {
   await upsert2FAConfig(c.env.DB, prefix, userId, {
     totp_secret: secret,
     totp_enabled: 1,
-    email_otp_enabled: 1, // Enable email OTP as backup
   })
 
   await c.env.KV.delete(`totp_setup:${userId}`)
@@ -146,6 +146,52 @@ auth2faRoutes.delete('/totp', authMiddleware, async (c) => {
   await upsert2FAConfig(c.env.DB, prefix, userId, {
     totp_secret: null,
     totp_enabled: 0,
+  })
+
+  return c.json({ success: true })
+})
+
+// TOTP disable (POST alias)
+auth2faRoutes.post('/totp/disable', async (c) => {
+  const userId = c.get('userId')
+  const prefix = getTablePrefix(c.env)
+
+  await upsert2FAConfig(c.env.DB, prefix, userId, {
+    totp_secret: null,
+    totp_enabled: 0,
+  })
+
+  return c.json({ success: true })
+})
+
+// Email OTP enable
+auth2faRoutes.post('/email-otp/enable', async (c) => {
+  const userId = c.get('userId')
+  const prefix = getTablePrefix(c.env)
+
+  await upsert2FAConfig(c.env.DB, prefix, userId, { email_otp_enabled: 1 })
+
+  return c.json({ success: true })
+})
+
+// Email OTP disable
+auth2faRoutes.post('/email-otp/disable', async (c) => {
+  const userId = c.get('userId')
+  const prefix = getTablePrefix(c.env)
+
+  await upsert2FAConfig(c.env.DB, prefix, userId, { email_otp_enabled: 0 })
+
+  return c.json({ success: true })
+})
+
+// Passkey disable (removes all passkeys)
+auth2faRoutes.post('/passkey/disable', async (c) => {
+  const userId = c.get('userId')
+  const prefix = getTablePrefix(c.env)
+
+  await upsert2FAConfig(c.env.DB, prefix, userId, {
+    passkey_credentials: null,
+    passkey_enabled: 0,
   })
 
   return c.json({ success: true })
@@ -220,7 +266,6 @@ auth2faRoutes.post('/passkey/register/verify', async (c) => {
   await upsert2FAConfig(c.env.DB, prefix, userId, {
     passkey_credentials: JSON.stringify(existingCredentials),
     passkey_enabled: 1,
-    email_otp_enabled: 1,
   })
 
   await c.env.KV.delete(`passkey_challenge:${userId}`)

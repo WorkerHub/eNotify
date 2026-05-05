@@ -55,11 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const register = async (email: string, password: string): Promise<RegisterResponse> => {
-    const res = await api.post<RegisterResponse>('/auth/register', { email, password })
-    if (res.success && !res.requiresVerification) {
-      await refreshUser()
-    }
-    return res
+    return await api.post<RegisterResponse>('/auth/register', { email, password })
   }
 
   const logout = async () => {
