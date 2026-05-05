@@ -1,0 +1,36 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:web
+
+      - name: Replace wrangler.toml placeholders
+        run: |
+          sed -i "s/D1_DATABASE_NAME_PLACEHOLDER/${{ secrets.D1_DATABASE_NAME }}/g" worker/wrangler.toml
+          sed -i "s/D1_DATABASE_ID_PLACEHOLDER/${{ secrets.D1_DATABASE_ID }}/g" worker/wrangler.toml
+          sed -i "s/KV_NAMESPACE_ID_PLACEHOLDER/${{ secrets.KV_NAMESPACE_ID }}/g" worker/wrangler.toml
+
+      - name: Deploy
+        run: pnpm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
