@@ -2,6 +2,7 @@ name = "enotify"
 main = "src/index.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+account_id = "CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER"
 keep_vars = true
 
 [assets]
