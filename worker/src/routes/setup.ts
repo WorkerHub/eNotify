@@ -14,6 +14,16 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   email_provider: 'none',
 }
 
+setupRoutes.get('/:secret', async (c) => {
+  const secret = c.req.param('secret')
+
+  if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
+    return c.json({ error: 'Invalid setup secret' }, 403)
+  }
+
+  return runSetup(c)
+})
+
 setupRoutes.post('/', async (c) => {
   const secret = c.req.header('X-Setup-Secret')
 
@@ -21,6 +31,10 @@ setupRoutes.post('/', async (c) => {
     return c.json({ error: 'Invalid setup secret' }, 403)
   }
 
+  return runSetup(c)
+})
+
+async function runSetup(c: any) {
   const prefix = c.env.TABLE_PREFIX || ''
   if (prefix && !/^[a-z0-9_]+$/.test(prefix)) {
     return c.json({ error: 'Invalid TABLE_PREFIX: only lowercase alphanumeric and underscore allowed' }, 400)
@@ -56,7 +70,7 @@ setupRoutes.post('/', async (c) => {
   }
 
   return c.json({ success: true, tablesCreated })
-})
+}
 
 function getSchema(): string {
   return `CREATE TABLE IF NOT EXISTS {prefix}users (
