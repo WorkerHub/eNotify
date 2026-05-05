@@ -611,8 +611,8 @@ function ChannelCard({
           <button
             onClick={toggleEnabled}
             className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-              isEnabled ? 'bg-primary' : 'bg-muted'
+              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
+              isEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
             )}
             role="switch"
             aria-checked={isEnabled}
@@ -830,22 +830,18 @@ function PreferencesTab() {
       {/* Timezone */}
       <div className="bg-card border rounded-lg p-5">
         <h3 className="text-sm font-semibold text-foreground mb-3">{t('settings.timezone')}</h3>
-        <input
-          type="text"
+        <select
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
           className={inputCls}
-          placeholder="UTC"
-          list="timezones-list"
-        />
-        <datalist id="timezones-list">
+        >
           {('supportedValuesOf' in Intl
             ? (Intl as any).supportedValuesOf('timeZone') as string[]
-            : []
+            : ['UTC']
           ).map((tz: string) => (
-            <option key={tz} value={tz} />
+            <option key={tz} value={tz}>{tz}</option>
           ))}
-        </datalist>
+        </select>
       </div>
 
       {/* Base currency */}
@@ -872,8 +868,8 @@ function PreferencesTab() {
             type="button"
             onClick={() => setShowLunar((p) => !p)}
             className={cn(
-              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-              showLunar ? 'bg-primary' : 'bg-muted'
+              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors',
+              showLunar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
             )}
             role="switch"
             aria-checked={showLunar}
@@ -942,10 +938,10 @@ export function SettingsPage() {
             key={tab.id}
             onClick={() => setTab(tab.id)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
+              'flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors',
               activeTab === tab.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'border-primary text-primary font-semibold'
+                : 'border-transparent text-muted-foreground font-medium hover:text-foreground'
             )}
           >
             {tab.icon}

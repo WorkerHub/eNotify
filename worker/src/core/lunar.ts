@@ -189,6 +189,36 @@ export function lunarToSolar(
 }
 
 /**
+ * Add `years` lunar years to a solar date (YYYY-MM-DD) and return the
+ * resulting solar date as a YYYY-MM-DD string.
+ *
+ * Preserves the same lunar month and day in the target year.  When the target
+ * lunar month has fewer days than the original lunar day, the day is clamped
+ * to the last day of the target month.
+ */
+export function addLunarYears(solarDate: string, years: number): string {
+  const [y, m, d] = solarDate.split('-').map(Number);
+  const lunar = solarToLunar(y, m, d);
+  if (!lunar) return solarDate;
+
+  let { year: lYear, month: lMonth, day: lDay, isLeap: lIsLeap } = lunar;
+  lYear += years;
+
+  // Preserve leap flag only if the target year has a leap month at the same position
+  lIsLeap = lIsLeap && leapMonth(lYear) === lMonth;
+
+  const maxDay = lIsLeap ? leapDays(lYear) : monthDays(lYear, lMonth);
+  const targetDay = Math.min(lDay, maxDay);
+
+  for (let dd = targetDay; dd >= 1; dd--) {
+    const solar = lunarToSolar(lYear, lMonth, dd, lIsLeap);
+    if (solar) return isoDate(solar.year, solar.month, solar.day);
+  }
+
+  return solarDate;
+}
+
+/**
  * Add `months` lunar months to a solar date (YYYY-MM-DD) and return the
  * resulting solar date as a YYYY-MM-DD string.
  *

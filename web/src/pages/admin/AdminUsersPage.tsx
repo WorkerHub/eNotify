@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, AlertCircle, ShieldCheck, UserX, UserCheck, Trash2, LogIn } from 'lucide-react'
+import { ArrowLeft, AlertCircle, ShieldCheck, UserX, UserCheck, Trash2, LogIn, UserPlus, Pencil, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -20,6 +20,9 @@ const ROLE_STYLE: Record<string, string> = {
   user: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 }
 
+const INPUT = 'w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring'
+const SELECT = cn(INPUT, 'cursor-pointer')
+
 export function AdminUsersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -27,6 +30,19 @@ export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Add user form
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newRole, setNewRole] = useState<'user' | 'admin'>('user')
+  const [adding, setAdding] = useState(false)
+
+  // Edit user
+  const [editUser, setEditUser] = useState<AdminUser | null>(null)
+  const [editEmail, setEditEmail] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editing, setEditing] = useState(false)
 
   const load = () => {
     api
@@ -70,6 +86,51 @@ export function AdminUsersPage() {
     }
   }
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAdding(true)
+    setError('')
+    try {
+      const created = await api.post<AdminUser>('/admin/users', { email: newEmail, password: newPassword, role: newRole })
+      setUsers((prev) => [created, ...prev])
+      setNewEmail('')
+      setNewPassword('')
+      setNewRole('user')
+      setShowAddForm(false)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const openEditUser = (u: AdminUser) => {
+    setEditUser(u)
+    setEditEmail(u.email)
+    setEditPassword('')
+    setError('')
+  }
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editUser) return
+    setEditing(true)
+    setError('')
+    try {
+      const body: Record<string, string> = {}
+      if (editEmail !== editUser.email) body.email = editEmail
+      if (editPassword) body.password = editPassword
+      if (Object.keys(body).length === 0) { setEditUser(null); return }
+      await api.put(`/admin/users/${editUser.id}`, body)
+      setUsers((prev) => prev.map((x) => x.id === editUser.id ? { ...x, email: editEmail || x.email } : x))
+      setEditUser(null)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setEditing(false)
+    }
+  }
+
   const handleImpersonate = async (u: AdminUser) => {
     if (!window.confirm(t('admin.confirmImpersonate', { email: u.email }))) return
     sessionStorage.setItem('impersonate_user_id', u.id)
@@ -85,12 +146,85 @@ export function AdminUsersPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold">{t('admin.users')}</h1>
+        <button
+          onClick={() => { setShowAddForm((p) => !p); setError('') }}
+          className="ml-auto flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          <UserPlus className="w-4 h-4" />
+          {t('admin.addUser')}
+        </button>
       </div>
 
       {error && (
         <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {/* Add user form */}
+      {showAddForm && (
+        <div className="bg-card border rounded-xl p-5">
+          <h2 className="text-base font-semibold mb-4">{t('admin.addUser')}</h2>
+          <form onSubmit={handleAddUser} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{t('auth.email')}</label>
+                <input type="email" required className={INPUT} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{t('auth.password')}</label>
+                <input type="password" required minLength={8} className={INPUT} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{t('admin.role')}</label>
+                <select className={SELECT} value={newRole} onChange={(e) => setNewRole(e.target.value as 'user' | 'admin')}>
+                  <option value="user">{t('admin.roleUser')}</option>
+                  <option value="admin">{t('admin.roleAdmin')}</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" disabled={adding} className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                {adding ? t('common.loading') : t('admin.createUser')}
+              </button>
+              <button type="button" onClick={() => setShowAddForm(false)} className="px-5 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors">
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit user modal */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-card border rounded-xl p-6 w-full max-w-md mx-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">{t('admin.editUser')}</h2>
+              <button onClick={() => setEditUser(null)} className="p-1 rounded hover:bg-accent transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{t('auth.email')}</label>
+                <input type="email" required className={INPUT} value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{t('admin.newPasswordOptional')}</label>
+                <input type="password" minLength={8} className={INPUT} value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="••••••••" />
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" disabled={editing} className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                  {editing ? t('common.loading') : t('common.save')}
+                </button>
+                <button type="button" onClick={() => setEditUser(null)} className="px-5 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors">
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -180,6 +314,14 @@ export function AdminUsersPage() {
                           <LogIn className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => openEditUser(u)}
+                          className="p-1.5 rounded hover:bg-accent transition-colors"
+                          title={t('admin.editUser')}
+                          aria-label={t('admin.editUser')}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDelete(u)}
                           disabled={u.id === currentUser?.id}
                           className="p-1.5 rounded hover:bg-accent transition-colors text-destructive disabled:opacity-30"
@@ -240,6 +382,12 @@ export function AdminUsersPage() {
                       className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
                       {t('admin.impersonate')}
+                    </button>
+                    <button
+                      onClick={() => openEditUser(u)}
+                      className="text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
+                    >
+                      {t('admin.editUser')}
                     </button>
                     <button
                       onClick={() => handleDelete(u)}

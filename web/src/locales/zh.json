@@ -100,7 +100,8 @@
     "reminder": "提醒",
     "reminderBefore": "提前提醒",
     "autoRenew": "自动续费",
-    "useLunar": "使用农历",
+    "useLunar": "周期按农历",
+    "enableSubscription": "启用订阅",
     "notes": "备注",
     "renew": "续费",
     "renewMultiplier": "续费倍数",
@@ -186,6 +187,10 @@
     "accessSecurity": "访问与安全",
     "emailVerificationDesc": "要求用户在登录前验证邮箱",
     "require2faDesc": "强制所有用户设置两步验证",
-    "registrationDesc": "允许新用户创建账号"
+    "registrationDesc": "允许新用户创建账号",
+    "addUser": "添加用户",
+    "createUser": "创建用户",
+    "editUser": "编辑用户",
+    "newPasswordOptional": "新密码（留空则不修改）"
   }
 }

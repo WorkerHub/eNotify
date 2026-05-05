@@ -30,7 +30,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={cn('relative w-10 h-6 rounded-full transition-colors', checked ? 'bg-primary' : 'bg-muted')}
+        className={cn('relative w-10 h-6 rounded-full transition-colors', checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600')}
       >
         <span
           className={cn(
@@ -358,6 +358,11 @@ export function SubscriptionDetailPage() {
           </div>
 
           <div className="flex gap-6 flex-wrap">
+            <Toggle
+              checked={!!sub.is_active}
+              onChange={(v) => setField('is_active', v ? 1 : 0)}
+              label={t('subscriptions.enableSubscription')}
+            />
             <Toggle
               checked={!!sub.auto_renew}
               onChange={(v) => setField('auto_renew', v ? 1 : 0)}

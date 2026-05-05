@@ -243,7 +243,7 @@ export function SubscriptionNewPage() {
               onClick={() => set('auto_renew', !form.auto_renew)}
               className={cn(
                 'relative w-10 h-6 rounded-full transition-colors',
-                form.auto_renew ? 'bg-primary' : 'bg-muted',
+                form.auto_renew ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
               )}
             >
               <span
@@ -264,7 +264,7 @@ export function SubscriptionNewPage() {
               onClick={() => set('use_lunar', !form.use_lunar)}
               className={cn(
                 'relative w-10 h-6 rounded-full transition-colors',
-                form.use_lunar ? 'bg-primary' : 'bg-muted',
+                form.use_lunar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
               )}
             >
               <span

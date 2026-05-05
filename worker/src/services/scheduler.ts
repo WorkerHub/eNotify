@@ -6,7 +6,7 @@ import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
 import { sendNotifications, type NotifyMessage } from './notify/index'
 import { addPeriod, nowISO, diffInHours, diffInDays, nowInTimezone } from '../core/time'
-import { addLunarMonths } from '../core/lunar'
+import { addLunarMonths, addLunarYears } from '../core/lunar'
 import { generateId } from '../core/auth'
 
 export async function handleScheduled(env: Env): Promise<void> {
@@ -79,6 +79,8 @@ async function processSubscription(
       prevExpiry = newExpiry
       if (sub.use_lunar && sub.period_unit === 'month') {
         newExpiry = addLunarMonths(prevExpiry, sub.period_value)
+      } else if (sub.use_lunar && sub.period_unit === 'year') {
+        newExpiry = addLunarYears(prevExpiry, sub.period_value)
       } else {
         newExpiry = addPeriod(prevExpiry, sub.period_value, sub.period_unit)
       }

@@ -100,7 +100,8 @@
     "reminder": "Reminder",
     "reminderBefore": "Remind before",
     "autoRenew": "Auto-renew",
-    "useLunar": "Lunar Calendar",
+    "useLunar": "Lunar Period",
+    "enableSubscription": "Enable Subscription",
     "notes": "Notes",
     "renew": "Renew",
     "renewMultiplier": "Renewal multiplier",
@@ -186,6 +187,10 @@
     "accessSecurity": "Access & Security",
     "emailVerificationDesc": "Require users to verify email before login",
     "require2faDesc": "Force all users to set up two-factor authentication",
-    "registrationDesc": "Allow new users to create accounts"
+    "registrationDesc": "Allow new users to create accounts",
+    "addUser": "Add User",
+    "createUser": "Create User",
+    "editUser": "Edit User",
+    "newPasswordOptional": "New password (leave blank to keep)"
   }
 }

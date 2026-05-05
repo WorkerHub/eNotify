@@ -3,10 +3,13 @@ import { getTablePrefix } from '../types'
 import type { HonoEnv } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
-import { listUsers, findUserById, updateUser, deleteUser } from '../db/queries/users'
+import { listUsers, findUserById, findUserByEmail, createUser, updateUser, deleteUser } from '../db/queries/users'
 import { listSubscriptionsByUser, createSubscription, updateSubscription, deleteSubscription, getSubscription } from '../db/queries/subscriptions'
 import { getAllSettings, setSetting } from '../db/queries/settings'
-import { generateId } from '../core/auth'
+import { upsertNotificationConfig } from '../db/queries/notifications'
+import { generateId, hashPassword } from '../core/auth'
+
+const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
 export const adminRoutes = new Hono<HonoEnv>()
 
@@ -14,6 +17,36 @@ adminRoutes.use('*', authMiddleware)
 adminRoutes.use('*', adminMiddleware)
 
 // User management
+adminRoutes.post('/users', async (c) => {
+  const prefix = getTablePrefix(c.env)
+  const body = await c.req.json<{ email: string; password: string; role?: string }>()
+
+  if (!body.email || !body.password) return c.json({ error: 'Email and password required' }, 400)
+  if (!EMAIL_RE.test(body.email)) return c.json({ error: 'Invalid email format' }, 400)
+  if (body.password.length < 8) return c.json({ error: 'Password must be at least 8 characters' }, 400)
+
+  const existing = await findUserByEmail(c.env.DB, prefix, body.email)
+  if (existing) return c.json({ error: 'Email already registered' }, 409)
+
+  const id = generateId()
+  const passwordHash = await hashPassword(body.password)
+  const role = body.role === 'admin' ? 'admin' : 'user'
+
+  await createUser(c.env.DB, prefix, { id, email: body.email, password_hash: passwordHash, role })
+  await upsertNotificationConfig(c.env.DB, prefix, id, {})
+  await updateUser(c.env.DB, prefix, id, { email_verified: 1 })
+
+  const user = await findUserById(c.env.DB, prefix, id)
+  return c.json({
+    id: user!.id,
+    email: user!.email,
+    role: user!.role,
+    is_active: !!user!.is_active,
+    email_verified: !!user!.email_verified,
+    created_at: user!.created_at,
+  }, 201)
+})
+
 adminRoutes.get('/users', async (c) => {
   const prefix = getTablePrefix(c.env)
   const users = await listUsers(c.env.DB, prefix)
@@ -50,7 +83,7 @@ adminRoutes.get('/users/:uid', async (c) => {
 adminRoutes.put('/users/:uid', async (c) => {
   const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
-  const body = await c.req.json<{ role?: string; is_active?: number }>()
+  const body = await c.req.json<{ role?: string; is_active?: number; email?: string; password?: string }>()
 
   const user = await findUserById(c.env.DB, prefix, uid)
   if (!user) return c.json({ error: 'User not found' }, 404)
@@ -58,6 +91,16 @@ adminRoutes.put('/users/:uid', async (c) => {
   const updates: Record<string, any> = {}
   if (body.role !== undefined && ['admin', 'user'].includes(body.role)) updates.role = body.role
   if (body.is_active !== undefined) updates.is_active = body.is_active ? 1 : 0
+  if (body.email !== undefined) {
+    if (!EMAIL_RE.test(body.email)) return c.json({ error: 'Invalid email format' }, 400)
+    const existing = await findUserByEmail(c.env.DB, prefix, body.email)
+    if (existing && existing.id !== uid) return c.json({ error: 'Email already in use' }, 409)
+    updates.email = body.email
+  }
+  if (body.password !== undefined) {
+    if (body.password.length < 8) return c.json({ error: 'Password must be at least 8 characters' }, 400)
+    updates.password_hash = await hashPassword(body.password)
+  }
 
   await updateUser(c.env.DB, prefix, uid, updates)
   return c.json({ success: true })
