@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { HonoEnv } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { getActiveSubscriptionsByUser } from '../db/queries/subscriptions'
@@ -13,7 +14,7 @@ dashboardRoutes.use('*', authMiddleware)
 
 dashboardRoutes.get('/stats', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   const user = await findUserById(c.env.DB, prefix, userId)
   if (!user) return c.json({ error: 'User not found' }, 404)

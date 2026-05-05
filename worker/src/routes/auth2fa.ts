@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { get2FAConfig, upsert2FAConfig } from '../db/queries/twofa'
@@ -28,7 +29,7 @@ auth2faRoutes.post('/verify', async (c) => {
     return c.json({ error: 'Invalid or expired 2FA session' }, 401)
   }
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const config = await get2FAConfig(c.env.DB, prefix, userId)
   if (!config) {
     return c.json({ error: '2FA not configured' }, 400)
@@ -84,7 +85,7 @@ auth2faRoutes.post('/otp/send', async (c) => {
   const userId = await c.env.KV.get(`2fa:${tempToken}`)
   if (!userId) return c.json({ error: 'Invalid session' }, 401)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const user = await findUserById(c.env.DB, prefix, userId)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
@@ -101,7 +102,7 @@ auth2faRoutes.use('/passkey/register/*', authMiddleware)
 // TOTP setup
 auth2faRoutes.get('/totp/setup', async (c) => {
   const userId = c.get('userId')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const user = await findUserById(c.env.DB, prefix, userId)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
@@ -125,7 +126,7 @@ auth2faRoutes.post('/totp/enable', async (c) => {
   const valid = await verifyTOTPAsync(secret, code, c.env, userId)
   if (!valid) return c.json({ error: 'Invalid code' }, 400)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   await upsert2FAConfig(c.env.DB, prefix, userId, {
     totp_secret: secret,
     totp_enabled: 1,
@@ -140,7 +141,7 @@ auth2faRoutes.post('/totp/enable', async (c) => {
 // TOTP delete
 auth2faRoutes.delete('/totp', authMiddleware, async (c) => {
   const userId = c.get('userId')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   await upsert2FAConfig(c.env.DB, prefix, userId, {
     totp_secret: null,
@@ -153,7 +154,7 @@ auth2faRoutes.delete('/totp', authMiddleware, async (c) => {
 // Passkey register options
 auth2faRoutes.post('/passkey/register/options', async (c) => {
   const userId = c.get('userId')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const user = await findUserById(c.env.DB, prefix, userId)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
@@ -186,7 +187,7 @@ auth2faRoutes.post('/passkey/register/options', async (c) => {
 // Passkey register verify
 auth2faRoutes.post('/passkey/register/verify', async (c) => {
   const userId = c.get('userId')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const body = await c.req.json()
 
   const expectedChallenge = await c.env.KV.get(`passkey_challenge:${userId}`)
@@ -235,7 +236,7 @@ auth2faRoutes.post('/passkey/authenticate/options', async (c) => {
   const userId = await c.env.KV.get(`2fa:${tempToken}`)
   if (!userId) return c.json({ error: 'Invalid session' }, 401)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const config = await get2FAConfig(c.env.DB, prefix, userId)
   if (!config?.passkey_credentials) return c.json({ error: 'No passkeys registered' }, 400)
 
@@ -264,7 +265,7 @@ auth2faRoutes.post('/passkey/authenticate/verify', async (c) => {
   const userId = await c.env.KV.get(`2fa:${tempToken}`)
   if (!userId) return c.json({ error: 'Invalid session' }, 401)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const config = await get2FAConfig(c.env.DB, prefix, userId)
   if (!config?.passkey_credentials) return c.json({ error: 'No passkeys' }, 400)
 
@@ -326,7 +327,7 @@ auth2faRoutes.post('/passkey/authenticate/verify', async (c) => {
 auth2faRoutes.delete('/passkey/:credentialId', authMiddleware, async (c) => {
   const userId = c.get('userId')
   const credentialId = c.req.param('credentialId')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   const config = await get2FAConfig(c.env.DB, prefix, userId)
   if (!config?.passkey_credentials) return c.json({ error: 'No passkeys' }, 400)

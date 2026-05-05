@@ -1,5 +1,6 @@
 import { Hono, type Context } from 'hono'
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie'
+import { getTablePrefix } from '../types'
 import type { HonoEnv, JWTPayload } from '../types'
 import { hashPassword, verifyPassword, signJWT, verifyJWT, generateId, generateJti } from '../core/auth'
 import { createUser, findUserByEmail, countUsers, findUserById, updateUser } from '../db/queries/users'
@@ -20,7 +21,7 @@ authRoutes.use('/refresh', rateLimit({ max: 20, window: 300, keyPrefix: 'refresh
 authRoutes.use('/email/resend', rateLimit({ max: 3, window: 300, keyPrefix: 'email_resend' }))
 
 authRoutes.post('/register', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const { email, password } = await c.req.json<{ email: string; password: string }>()
 
   if (!email || !password) {
@@ -84,7 +85,7 @@ authRoutes.post('/register', async (c) => {
 })
 
 authRoutes.post('/login', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const { email, password } = await c.req.json<{ email: string; password: string }>()
 
   if (!email || !password) {
@@ -181,7 +182,7 @@ authRoutes.post('/refresh', async (c) => {
 
   await c.env.KV.delete(`rt:${payload.jti}`)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const user = await findUserById(c.env.DB, prefix, payload.sub)
   if (!user || !user.is_active) {
     return c.json({ error: 'User not found or disabled' }, 401)
@@ -198,7 +199,7 @@ authRoutes.post('/email/verify', async (c) => {
   const userId = await c.env.KV.get(`email_verify:${token}`)
   if (!userId) return c.json({ error: 'Invalid or expired token' }, 400)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   await updateUser(c.env.DB, prefix, userId, { email_verified: 1 })
   await c.env.KV.delete(`email_verify:${token}`)
 
@@ -209,7 +210,7 @@ authRoutes.post('/email/resend', async (c) => {
   const { email } = await c.req.json<{ email: string }>()
   if (!email) return c.json({ error: 'Email required' }, 400)
 
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const user = await findUserByEmail(c.env.DB, prefix, email)
   if (!user) return c.json({ success: true }) // Don't reveal whether email exists
 

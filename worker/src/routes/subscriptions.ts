@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { Subscription, HonoEnv } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import {
@@ -17,14 +18,14 @@ subscriptionRoutes.use('*', authMiddleware)
 
 subscriptionRoutes.get('/', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const subs = await listSubscriptionsByUser(c.env.DB, prefix, userId)
   return c.json(subs)
 })
 
 subscriptionRoutes.post('/', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const body = await c.req.json()
 
   if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
@@ -102,7 +103,7 @@ subscriptionRoutes.post('/', async (c) => {
 
 subscriptionRoutes.get('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -115,7 +116,7 @@ subscriptionRoutes.get('/:id', async (c) => {
 
 subscriptionRoutes.put('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -179,7 +180,7 @@ subscriptionRoutes.put('/:id', async (c) => {
 
 subscriptionRoutes.delete('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -193,7 +194,7 @@ subscriptionRoutes.delete('/:id', async (c) => {
 
 subscriptionRoutes.post('/:id/toggle-status', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -207,7 +208,7 @@ subscriptionRoutes.post('/:id/toggle-status', async (c) => {
 
 subscriptionRoutes.post('/:id/renew', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -249,7 +250,7 @@ subscriptionRoutes.post('/:id/renew', async (c) => {
 
 subscriptionRoutes.post('/:id/test-notify', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -274,7 +275,7 @@ subscriptionRoutes.post('/:id/test-notify', async (c) => {
 // Payment history
 subscriptionRoutes.get('/:id/payments', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
   const sub = await getSubscription(c.env.DB, prefix, id)
@@ -288,7 +289,7 @@ subscriptionRoutes.get('/:id/payments', async (c) => {
 
 subscriptionRoutes.put('/:id/payments/:pid', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
   const pid = c.req.param('pid')
 
@@ -323,7 +324,7 @@ subscriptionRoutes.put('/:id/payments/:pid', async (c) => {
 
 subscriptionRoutes.delete('/:id/payments/:pid', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
   const pid = c.req.param('pid')
 

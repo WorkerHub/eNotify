@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { findUserById, updateUser } from '../db/queries/users'
@@ -14,7 +15,7 @@ meRoutes.use('*', authMiddleware)
 
 meRoutes.get('/', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   const user = await findUserById(c.env.DB, prefix, userId)
   if (!user) return c.json({ error: 'User not found' }, 404)
@@ -43,7 +44,7 @@ meRoutes.get('/', async (c) => {
 
 meRoutes.put('/', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const body = await c.req.json<{ base_currency?: string; timezone?: string; language?: string; theme?: string; show_lunar?: boolean }>()
 
   const updates: Record<string, any> = {}
@@ -63,7 +64,7 @@ meRoutes.put('/', async (c) => {
 
 meRoutes.put('/password', async (c) => {
   const userId = c.get('userId') // Can't change password via impersonation
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const { currentPassword, newPassword } = await c.req.json<{ currentPassword: string; newPassword: string }>()
 
   if (!currentPassword || !newPassword) {
@@ -125,7 +126,7 @@ meRoutes.put('/password', async (c) => {
 
 meRoutes.get('/notifications', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   const config = await getNotificationConfig(c.env.DB, prefix, userId)
   if (!config) {
@@ -162,7 +163,7 @@ meRoutes.get('/notifications', async (c) => {
 
 meRoutes.put('/notifications', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const body = await c.req.json()
 
   const updates: Record<string, any> = {}
@@ -207,7 +208,7 @@ meRoutes.put('/notifications', async (c) => {
 
 meRoutes.post('/notifications/test', async (c) => {
   const userId = getEffectiveUserId(c)
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const { channel } = await c.req.json<{ channel: string }>()
 
   if (!channel) return c.json({ error: 'Channel required' }, 400)

@@ -1,5 +1,6 @@
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
+import { getTablePrefix } from '../types'
 import type { HonoEnv } from '../types'
 import { verifyJWT } from '../core/auth'
 import { findUserById } from '../db/queries/users'
@@ -35,7 +36,7 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
   // Handle admin impersonation
   const impersonateHeader = c.req.header('X-Impersonate-User')
   if (impersonateHeader && payload.role === 'admin') {
-    const prefix = c.env.TABLE_PREFIX || ''
+    const prefix = getTablePrefix(c.env)
     const targetUser = await findUserById(c.env.DB, prefix, impersonateHeader)
     if (!targetUser) {
       return c.json({ error: 'Impersonation target not found' }, 404)

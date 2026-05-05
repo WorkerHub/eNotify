@@ -1,3 +1,4 @@
+import { getTablePrefix } from '../types'
 import type { Env } from '../types'
 import { getSetting } from '../db/queries/settings'
 
@@ -38,7 +39,7 @@ export async function sendEmail(env: Env, options: EmailOptions): Promise<{ succ
     return { success: false, error: 'Invalid recipient email address' }
   }
 
-  const prefix = env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(env)
   const provider = await getSetting(env.DB, prefix, 'email_provider')
 
   if (!provider || provider === 'none') {
@@ -57,7 +58,7 @@ export async function sendEmail(env: Env, options: EmailOptions): Promise<{ succ
 }
 
 async function sendViaResend(env: Env, options: EmailOptions): Promise<{ success: boolean; error?: string }> {
-  const prefix = env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(env)
   const configStr = await getSetting(env.DB, prefix, 'resend_config')
   if (!configStr) return { success: false, error: 'Resend not configured' }
 
@@ -90,7 +91,7 @@ async function sendViaResend(env: Env, options: EmailOptions): Promise<{ success
 }
 
 async function sendViaSMTP(env: Env, options: EmailOptions): Promise<{ success: boolean; error?: string }> {
-  const prefix = env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(env)
   const configStr = await getSetting(env.DB, prefix, 'smtp_config')
   if (!configStr) return { success: false, error: 'SMTP not configured' }
 

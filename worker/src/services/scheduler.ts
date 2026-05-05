@@ -1,3 +1,4 @@
+import { getTablePrefix } from '../types'
 import type { Env, Subscription } from '../types'
 import { listUsers } from '../db/queries/users'
 import { getActiveSubscriptionsByUser } from '../db/queries/subscriptions'
@@ -9,7 +10,7 @@ import { addLunarMonths } from '../core/lunar'
 import { generateId } from '../core/auth'
 
 export async function handleScheduled(env: Env): Promise<void> {
-  const prefix = env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(env)
   const db = env.DB
   const kv = env.KV
 

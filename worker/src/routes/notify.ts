@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { Env } from '../types'
 import { getNotificationConfig } from '../db/queries/notifications'
 import { findUserById } from '../db/queries/users'
@@ -14,7 +15,7 @@ notifyRoutes.use('/:token', rateLimit({ max: 30, window: 60, keyPrefix: 'notify_
 // Third-party trigger — authenticate via token in URL, header, or query param
 notifyRoutes.post('/:token', async (c) => {
   const token = c.req.param('token')
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
 
   // Find user by their third-party API token stored in notification_configs
   // Token format: userId:secret stored in KV

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
 import type { HonoEnv } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
@@ -14,7 +15,7 @@ adminRoutes.use('*', adminMiddleware)
 
 // User management
 adminRoutes.get('/users', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const users = await listUsers(c.env.DB, prefix)
   return c.json(users.map((u) => ({
     id: u.id,
@@ -27,7 +28,7 @@ adminRoutes.get('/users', async (c) => {
 })
 
 adminRoutes.get('/users/:uid', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
   const user = await findUserById(c.env.DB, prefix, uid)
   if (!user) return c.json({ error: 'User not found' }, 404)
@@ -47,7 +48,7 @@ adminRoutes.get('/users/:uid', async (c) => {
 })
 
 adminRoutes.put('/users/:uid', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
   const body = await c.req.json<{ role?: string; is_active?: number }>()
 
@@ -63,7 +64,7 @@ adminRoutes.put('/users/:uid', async (c) => {
 })
 
 adminRoutes.delete('/users/:uid', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
   const currentUserId = c.get('userId')
 
@@ -80,7 +81,7 @@ adminRoutes.delete('/users/:uid', async (c) => {
 
 // Admin manage user subscriptions
 adminRoutes.get('/users/:uid/subscriptions', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
 
   const user = await findUserById(c.env.DB, prefix, uid)
@@ -91,7 +92,7 @@ adminRoutes.get('/users/:uid/subscriptions', async (c) => {
 })
 
 adminRoutes.post('/users/:uid/subscriptions', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
 
   const user = await findUserById(c.env.DB, prefix, uid)
@@ -148,7 +149,7 @@ adminRoutes.post('/users/:uid/subscriptions', async (c) => {
 })
 
 adminRoutes.put('/users/:uid/subscriptions/:sid', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
   const sid = c.req.param('sid')
   const body = await c.req.json()
@@ -177,7 +178,7 @@ adminRoutes.put('/users/:uid/subscriptions/:sid', async (c) => {
 })
 
 adminRoutes.delete('/users/:uid/subscriptions/:sid', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
   const sid = c.req.param('sid')
 
@@ -190,7 +191,7 @@ adminRoutes.delete('/users/:uid/subscriptions/:sid', async (c) => {
 
 // System settings
 adminRoutes.get('/system/settings', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const settings = await getAllSettings(c.env.DB, prefix)
 
   // Redact sensitive values
@@ -214,7 +215,7 @@ adminRoutes.get('/system/settings', async (c) => {
 })
 
 adminRoutes.put('/system/settings', async (c) => {
-  const prefix = c.env.TABLE_PREFIX || ''
+  const prefix = getTablePrefix(c.env)
   const body = await c.req.json<Record<string, string>>()
 
   const allowedKeys = [
