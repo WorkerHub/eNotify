@@ -19,11 +19,11 @@ export function rateLimit(opts: { max: number; window: number; keyPrefix: string
     const now = Math.floor(Date.now() / 1000)
     if (count === 0) {
       const expiresAt = now + opts.window
-      await c.env.KV.put(key, `1:${expiresAt}`, { expirationTtl: opts.window })
+      await c.env.KV.put(key, `1:${expiresAt}`, { expirationTtl: Math.max(opts.window, 60) })
     } else {
       const parts = (current || '').split(':')
       const expiresAt = parts.length >= 2 ? parseInt(parts[1], 10) : now + opts.window
-      const remainingTtl = Math.max(expiresAt - now, 1)
+      const remainingTtl = Math.max(expiresAt - now, 60)
       await c.env.KV.put(key, `${count + 1}:${expiresAt}`, { expirationTtl: remainingTtl })
     }
     await next()

@@ -145,7 +145,7 @@ authRoutes.post('/logout', async (c) => {
     if (payload) {
       const remaining = payload.exp - Math.floor(Date.now() / 1000)
       if (remaining > 0) {
-        await c.env.KV.put(`bl:${payload.jti}`, '1', { expirationTtl: remaining })
+        await c.env.KV.put(`bl:${payload.jti}`, '1', { expirationTtl: Math.max(remaining, 60) })
       }
     }
   }
