@@ -17,21 +17,26 @@ async function doRefresh(): Promise<boolean> {
   return res.ok
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit & { skipRedirect?: boolean } = {}): Promise<T> {
+  const { skipRedirect, ...fetchOptions } = options
   const impersonateId = sessionStorage.getItem('impersonate_user_id')
   const headers: Record<string, string> = {
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
     ...(impersonateId ? { 'X-Impersonate-User': impersonateId } : {}),
-    ...(options.headers as Record<string, string> || {}),
+    ...(fetchOptions.headers as Record<string, string> || {}),
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     credentials: 'include',
     headers,
   })
 
   if (response.status === 401) {
+    if (skipRedirect) {
+      throw new ApiError(401, 'Unauthorized')
+    }
+
     if (!refreshPromise) {
       refreshPromise = doRefresh().finally(() => { refreshPromise = null })
     }
@@ -39,7 +44,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
     if (refreshed) {
       const retryRes = await fetch(`${BASE_URL}${path}`, {
-        ...options,
+        ...fetchOptions,
         credentials: 'include',
         headers,
       })
@@ -69,8 +74,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, data?: unknown) => request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  get: <T>(path: string, opts?: { skipRedirect?: boolean }) => request<T>(path, opts),
+  post: <T>(path: string, data?: unknown, opts?: { skipRedirect?: boolean }) => request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined, ...opts }),
   put: <T>(path: string, data?: unknown) => request<T>(path, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
