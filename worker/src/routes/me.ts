@@ -223,8 +223,8 @@ meRoutes.post('/notifications/test', async (c) => {
   const channelConfig = config[configKey] as string
 
   const message: NotifyMessage = {
-    title: '🔔 enotify Test',
-    body: 'This is a test notification from enotify.',
+    title: '🔔 eNotify Test',
+    body: 'This is a test notification from eNotify.',
   }
 
   const result = await sendToChannel(channel, channelConfig, message, c.env)

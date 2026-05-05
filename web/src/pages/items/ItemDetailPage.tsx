@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import type { Subscription, Payment } from '@/types'
+import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
@@ -34,7 +34,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       >
         <span
           className={cn(
-            'absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+            'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
             checked && 'translate-x-4',
           )}
         />
@@ -51,12 +51,12 @@ interface EditPaymentState {
   note: string
 }
 
-export function SubscriptionDetailPage() {
+export function ItemDetailPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
 
-  const [sub, setSub] = useState<Subscription | null>(null)
+  const [item, setItem] = useState<Item | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -81,11 +81,11 @@ export function SubscriptionDetailPage() {
   useEffect(() => {
     if (!id) return
     Promise.all([
-      api.get<Subscription>(`/subscriptions/${id}`),
-      api.get<Payment[]>(`/subscriptions/${id}/payments`),
+      api.get<Item>(`/items/${id}`),
+      api.get<Payment[]>(`/items/${id}/payments`),
     ])
       .then(([s, p]) => {
-        setSub(s)
+        setItem(s)
         setPayments(p)
         setRenewAmount(String(s.amount ?? ''))
       })
@@ -95,27 +95,27 @@ export function SubscriptionDetailPage() {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
-    if (!sub) return
+    if (!item) return
     setSaving(true)
     setSaveMsg('')
     try {
-      await api.put(`/subscriptions/${id}`, {
-        name: sub.name,
-        subscription_mode: sub.subscription_mode,
-        custom_type: sub.custom_type,
-        category: sub.category,
-        start_date: sub.start_date,
-        expiry_date: sub.expiry_date,
-        period_value: sub.period_value,
-        period_unit: sub.period_unit,
-        reminder_unit: sub.reminder_unit,
-        reminder_value: sub.reminder_value,
-        notes: sub.notes,
-        amount: sub.amount,
-        currency: sub.currency,
-        is_active: sub.is_active ? 1 : 0,
-        auto_renew: sub.auto_renew ? 1 : 0,
-        use_lunar: sub.use_lunar ? 1 : 0,
+      await api.put(`/items/${id}`, {
+        name: item.name,
+        item_mode: item.item_mode,
+        custom_type: item.custom_type,
+        category: item.category,
+        start_date: item.start_date,
+        expiry_date: item.expiry_date,
+        period_value: item.period_value,
+        period_unit: item.period_unit,
+        reminder_unit: item.reminder_unit,
+        reminder_value: item.reminder_value,
+        notes: item.notes,
+        amount: item.amount,
+        currency: item.currency,
+        is_active: item.is_active ? 1 : 0,
+        auto_renew: item.auto_renew ? 1 : 0,
+        use_lunar: item.use_lunar ? 1 : 0,
       })
       setSaveMsg(t('common.success'))
       setTimeout(() => setSaveMsg(''), 3000)
@@ -127,10 +127,10 @@ export function SubscriptionDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm(t('common.confirmDelete', { name: sub?.name }))) return
+    if (!window.confirm(t('common.confirmDelete', { name: item?.name }))) return
     try {
-      await api.delete(`/subscriptions/${id}`)
-      navigate('/subscriptions')
+      await api.delete(`/items/${id}`)
+      navigate('/items')
     } catch (e: any) {
       setError(e.message)
     }
@@ -140,14 +140,14 @@ export function SubscriptionDetailPage() {
     e.preventDefault()
     setRenewing(true)
     try {
-      const res = await api.post<{ new_expiry_date: string }>(`/subscriptions/${id}/renew`, {
+      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/renew`, {
         amount: renewAmount ? Number(renewAmount) : undefined,
         date: renewDate || undefined,
         multiplier: Number(renewMultiplier) || 1,
         note: renewNote || undefined,
       })
-      setSub((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
-      const updated = await api.get<Payment[]>(`/subscriptions/${id}/payments`)
+      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
+      const updated = await api.get<Payment[]>(`/items/${id}/payments`)
       setPayments(updated)
       setRenewNote('')
       setRenewDate('')
@@ -164,7 +164,7 @@ export function SubscriptionDetailPage() {
     setNotifyMsg('')
     setNotifyError(false)
     try {
-      await api.post(`/subscriptions/${id}/test-notify`)
+      await api.post(`/items/${id}/test-notify`)
       setNotifyMsg(t('common.notificationSent'))
       setTimeout(() => setNotifyMsg(''), 3000)
     } catch (e: any) {
@@ -178,7 +178,7 @@ export function SubscriptionDetailPage() {
   const handleSavePayment = async () => {
     if (!editingPayment) return
     try {
-      await api.put(`/subscriptions/${id}/payments/${editingPayment.id}`, {
+      await api.put(`/items/${id}/payments/${editingPayment.id}`, {
         date: editingPayment.date,
         amount: Number(editingPayment.amount),
         note: editingPayment.note,
@@ -199,15 +199,15 @@ export function SubscriptionDetailPage() {
   const handleDeletePayment = async (pid: string) => {
     if (!window.confirm(t('common.confirmDeletePayment'))) return
     try {
-      await api.delete(`/subscriptions/${id}/payments/${pid}`)
+      await api.delete(`/items/${id}/payments/${pid}`)
       setPayments((prev) => prev.filter((p) => p.id !== pid))
     } catch (e: any) {
       setError(e.message)
     }
   }
 
-  const setField = <K extends keyof Subscription>(key: K, val: Subscription[K]) =>
-    setSub((prev) => prev ? { ...prev, [key]: val } : prev)
+  const setField = <K extends keyof Item>(key: K, val: Item[K]) =>
+    setItem((prev) => prev ? { ...prev, [key]: val } : prev)
 
   if (loading) {
     return (
@@ -218,11 +218,11 @@ export function SubscriptionDetailPage() {
     )
   }
 
-  if (!sub) {
+  if (!item) {
     return (
       <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
         <AlertCircle className="w-4 h-4 shrink-0" />
-        {error || t('subscriptions.notFound')}
+        {error || t('items.notFound')}
       </div>
     )
   }
@@ -230,10 +230,10 @@ export function SubscriptionDetailPage() {
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/subscriptions')} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
+        <button onClick={() => navigate('/items')} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold truncate">{sub.name}</h1>
+        <h1 className="text-2xl font-bold truncate">{item.name}</h1>
       </div>
 
       {error && (
@@ -248,110 +248,110 @@ export function SubscriptionDetailPage() {
         <h2 className="font-semibold text-base">{t('common.edit')}</h2>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t('subscriptions.name')}>
-              <input className={INPUT} value={sub.name} onChange={(e) => setField('name', e.target.value)} required />
+            <Field label={t('items.name')}>
+              <input className={INPUT} value={item.name} onChange={(e) => setField('name', e.target.value)} required />
             </Field>
 
-            <Field label={t('subscriptions.mode.label')}>
+            <Field label={t('items.mode.label')}>
               <select
                 className={SELECT}
-                value={sub.subscription_mode}
-                onChange={(e) => setField('subscription_mode', e.target.value as any)}
+                value={item.item_mode}
+                onChange={(e) => setField('item_mode', e.target.value as any)}
               >
-                <option value="cycle">{t('subscriptions.mode.cycle')}</option>
-                <option value="reset">{t('subscriptions.mode.reset')}</option>
+                <option value="cycle">{t('items.mode.cycle')}</option>
+                <option value="reset">{t('items.mode.reset')}</option>
               </select>
             </Field>
 
-            <Field label={t('subscriptions.type')}>
-              <input className={INPUT} value={sub.custom_type} onChange={(e) => setField('custom_type', e.target.value)} />
+            <Field label={t('items.type')}>
+              <input className={INPUT} value={item.custom_type} onChange={(e) => setField('custom_type', e.target.value)} />
             </Field>
 
-            <Field label={t('subscriptions.category')}>
-              <input className={INPUT} value={sub.category} onChange={(e) => setField('category', e.target.value)} />
+            <Field label={t('items.category')}>
+              <input className={INPUT} value={item.category} onChange={(e) => setField('category', e.target.value)} />
             </Field>
 
-            <Field label={t('subscriptions.startDate')}>
+            <Field label={t('items.startDate')}>
               <input
                 type="date"
                 className={INPUT}
-                value={sub.start_date ?? ''}
+                value={item.start_date ?? ''}
                 onChange={(e) => setField('start_date', e.target.value || null)}
               />
-              {!!sub.use_lunar && sub.start_date && (
-                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(sub.start_date)}</p>
+              {!!item.use_lunar && item.start_date && (
+                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.start_date)}</p>
               )}
             </Field>
 
-            <Field label={t('subscriptions.expiryDate')}>
+            <Field label={t('items.expiryDate')}>
               <input
                 type="date"
                 className={INPUT}
-                value={sub.expiry_date}
+                value={item.expiry_date}
                 onChange={(e) => setField('expiry_date', e.target.value)}
                 required
               />
-              {!!sub.use_lunar && sub.expiry_date && (
-                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(sub.expiry_date)}</p>
+              {!!item.use_lunar && item.expiry_date && (
+                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.expiry_date)}</p>
               )}
             </Field>
           </div>
 
-          <Field label={t('subscriptions.period')}>
+          <Field label={t('items.period')}>
             <div className="flex gap-2">
               <input
                 type="number"
                 min={1}
                 className={cn(INPUT, 'w-24')}
-                value={sub.period_value}
+                value={item.period_value}
                 onChange={(e) => setField('period_value', Number(e.target.value))}
               />
               <select
                 className={SELECT}
-                value={sub.period_unit}
+                value={item.period_unit}
                 onChange={(e) => setField('period_unit', e.target.value as any)}
               >
-                <option value="day">{t('subscriptions.periodUnit.day')}</option>
-                <option value="month">{t('subscriptions.periodUnit.month')}</option>
-                <option value="year">{t('subscriptions.periodUnit.year')}</option>
+                <option value="day">{t('items.periodUnit.day')}</option>
+                <option value="month">{t('items.periodUnit.month')}</option>
+                <option value="year">{t('items.periodUnit.year')}</option>
               </select>
             </div>
           </Field>
 
-          <Field label={t('subscriptions.reminderBefore')}>
+          <Field label={t('items.reminderBefore')}>
             <div className="flex gap-2">
               <input
                 type="number"
                 min={0}
                 className={cn(INPUT, 'w-24')}
-                value={sub.reminder_value}
+                value={item.reminder_value}
                 onChange={(e) => setField('reminder_value', Number(e.target.value))}
               />
               <select
                 className={SELECT}
-                value={sub.reminder_unit}
+                value={item.reminder_unit}
                 onChange={(e) => setField('reminder_unit', e.target.value as any)}
               >
-                <option value="day">{t('subscriptions.periodUnit.day')}</option>
-                <option value="hour">{t('subscriptions.periodUnit.hour')}</option>
+                <option value="day">{t('items.periodUnit.day')}</option>
+                <option value="hour">{t('items.periodUnit.hour')}</option>
               </select>
             </div>
           </Field>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t('subscriptions.amount')}>
+            <Field label={t('items.amount')}>
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 className={INPUT}
-                value={sub.amount ?? ''}
+                value={item.amount ?? ''}
                 onChange={(e) => setField('amount', e.target.value ? Number(e.target.value) : null)}
               />
             </Field>
 
-            <Field label={t('subscriptions.currency')}>
-              <select className={SELECT} value={sub.currency} onChange={(e) => setField('currency', e.target.value)}>
+            <Field label={t('items.currency')}>
+              <select className={SELECT} value={item.currency} onChange={(e) => setField('currency', e.target.value)}>
                 {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
@@ -359,27 +359,27 @@ export function SubscriptionDetailPage() {
 
           <div className="flex gap-6 flex-wrap">
             <Toggle
-              checked={!!sub.is_active}
+              checked={!!item.is_active}
               onChange={(v) => setField('is_active', v ? 1 : 0)}
-              label={t('subscriptions.enableSubscription')}
+              label={t('items.enableItem')}
             />
             <Toggle
-              checked={!!sub.auto_renew}
+              checked={!!item.auto_renew}
               onChange={(v) => setField('auto_renew', v ? 1 : 0)}
-              label={t('subscriptions.autoRenew')}
+              label={t('items.autoRenew')}
             />
             <Toggle
-              checked={!!sub.use_lunar}
+              checked={!!item.use_lunar}
               onChange={(v) => setField('use_lunar', v ? 1 : 0)}
-              label={t('subscriptions.useLunar')}
+              label={t('items.useLunar')}
             />
           </div>
 
-          <Field label={t('subscriptions.notes')}>
+          <Field label={t('items.notes')}>
             <textarea
               rows={3}
               className={cn(INPUT, 'resize-none')}
-              value={sub.notes}
+              value={item.notes}
               onChange={(e) => setField('notes', e.target.value)}
             />
           </Field>
@@ -405,7 +405,7 @@ export function SubscriptionDetailPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
         >
           <Bell className="w-4 h-4" />
-          {t('subscriptions.testNotify')}
+          {t('items.testNotify')}
         </button>
         {notifyMsg && <span className={cn('text-sm self-center', notifyError ? 'text-destructive' : 'text-green-600')}>{notifyMsg}</span>}
         <button
@@ -419,10 +419,10 @@ export function SubscriptionDetailPage() {
 
       {/* Renew */}
       <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t('subscriptions.renew')}</h2>
+        <h2 className="font-semibold text-base">{t('items.renew')}</h2>
         <form onSubmit={handleRenew} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t('subscriptions.amount')}>
+            <Field label={t('items.amount')}>
               <input
                 type="number"
                 min={0}
@@ -442,7 +442,7 @@ export function SubscriptionDetailPage() {
               />
             </Field>
 
-            <Field label={t('subscriptions.renewMultiplier')}>
+            <Field label={t('items.renewMultiplier')}>
               <input
                 type="number"
                 min={1}
@@ -462,14 +462,14 @@ export function SubscriptionDetailPage() {
             disabled={renewing}
             className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {renewing ? t('common.loading') : t('subscriptions.renew')}
+            {renewing ? t('common.loading') : t('items.renew')}
           </button>
         </form>
       </section>
 
       {/* Payment history */}
       <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t('subscriptions.paymentHistory')}</h2>
+        <h2 className="font-semibold text-base">{t('items.paymentHistory')}</h2>
 
         {payments.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
@@ -480,7 +480,7 @@ export function SubscriptionDetailPage() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    {[t('common.date'), t('subscriptions.amount'), t('subscriptions.type'), t('common.note'), t('common.period'), t('common.actions')].map((h) => (
+                    {[t('common.date'), t('items.amount'), t('items.type'), t('common.note'), t('common.period'), t('common.actions')].map((h) => (
                       <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground">
                         {h}
                       </th>
@@ -508,7 +508,7 @@ export function SubscriptionDetailPage() {
                             onChange={(e) => setEditingPayment({ ...editingPayment, amount: e.target.value })}
                           />
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{t(`subscriptions.paymentType.${p.type}`)}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{t(`items.paymentType.${p.type}`)}</td>
                         <td className="px-3 py-2">
                           <input
                             className={cn(INPUT, 'py-1')}
@@ -536,7 +536,7 @@ export function SubscriptionDetailPage() {
                         <td className="px-3 py-2 font-medium tabular-nums">
                           {p.currency} {p.amount.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{t(`subscriptions.paymentType.${p.type}`)}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{t(`items.paymentType.${p.type}`)}</td>
                         <td className="px-3 py-2 text-muted-foreground">{p.note || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground text-xs">
                           {p.period_start && p.period_end ? `${p.period_start} → ${p.period_end}` : '—'}
@@ -578,7 +578,7 @@ export function SubscriptionDetailPage() {
                   <div key={p.id} className="rounded-lg border border-primary/30 p-3 text-sm space-y-2 bg-muted/20">
                     <div className="space-y-2">
                       <input type="date" className={cn(INPUT, 'py-1.5 w-full')} value={editingPayment.date} onChange={(e) => setEditingPayment({ ...editingPayment, date: e.target.value })} />
-                      <input type="number" step="0.01" className={cn(INPUT, 'py-1.5 w-full')} value={editingPayment.amount} onChange={(e) => setEditingPayment({ ...editingPayment, amount: e.target.value })} placeholder={t('subscriptions.amount')} />
+                      <input type="number" step="0.01" className={cn(INPUT, 'py-1.5 w-full')} value={editingPayment.amount} onChange={(e) => setEditingPayment({ ...editingPayment, amount: e.target.value })} placeholder={t('items.amount')} />
                       <input className={cn(INPUT, 'py-1.5 w-full')} value={editingPayment.note} onChange={(e) => setEditingPayment({ ...editingPayment, note: e.target.value })} placeholder={t('common.note')} />
                     </div>
                     <div className="flex gap-2">
@@ -593,7 +593,7 @@ export function SubscriptionDetailPage() {
                     <span className="tabular-nums">{p.currency} {p.amount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground text-xs">
-                    <span>{t(`subscriptions.paymentType.${p.type}`)}{p.note ? ` · ${p.note}` : ''}</span>
+                    <span>{t(`items.paymentType.${p.type}`)}{p.note ? ` · ${p.note}` : ''}</span>
                     {p.period_start && p.period_end && (
                       <span>{p.period_start} → {p.period_end}</span>
                     )}

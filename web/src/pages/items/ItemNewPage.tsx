@@ -11,7 +11,7 @@ const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY
 
 interface FormData {
   name: string
-  subscription_mode: 'cycle' | 'reset'
+  item_mode: 'cycle' | 'reset'
   custom_type: string
   category: string
   start_date: string
@@ -29,7 +29,7 @@ interface FormData {
 
 const DEFAULT: FormData = {
   name: '',
-  subscription_mode: 'cycle',
+  item_mode: 'cycle',
   custom_type: '',
   category: '',
   start_date: '',
@@ -61,7 +61,7 @@ const INPUT =
   'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow'
 const SELECT = cn(INPUT, 'cursor-pointer')
 
-export function SubscriptionNewPage() {
+export function ItemNewPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -80,7 +80,7 @@ export function SubscriptionNewPage() {
     setSubmitting(true)
     setError('')
     try {
-      await api.post('/subscriptions', {
+      await api.post('/items', {
         ...form,
         period_value: Number(form.period_value) || 1,
         reminder_value: Number(form.reminder_value) || 7,
@@ -89,7 +89,7 @@ export function SubscriptionNewPage() {
         auto_renew: form.auto_renew ? 1 : 0,
         use_lunar: form.use_lunar ? 1 : 0,
       })
-      navigate('/subscriptions')
+      navigate('/items')
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -101,12 +101,12 @@ export function SubscriptionNewPage() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate('/subscriptions')}
+          onClick={() => navigate('/items')}
           className="p-1.5 rounded-lg hover:bg-accent transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold">{t('subscriptions.add')}</h1>
+        <h1 className="text-2xl font-bold">{t('items.add')}</h1>
       </div>
 
       {error && (
@@ -118,7 +118,7 @@ export function SubscriptionNewPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label={t('subscriptions.name')} required>
+          <Field label={t('items.name')} required>
             <input
               className={INPUT}
               value={form.name}
@@ -127,14 +127,14 @@ export function SubscriptionNewPage() {
             />
           </Field>
 
-          <Field label={t('subscriptions.mode.label')}>
-            <select className={SELECT} value={form.subscription_mode} onChange={(e) => set('subscription_mode', e.target.value as FormData['subscription_mode'])}>
-              <option value="cycle">{t('subscriptions.mode.cycle')}</option>
-              <option value="reset">{t('subscriptions.mode.reset')}</option>
+          <Field label={t('items.mode.label')}>
+            <select className={SELECT} value={form.item_mode} onChange={(e) => set('item_mode', e.target.value as FormData['item_mode'])}>
+              <option value="cycle">{t('items.mode.cycle')}</option>
+              <option value="reset">{t('items.mode.reset')}</option>
             </select>
           </Field>
 
-          <Field label={t('subscriptions.type')}>
+          <Field label={t('items.type')}>
             <input
               className={INPUT}
               value={form.custom_type}
@@ -142,7 +142,7 @@ export function SubscriptionNewPage() {
             />
           </Field>
 
-          <Field label={t('subscriptions.category')}>
+          <Field label={t('items.category')}>
             <input
               className={INPUT}
               value={form.category}
@@ -150,7 +150,7 @@ export function SubscriptionNewPage() {
             />
           </Field>
 
-          <Field label={t('subscriptions.startDate')}>
+          <Field label={t('items.startDate')}>
             <input
               type="date"
               className={INPUT}
@@ -162,7 +162,7 @@ export function SubscriptionNewPage() {
             )}
           </Field>
 
-          <Field label={t('subscriptions.expiryDate')} required>
+          <Field label={t('items.expiryDate')} required>
             <input
               type="date"
               className={INPUT}
@@ -177,7 +177,7 @@ export function SubscriptionNewPage() {
         </div>
 
         {/* Period */}
-        <Field label={t('subscriptions.period')}>
+        <Field label={t('items.period')}>
           <div className="flex gap-2">
             <input
               type="number"
@@ -187,15 +187,15 @@ export function SubscriptionNewPage() {
               onChange={(e) => set('period_value', e.target.value)}
             />
             <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
-              <option value="day">{t('subscriptions.periodUnit.day')}</option>
-              <option value="month">{t('subscriptions.periodUnit.month')}</option>
-              <option value="year">{t('subscriptions.periodUnit.year')}</option>
+              <option value="day">{t('items.periodUnit.day')}</option>
+              <option value="month">{t('items.periodUnit.month')}</option>
+              <option value="year">{t('items.periodUnit.year')}</option>
             </select>
           </div>
         </Field>
 
         {/* Reminder */}
-        <Field label={t('subscriptions.reminderBefore')}>
+        <Field label={t('items.reminderBefore')}>
           <div className="flex gap-2">
             <input
               type="number"
@@ -205,15 +205,15 @@ export function SubscriptionNewPage() {
               onChange={(e) => set('reminder_value', e.target.value)}
             />
             <select className={SELECT} value={form.reminder_unit} onChange={(e) => set('reminder_unit', e.target.value as FormData['reminder_unit'])}>
-              <option value="day">{t('subscriptions.periodUnit.day')}</option>
-              <option value="hour">{t('subscriptions.periodUnit.hour')}</option>
+              <option value="day">{t('items.periodUnit.day')}</option>
+              <option value="hour">{t('items.periodUnit.hour')}</option>
             </select>
           </div>
         </Field>
 
         {/* Amount + currency */}
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label={t('subscriptions.amount')}>
+          <Field label={t('items.amount')}>
             <input
               type="number"
               min={0}
@@ -224,7 +224,7 @@ export function SubscriptionNewPage() {
             />
           </Field>
 
-          <Field label={t('subscriptions.currency')}>
+          <Field label={t('items.currency')}>
             <select className={SELECT} value={form.currency} onChange={(e) => set('currency', e.target.value)}>
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -248,12 +248,12 @@ export function SubscriptionNewPage() {
             >
               <span
                 className={cn(
-                  'absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                  'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                   form.auto_renew && 'translate-x-4',
                 )}
               />
             </button>
-            <span className="text-sm font-medium">{t('subscriptions.autoRenew')}</span>
+            <span className="text-sm font-medium">{t('items.autoRenew')}</span>
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -269,17 +269,17 @@ export function SubscriptionNewPage() {
             >
               <span
                 className={cn(
-                  'absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                  'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                   form.use_lunar && 'translate-x-4',
                 )}
               />
             </button>
-            <span className="text-sm font-medium">{t('subscriptions.useLunar')}</span>
+            <span className="text-sm font-medium">{t('items.useLunar')}</span>
           </label>
         </div>
 
         {/* Notes */}
-        <Field label={t('subscriptions.notes')}>
+        <Field label={t('items.notes')}>
           <textarea
             rows={3}
             className={cn(INPUT, 'resize-none')}
@@ -298,7 +298,7 @@ export function SubscriptionNewPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/subscriptions')}
+            onClick={() => navigate('/items')}
             className="px-6 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors"
           >
             {t('common.cancel')}

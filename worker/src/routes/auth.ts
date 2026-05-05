@@ -71,7 +71,7 @@ authRoutes.post('/register', async (c) => {
 
     await sendEmail(c.env, {
       to: email,
-      subject: 'Verify your email - enotify',
+      subject: 'Verify your email - eNotify',
       html: `<p>Click <a href="${new URL(c.req.url).origin}/verify-email?token=${verifyToken}">here</a> to verify your email.</p>`,
     })
 
@@ -220,7 +220,7 @@ authRoutes.post('/email/resend', async (c) => {
 
   await sendEmail(c.env, {
     to: email,
-    subject: 'Verify your email - enotify',
+    subject: 'Verify your email - eNotify',
     html: `<p>Click <a href="${new URL(c.req.url).origin}/verify-email?token=${verifyToken}">here</a> to verify your email.</p>`,
   })
 

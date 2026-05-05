@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { getTablePrefix } from '../types'
 import type { HonoEnv } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
-import { getActiveSubscriptionsByUser } from '../db/queries/subscriptions'
+import { getActiveItemsByUser } from '../db/queries/items'
 import { listPaymentsByUserSince } from '../db/queries/payments'
 import { getExchangeRates, convertAmount } from '../core/currency'
 import { findUserById } from '../db/queries/users'
@@ -20,7 +20,7 @@ dashboardRoutes.get('/stats', async (c) => {
   if (!user) return c.json({ error: 'User not found' }, 404)
 
   const baseCurrency = user.base_currency || 'CNY'
-  const activeSubscriptions = await getActiveSubscriptionsByUser(c.env.DB, prefix, userId)
+  const activeSubscriptions = await getActiveItemsByUser(c.env.DB, prefix, userId)
 
   const now = new Date()
   const currentMonth = now.getMonth()

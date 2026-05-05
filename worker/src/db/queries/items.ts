@@ -1,16 +1,16 @@
-import type { Subscription } from '../../types';
+import type { Item } from '../../types';
 
-export async function createSubscription(
+export async function createItem(
   db: D1Database,
   prefix: string,
-  data: Omit<Subscription, 'created_at' | 'updated_at'>
+  data: Omit<Item, 'created_at' | 'updated_at'>
 ): Promise<void> {
-  const table = `${prefix}subscriptions`;
+  const table = `${prefix}items`;
   const now = new Date().toISOString();
   await db
     .prepare(
       `INSERT INTO ${table}
-         (id, user_id, name, subscription_mode, custom_type, category, start_date, expiry_date,
+         (id, user_id, name, item_mode, custom_type, category, start_date, expiry_date,
           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
           last_payment_date, is_active, auto_renew, use_lunar, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -19,7 +19,7 @@ export async function createSubscription(
       data.id,
       data.user_id,
       data.name,
-      data.subscription_mode,
+      data.item_mode,
       data.custom_type,
       data.category,
       data.start_date,
@@ -41,40 +41,40 @@ export async function createSubscription(
     .run();
 }
 
-export async function getSubscription(
+export async function getItem(
   db: D1Database,
   prefix: string,
   id: string
-): Promise<Subscription | null> {
-  const table = `${prefix}subscriptions`;
+): Promise<Item | null> {
+  const table = `${prefix}items`;
   return db
     .prepare(`SELECT * FROM ${table} WHERE id = ?`)
     .bind(id)
-    .first<Subscription>();
+    .first<Item>();
 }
 
-export async function listSubscriptionsByUser(
+export async function listItemsByUser(
   db: D1Database,
   prefix: string,
   userId: string
-): Promise<Subscription[]> {
-  const table = `${prefix}subscriptions`;
+): Promise<Item[]> {
+  const table = `${prefix}items`;
   const result = await db
     .prepare(`SELECT * FROM ${table} WHERE user_id = ? ORDER BY created_at DESC`)
     .bind(userId)
-    .all<Subscription>();
+    .all<Item>();
   return result.results;
 }
 
-export async function updateSubscription(
+export async function updateItem(
   db: D1Database,
   prefix: string,
   id: string,
-  data: Partial<Subscription>
+  data: Partial<Item>
 ): Promise<void> {
-  const table = `${prefix}subscriptions`;
+  const table = `${prefix}items`;
   const now = new Date().toISOString();
-  const allowedCols = new Set(['name', 'subscription_mode', 'custom_type', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'use_lunar']);
+  const allowedCols = new Set(['name', 'item_mode', 'custom_type', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'use_lunar']);
   const entries = (Object.entries(data) as [string, unknown][]).filter(
     ([col]) => allowedCols.has(col)
   );
@@ -89,24 +89,24 @@ export async function updateSubscription(
     .run();
 }
 
-export async function deleteSubscription(
+export async function deleteItem(
   db: D1Database,
   prefix: string,
   id: string
 ): Promise<void> {
-  const table = `${prefix}subscriptions`;
+  const table = `${prefix}items`;
   await db
     .prepare(`DELETE FROM ${table} WHERE id = ?`)
     .bind(id)
     .run();
 }
 
-export async function toggleSubscriptionStatus(
+export async function toggleItemStatus(
   db: D1Database,
   prefix: string,
   id: string
 ): Promise<void> {
-  const table = `${prefix}subscriptions`;
+  const table = `${prefix}items`;
   const now = new Date().toISOString();
   await db
     .prepare(
@@ -116,16 +116,15 @@ export async function toggleSubscriptionStatus(
     .run();
 }
 
-export async function getActiveSubscriptionsByUser(
+export async function getActiveItemsByUser(
   db: D1Database,
   prefix: string,
   userId: string
-): Promise<Subscription[]> {
-  const table = `${prefix}subscriptions`;
+): Promise<Item[]> {
+  const table = `${prefix}items`;
   const result = await db
     .prepare(`SELECT * FROM ${table} WHERE user_id = ? AND is_active = 1 ORDER BY expiry_date ASC`)
     .bind(userId)
-    .all<Subscription>();
+    .all<Item>();
   return result.results;
 }
-

@@ -18,11 +18,11 @@ export interface User {
   }
 }
 
-export interface Subscription {
+export interface Item {
   id: string
   user_id: string
   name: string
-  subscription_mode: 'cycle' | 'reset'
+  item_mode: 'cycle' | 'reset'
   custom_type: string
   category: string
   start_date: string | null
@@ -44,7 +44,7 @@ export interface Subscription {
 
 export interface Payment {
   id: string
-  subscription_id: string
+  item_id: string
   user_id: string
   date: string
   amount: number
@@ -63,7 +63,7 @@ export interface DashboardStats {
   monthly_average: number
   active_count: number
   expiring_soon: number
-  upcoming_renewals: Subscription[]
+  upcoming_renewals: Item[]
   recent_payments: Payment[]
   category_ranking: { name: string; amount: number }[]
   type_ranking: { name: string; amount: number }[]

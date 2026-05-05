@@ -9,12 +9,12 @@ export async function createPayment(
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO ${table} (id, subscription_id, user_id, date, amount, currency, type, note, period_start, period_end, created_at)
+      `INSERT INTO ${table} (id, item_id, user_id, date, amount, currency, type, note, period_start, period_end, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       data.id,
-      data.subscription_id,
+      data.item_id,
       data.user_id,
       data.date,
       data.amount,
@@ -28,15 +28,15 @@ export async function createPayment(
     .run();
 }
 
-export async function listPaymentsBySubscription(
+export async function listPaymentsByItem(
   db: D1Database,
   prefix: string,
-  subscriptionId: string
+  itemId: string
 ): Promise<PaymentHistory[]> {
   const table = `${prefix}payment_history`;
   const result = await db
-    .prepare(`SELECT * FROM ${table} WHERE subscription_id = ? ORDER BY date DESC`)
-    .bind(subscriptionId)
+    .prepare(`SELECT * FROM ${table} WHERE item_id = ? ORDER BY date DESC`)
+    .bind(itemId)
     .all<PaymentHistory>();
   return result.results;
 }

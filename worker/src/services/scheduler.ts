@@ -1,7 +1,7 @@
 import { getTablePrefix } from '../types'
-import type { Env, Subscription } from '../types'
+import type { Env, Item } from '../types'
 import { listUsers } from '../db/queries/users'
-import { getActiveSubscriptionsByUser } from '../db/queries/subscriptions'
+import { getActiveItemsByUser } from '../db/queries/items'
 import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
 import { sendNotifications, type NotifyMessage } from './notify/index'
@@ -26,7 +26,7 @@ export async function handleScheduled(env: Env): Promise<void> {
 
 async function processUser(env: Env, prefix: string, db: D1Database, kv: KVNamespace, user: { id: string; timezone?: string; language?: string }): Promise<void> {
   try {
-    const subscriptions = await getActiveSubscriptionsByUser(db, prefix, user.id)
+    const subscriptions = await getActiveItemsByUser(db, prefix, user.id)
     const notifyConfig = await getNotificationConfig(db, prefix, user.id)
 
     if (!notifyConfig) return
@@ -55,7 +55,7 @@ async function processSubscription(
   env: Env,
   prefix: string,
   userId: string,
-  sub: Subscription,
+  sub: Item,
   notifyConfig: any,
   kv: KVNamespace,
   lang: string
@@ -91,13 +91,13 @@ async function processSubscription(
     const renewedAt = nowISO()
 
     await env.DB.prepare(
-      `UPDATE ${prefix}subscriptions SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
+      `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
     ).bind(newExpiry, renewedAt, renewedAt, sub.id).run()
 
     if (sub.amount) {
       await createPayment(env.DB, prefix, {
         id: generateId(),
-        subscription_id: sub.id,
+        item_id: sub.id,
         user_id: userId,
         date: renewedAt,
         amount: sub.amount,

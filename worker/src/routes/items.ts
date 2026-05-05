@@ -1,35 +1,35 @@
 import { Hono } from 'hono'
 import { getTablePrefix } from '../types'
-import type { Subscription, HonoEnv } from '../types'
+import type { Item, HonoEnv } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import {
-  createSubscription, getSubscription, listSubscriptionsByUser,
-  updateSubscription, deleteSubscription, toggleSubscriptionStatus
-} from '../db/queries/subscriptions'
-import { createPayment, listPaymentsBySubscription, updatePayment, deletePayment, getPayment } from '../db/queries/payments'
+  createItem, getItem, listItemsByUser,
+  updateItem, deleteItem, toggleItemStatus
+} from '../db/queries/items'
+import { createPayment, listPaymentsByItem, updatePayment, deletePayment, getPayment } from '../db/queries/payments'
 import { getNotificationConfig } from '../db/queries/notifications'
 import { generateId } from '../core/auth'
 import { nowISO, addPeriod } from '../core/time'
 import { sendNotifications, type NotifyMessage } from '../services/notify/index'
 
-export const subscriptionRoutes = new Hono<HonoEnv>()
+export const itemRoutes = new Hono<HonoEnv>()
 
-subscriptionRoutes.use('*', authMiddleware)
+itemRoutes.use('*', authMiddleware)
 
-subscriptionRoutes.get('/', async (c) => {
+itemRoutes.get('/', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
-  const subs = await listSubscriptionsByUser(c.env.DB, prefix, userId)
-  return c.json(subs)
+  const items = await listItemsByUser(c.env.DB, prefix, userId)
+  return c.json(items)
 })
 
-subscriptionRoutes.post('/', async (c) => {
+itemRoutes.post('/', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const body = await c.req.json()
 
   if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
-    return c.json({ error: 'Subscription name is required' }, 400)
+    return c.json({ error: 'Name is required' }, 400)
   }
   if (!body.expiry_date || typeof body.expiry_date !== 'string') {
     return c.json({ error: 'Expiry date is required' }, 400)
@@ -49,8 +49,8 @@ subscriptionRoutes.post('/', async (c) => {
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {
     return c.json({ error: 'Invalid reminder unit' }, 400)
   }
-  if (body.subscription_mode && !['cycle', 'reset'].includes(body.subscription_mode)) {
-    return c.json({ error: 'Invalid subscription mode' }, 400)
+  if (body.item_mode && !['cycle', 'reset'].includes(body.item_mode)) {
+    return c.json({ error: 'Invalid item mode' }, 400)
   }
   if (body.amount !== undefined && body.amount !== null && (typeof body.amount !== 'number' || body.amount < 0)) {
     return c.json({ error: 'Amount must be a non-negative number' }, 400)
@@ -59,11 +59,11 @@ subscriptionRoutes.post('/', async (c) => {
   const id = generateId()
   const now = nowISO()
 
-  const sub: Omit<Subscription, 'created_at' | 'updated_at'> = {
+  const item: Omit<Item, 'created_at' | 'updated_at'> = {
     id,
     user_id: userId,
     name: body.name,
-    subscription_mode: body.subscription_mode || 'cycle',
+    item_mode: body.item_mode || 'cycle',
     custom_type: body.custom_type || '',
     category: body.category || '',
     start_date: body.start_date || null,
@@ -81,46 +81,46 @@ subscriptionRoutes.post('/', async (c) => {
     use_lunar: body.use_lunar ?? 0,
   }
 
-  await createSubscription(c.env.DB, prefix, sub)
+  await createItem(c.env.DB, prefix, item)
 
-  if (sub.amount && sub.start_date) {
+  if (item.amount && item.start_date) {
     await createPayment(c.env.DB, prefix, {
       id: generateId(),
-      subscription_id: id,
+      item_id: id,
       user_id: userId,
-      date: sub.start_date || now,
-      amount: sub.amount,
-      currency: sub.currency,
+      date: item.start_date || now,
+      amount: item.amount,
+      currency: item.currency,
       type: 'initial',
       note: '',
-      period_start: sub.start_date,
-      period_end: sub.expiry_date,
+      period_start: item.start_date,
+      period_end: item.expiry_date,
     })
   }
 
-  return c.json(sub, 201)
+  return c.json(item, 201)
 })
 
-subscriptionRoutes.get('/:id', async (c) => {
+itemRoutes.get('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  return c.json(sub)
+  return c.json(item)
 })
 
-subscriptionRoutes.put('/:id', async (c) => {
+itemRoutes.put('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
@@ -141,8 +141,8 @@ subscriptionRoutes.put('/:id', async (c) => {
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {
     return c.json({ error: 'Invalid reminder unit' }, 400)
   }
-  if (body.subscription_mode && !['cycle', 'reset'].includes(body.subscription_mode)) {
-    return c.json({ error: 'Invalid subscription mode' }, 400)
+  if (body.item_mode && !['cycle', 'reset'].includes(body.item_mode)) {
+    return c.json({ error: 'Invalid item mode' }, 400)
   }
   if (body.amount !== undefined && body.amount !== null && typeof body.amount !== 'number') {
     return c.json({ error: 'Amount must be a number' }, 400)
@@ -162,7 +162,7 @@ subscriptionRoutes.put('/:id', async (c) => {
 
   const updates: Record<string, any> = {}
   const allowedFields = [
-    'name', 'subscription_mode', 'custom_type', 'category', 'start_date',
+    'name', 'item_mode', 'custom_type', 'category', 'start_date',
     'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
     'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar',
   ]
@@ -174,87 +174,87 @@ subscriptionRoutes.put('/:id', async (c) => {
     return c.json({ error: 'No valid fields to update' }, 400)
   }
 
-  await updateSubscription(c.env.DB, prefix, id, updates)
+  await updateItem(c.env.DB, prefix, id, updates)
   return c.json({ success: true })
 })
 
-subscriptionRoutes.delete('/:id', async (c) => {
+itemRoutes.delete('/:id', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  await deleteSubscription(c.env.DB, prefix, id)
+  await deleteItem(c.env.DB, prefix, id)
   return c.json({ success: true })
 })
 
-subscriptionRoutes.post('/:id/toggle-status', async (c) => {
+itemRoutes.post('/:id/toggle-status', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  await toggleSubscriptionStatus(c.env.DB, prefix, id)
-  return c.json({ success: true, is_active: sub.is_active ? 0 : 1 })
+  await toggleItemStatus(c.env.DB, prefix, id)
+  return c.json({ success: true, is_active: item.is_active ? 0 : 1 })
 })
 
-subscriptionRoutes.post('/:id/renew', async (c) => {
+itemRoutes.post('/:id/renew', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
   const body = await c.req.json<{ amount?: number; date?: string; multiplier?: number; note?: string }>()
   const multiplier = Math.min(Math.max(body.multiplier || 1, 1), 120)
-  let newExpiry = sub.expiry_date
+  let newExpiry = item.expiry_date
 
   for (let i = 0; i < multiplier; i++) {
-    newExpiry = addPeriod(newExpiry, sub.period_value, sub.period_unit)
+    newExpiry = addPeriod(newExpiry, item.period_value, item.period_unit)
   }
 
   const paymentDate = body.date || nowISO()
-  const paymentAmount = body.amount ?? sub.amount ?? 0
+  const paymentAmount = body.amount ?? item.amount ?? 0
 
-  await updateSubscription(c.env.DB, prefix, id, {
+  await updateItem(c.env.DB, prefix, id, {
     expiry_date: newExpiry,
     last_payment_date: paymentDate,
   })
 
   await createPayment(c.env.DB, prefix, {
     id: generateId(),
-    subscription_id: id,
+    item_id: id,
     user_id: userId,
     date: paymentDate,
     amount: paymentAmount,
-    currency: sub.currency,
+    currency: item.currency,
     type: 'manual',
     note: body.note || '',
-    period_start: sub.expiry_date,
+    period_start: item.expiry_date,
     period_end: newExpiry,
   })
 
   return c.json({ success: true, new_expiry_date: newExpiry })
 })
 
-subscriptionRoutes.post('/:id/test-notify', async (c) => {
+itemRoutes.post('/:id/test-notify', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
@@ -264,8 +264,8 @@ subscriptionRoutes.post('/:id/test-notify', async (c) => {
   }
 
   const message: NotifyMessage = {
-    title: `🔔 ${sub.name} - Test Notification`,
-    body: `This is a test notification for subscription "${sub.name}" expiring on ${sub.expiry_date}.`,
+    title: `🔔 ${item.name} - Test Notification`,
+    body: `This is a test notification for "${item.name}" expiring on ${item.expiry_date}.`,
   }
 
   const results = await sendNotifications(notifyConfig, message, c.env)
@@ -273,33 +273,33 @@ subscriptionRoutes.post('/:id/test-notify', async (c) => {
 })
 
 // Payment history
-subscriptionRoutes.get('/:id/payments', async (c) => {
+itemRoutes.get('/:id/payments', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  const payments = await listPaymentsBySubscription(c.env.DB, prefix, id)
+  const payments = await listPaymentsByItem(c.env.DB, prefix, id)
   return c.json(payments)
 })
 
-subscriptionRoutes.put('/:id/payments/:pid', async (c) => {
+itemRoutes.put('/:id/payments/:pid', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
   const pid = c.req.param('pid')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
   const payment = await getPayment(c.env.DB, prefix, pid)
-  if (!payment || payment.subscription_id !== id) {
+  if (!payment || payment.item_id !== id) {
     return c.json({ error: 'Payment not found' }, 404)
   }
 
@@ -322,30 +322,29 @@ subscriptionRoutes.put('/:id/payments/:pid', async (c) => {
   return c.json({ success: true })
 })
 
-subscriptionRoutes.delete('/:id/payments/:pid', async (c) => {
+itemRoutes.delete('/:id/payments/:pid', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
   const id = c.req.param('id')
   const pid = c.req.param('pid')
 
-  const sub = await getSubscription(c.env.DB, prefix, id)
-  if (!sub || sub.user_id !== userId) {
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
     return c.json({ error: 'Not found' }, 404)
   }
 
   const payment = await getPayment(c.env.DB, prefix, pid)
-  if (!payment || payment.subscription_id !== id) {
+  if (!payment || payment.item_id !== id) {
     return c.json({ error: 'Payment not found' }, 404)
   }
 
   await deletePayment(c.env.DB, prefix, pid)
 
-  // Only roll back expiry if this was the latest payment
   if (payment.period_start) {
-    const remaining = await listPaymentsBySubscription(c.env.DB, prefix, id)
+    const remaining = await listPaymentsByItem(c.env.DB, prefix, id)
     const hasLaterPayment = remaining.some((p) => p.period_end && p.period_end > (payment.period_start as string))
     if (!hasLaterPayment) {
-      await updateSubscription(c.env.DB, prefix, id, { expiry_date: payment.period_start })
+      await updateItem(c.env.DB, prefix, id, { expiry_date: payment.period_start })
     }
   }
 

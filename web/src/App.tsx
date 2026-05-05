@@ -7,9 +7,9 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { TwoFactorPage } from '@/pages/auth/TwoFactorPage'
 import { VerifyEmailPage } from '@/pages/auth/VerifyEmailPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
-import { SubscriptionListPage } from '@/pages/subscriptions/SubscriptionListPage'
-import { SubscriptionNewPage } from '@/pages/subscriptions/SubscriptionNewPage'
-import { SubscriptionDetailPage } from '@/pages/subscriptions/SubscriptionDetailPage'
+import { ItemListPage } from '@/pages/items/ItemListPage'
+import { ItemNewPage } from '@/pages/items/ItemNewPage'
+import { ItemDetailPage } from '@/pages/items/ItemDetailPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
@@ -53,9 +53,9 @@ export function App() {
             {/* Protected routes */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<DashboardPage />} />
-              <Route path="subscriptions" element={<SubscriptionListPage />} />
-              <Route path="subscriptions/new" element={<SubscriptionNewPage />} />
-              <Route path="subscriptions/:id" element={<SubscriptionDetailPage />} />
+              <Route path="items" element={<ItemListPage />} />
+              <Route path="items/new" element={<ItemNewPage />} />
+              <Route path="items/:id" element={<ItemDetailPage />} />
               <Route path="settings" element={<SettingsPage />} />
 
               {/* Admin routes */}

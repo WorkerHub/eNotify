@@ -53,7 +53,7 @@ export function AppLayout() {
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
-    { to: '/subscriptions', icon: CreditCard, label: t('nav.subscriptions') },
+    { to: '/items', icon: CreditCard, label: t('nav.items') },
     { to: '/settings', icon: Settings, label: t('nav.settings') },
   ]
 

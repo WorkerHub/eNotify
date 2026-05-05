@@ -34,11 +34,11 @@ export interface User2FA {
   updated_at: string
 }
 
-export interface Subscription {
+export interface Item {
   id: string
   user_id: string
   name: string
-  subscription_mode: 'cycle' | 'reset'
+  item_mode: 'cycle' | 'reset'
   custom_type: string
   category: string
   start_date: string | null
@@ -60,7 +60,7 @@ export interface Subscription {
 
 export interface PaymentHistory {
   id: string
-  subscription_id: string
+  item_id: string
   user_id: string
   date: string
   amount: number

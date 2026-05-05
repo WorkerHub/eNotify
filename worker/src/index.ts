@@ -6,7 +6,7 @@ import type { Env, HonoEnv } from './types'
 import { authRoutes } from './routes/auth'
 import { auth2faRoutes } from './routes/auth2fa'
 import { meRoutes } from './routes/me'
-import { subscriptionRoutes } from './routes/subscriptions'
+import { itemRoutes } from './routes/items'
 import { dashboardRoutes } from './routes/dashboard'
 import { adminRoutes } from './routes/admin'
 import { notifyRoutes } from './routes/notify'
@@ -35,7 +35,7 @@ app.use('/api/*', cors({
 app.route('/api/auth', authRoutes)
 app.route('/api/auth/2fa', auth2faRoutes)
 app.route('/api/me', meRoutes)
-app.route('/api/subscriptions', subscriptionRoutes)
+app.route('/api/items', itemRoutes)
 app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/admin', adminRoutes)
 app.route('/api/notify', notifyRoutes)

@@ -4,7 +4,7 @@ import type { HonoEnv } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { listUsers, findUserById, findUserByEmail, createUser, updateUser, deleteUser } from '../db/queries/users'
-import { listSubscriptionsByUser, createSubscription, updateSubscription, deleteSubscription, getSubscription } from '../db/queries/subscriptions'
+import { listItemsByUser, createItem, updateItem, deleteItem, getItem } from '../db/queries/items'
 import { getAllSettings, setSetting } from '../db/queries/settings'
 import { upsertNotificationConfig } from '../db/queries/notifications'
 import { generateId, hashPassword } from '../core/auth'
@@ -122,19 +122,19 @@ adminRoutes.delete('/users/:uid', async (c) => {
   return c.json({ success: true })
 })
 
-// Admin manage user subscriptions
-adminRoutes.get('/users/:uid/subscriptions', async (c) => {
+// Admin manage user items
+adminRoutes.get('/users/:uid/items', async (c) => {
   const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
 
   const user = await findUserById(c.env.DB, prefix, uid)
   if (!user) return c.json({ error: 'User not found' }, 404)
 
-  const subs = await listSubscriptionsByUser(c.env.DB, prefix, uid)
-  return c.json(subs)
+  const items = await listItemsByUser(c.env.DB, prefix, uid)
+  return c.json(items)
 })
 
-adminRoutes.post('/users/:uid/subscriptions', async (c) => {
+adminRoutes.post('/users/:uid/items', async (c) => {
   const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
 
@@ -144,7 +144,7 @@ adminRoutes.post('/users/:uid/subscriptions', async (c) => {
   const body = await c.req.json()
 
   if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
-    return c.json({ error: 'Subscription name is required' }, 400)
+    return c.json({ error: 'Name is required' }, 400)
   }
   if (!body.expiry_date || isNaN(Date.parse(body.expiry_date))) {
     return c.json({ error: 'Valid expiry date is required' }, 400)
@@ -166,11 +166,11 @@ adminRoutes.post('/users/:uid/subscriptions', async (c) => {
   }
 
   const id = generateId()
-  await createSubscription(c.env.DB, prefix, {
+  await createItem(c.env.DB, prefix, {
     id,
     user_id: uid,
     name: body.name,
-    subscription_mode: body.subscription_mode || 'cycle',
+    item_mode: body.item_mode || 'cycle',
     custom_type: body.custom_type || '',
     category: body.category || '',
     start_date: body.start_date || null,
@@ -191,14 +191,14 @@ adminRoutes.post('/users/:uid/subscriptions', async (c) => {
   return c.json({ id }, 201)
 })
 
-adminRoutes.put('/users/:uid/subscriptions/:sid', async (c) => {
+adminRoutes.put('/users/:uid/items/:iid', async (c) => {
   const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
-  const sid = c.req.param('sid')
+  const iid = c.req.param('iid')
   const body = await c.req.json()
 
-  const sub = await getSubscription(c.env.DB, prefix, sid)
-  if (!sub || sub.user_id !== uid) return c.json({ error: 'Not found' }, 404)
+  const item = await getItem(c.env.DB, prefix, iid)
+  if (!item || item.user_id !== uid) return c.json({ error: 'Not found' }, 404)
 
   if (body.period_value !== undefined && (typeof body.period_value !== 'number' || body.period_value < 1)) {
     return c.json({ error: 'Period value must be >= 1' }, 400)
@@ -216,19 +216,19 @@ adminRoutes.put('/users/:uid/subscriptions/:sid', async (c) => {
     return c.json({ error: 'Amount must be a number' }, 400)
   }
 
-  await updateSubscription(c.env.DB, prefix, sid, body)
+  await updateItem(c.env.DB, prefix, iid, body)
   return c.json({ success: true })
 })
 
-adminRoutes.delete('/users/:uid/subscriptions/:sid', async (c) => {
+adminRoutes.delete('/users/:uid/items/:iid', async (c) => {
   const prefix = getTablePrefix(c.env)
   const uid = c.req.param('uid')
-  const sid = c.req.param('sid')
+  const iid = c.req.param('iid')
 
-  const sub = await getSubscription(c.env.DB, prefix, sid)
-  if (!sub || sub.user_id !== uid) return c.json({ error: 'Not found' }, 404)
+  const item = await getItem(c.env.DB, prefix, iid)
+  if (!item || item.user_id !== uid) return c.json({ error: 'Not found' }, 404)
 
-  await deleteSubscription(c.env.DB, prefix, sid)
+  await deleteItem(c.env.DB, prefix, iid)
   return c.json({ success: true })
 })
 

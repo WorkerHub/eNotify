@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "enotify",
-    "tagline": "Subscription Management & Expiry Reminders"
+    "name": "eNotify",
+    "tagline": "Smart Notification Management"
   },
   "common": {
     "save": "Save",
@@ -61,7 +61,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "subscriptions": "Subscriptions",
+    "items": "Notifications",
     "settings": "Settings",
     "admin": "Admin"
   },
@@ -70,7 +70,7 @@
     "monthlyExpense": "Monthly Expense",
     "yearlyExpense": "Yearly Expense",
     "monthlyAverage": "Monthly Avg",
-    "activeCount": "Active Subscriptions",
+    "activeCount": "Active Notifications",
     "expiringSoon": "Expiring Soon",
     "upcomingRenewals": "Upcoming Renewals",
     "recentPayments": "Recent Payments",
@@ -80,9 +80,9 @@
     "days": "days",
     "noData": "No data"
   },
-  "subscriptions": {
-    "title": "Subscriptions",
-    "add": "Add Subscription",
+  "items": {
+    "title": "Notifications",
+    "add": "Add Notification",
     "name": "Name",
     "type": "Type",
     "category": "Category",
@@ -101,7 +101,7 @@
     "reminderBefore": "Remind before",
     "autoRenew": "Auto-renew",
     "useLunar": "Lunar Period",
-    "enableSubscription": "Enable Subscription",
+    "enableItem": "Enable Notification",
     "notes": "Notes",
     "renew": "Renew",
     "renewMultiplier": "Renewal multiplier",
@@ -120,7 +120,7 @@
     },
     "daysRemaining": "{{days}} days remaining",
     "expired": "Expired {{days}} days ago",
-    "notFound": "Subscription not found",
+    "notFound": "Notification not found",
     "paymentType": {
       "initial": "Initial",
       "manual": "Manual",

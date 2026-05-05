@@ -66,7 +66,7 @@ async function sendViaResend(env: Env, options: EmailOptions): Promise<{ success
   if (!config.api_key) return { success: false, error: 'Resend API key not configured' }
 
   const from = options.from || config.from || 'noreply@example.com'
-  const fromName = (options.fromName || config.from_name || 'enotify').replace(/[\r\n]/g, '')
+  const fromName = (options.fromName || config.from_name || 'eNotify').replace(/[\r\n]/g, '')
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -99,7 +99,7 @@ async function sendViaSMTP(env: Env, options: EmailOptions): Promise<{ success: 
   if (!config.host) return { success: false, error: 'SMTP host not configured' }
 
   const from = options.from || config.from || 'noreply@example.com'
-  const fromName = (options.fromName || config.from_name || 'enotify').replace(/[\r\n]/g, '')
+  const fromName = (options.fromName || config.from_name || 'eNotify').replace(/[\r\n]/g, '')
 
   try {
     const socket = connect({ hostname: config.host, port: config.port }, { secureTransport: config.secure ? 'on' : 'starttls', allowHalfOpen: false })

@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "enotify",
-    "tagline": "订阅管理与到期提醒"
+    "name": "eNotify",
+    "tagline": "智能通知管理"
   },
   "common": {
     "save": "保存",
@@ -61,7 +61,7 @@
   },
   "nav": {
     "dashboard": "仪表盘",
-    "subscriptions": "订阅",
+    "items": "通知",
     "settings": "设置",
     "admin": "管理"
   },
@@ -70,7 +70,7 @@
     "monthlyExpense": "本月支出",
     "yearlyExpense": "年度支出",
     "monthlyAverage": "月均",
-    "activeCount": "活跃订阅",
+    "activeCount": "活跃通知",
     "expiringSoon": "即将到期",
     "upcomingRenewals": "即将续费",
     "recentPayments": "近期支付",
@@ -80,9 +80,9 @@
     "days": "天",
     "noData": "暂无数据"
   },
-  "subscriptions": {
-    "title": "订阅管理",
-    "add": "添加订阅",
+  "items": {
+    "title": "通知管理",
+    "add": "添加通知",
     "name": "名称",
     "type": "类型",
     "category": "分类",
@@ -101,7 +101,7 @@
     "reminderBefore": "提前提醒",
     "autoRenew": "自动续费",
     "useLunar": "周期按农历",
-    "enableSubscription": "启用订阅",
+    "enableItem": "启用通知",
     "notes": "备注",
     "renew": "续费",
     "renewMultiplier": "续费倍数",
@@ -120,12 +120,13 @@
     },
     "daysRemaining": "剩余 {{days}} 天",
     "expired": "已过期 {{days}} 天",
-    "notFound": "未找到该订阅",
+    "notFound": "未找到该通知",
     "paymentType": {
       "initial": "首次",
       "manual": "手动",
       "auto": "自动"
-    }
+    },
+    "type": "类型"
   },
   "settings": {
     "title": "设置",

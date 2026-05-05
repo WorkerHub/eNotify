@@ -73,7 +73,7 @@ export async function verifyEmailOTP(env: Env, userId: string, code: string, ses
 }
 
 export async function sendOTPEmail(env: Env, email: string, code: string, language: string): Promise<void> {
-  const subject = language === 'zh' ? 'enotify 验证码' : 'enotify Verification Code'
+  const subject = language === 'zh' ? 'eNotify 验证码' : 'eNotify Verification Code'
   const html = language === 'zh'
     ? `<p>您的验证码是：<strong>${code}</strong></p><p>有效期 5 分钟。</p>`
     : `<p>Your verification code is: <strong>${code}</strong></p><p>Valid for 5 minutes.</p>`

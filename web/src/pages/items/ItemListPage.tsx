@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import type { Subscription } from '@/types'
+import type { Item } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
 
 type StatusKey = 'active' | 'expiringSoon' | 'expired' | 'inactive'
@@ -14,11 +14,11 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function getStatus(sub: Subscription): StatusKey {
-  if (!sub.is_active) return 'inactive'
+function getStatus(item: Item): StatusKey {
+  if (!item.is_active) return 'inactive'
   const today = localToday()
-  if (sub.expiry_date < today) return 'expired'
-  const diff = Math.ceil((new Date(sub.expiry_date).getTime() - new Date(today).getTime()) / 86400000)
+  if (item.expiry_date < today) return 'expired'
+  const diff = Math.ceil((new Date(item.expiry_date).getTime() - new Date(today).getTime()) / 86400000)
   if (diff <= 7) return 'expiringSoon'
   return 'active'
 }
@@ -49,19 +49,19 @@ function DaysBadge({ days }: { days: number }) {
   )
 }
 
-export function SubscriptionListPage() {
+export function ItemListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [subs, setSubs] = useState<Subscription[]>([])
+  const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [testingId, setTestingId] = useState<string | null>(null)
 
-  const loadSubs = useCallback(async () => {
+  const loadItems = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.get<Subscription[]>('/subscriptions')
-      setSubs(data)
+      const data = await api.get<Item[]>('/items')
+      setItems(data)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -70,22 +70,22 @@ export function SubscriptionListPage() {
   }, [])
 
   useEffect(() => {
-    loadSubs()
-  }, [loadSubs])
+    loadItems()
+  }, [loadItems])
 
-  const handleToggle = async (sub: Subscription) => {
+  const handleToggle = async (item: Item) => {
     try {
-      const res = await api.post<{ success: boolean; is_active: number }>(`/subscriptions/${sub.id}/toggle-status`)
-      setSubs((prev) => prev.map((s) => s.id === sub.id ? { ...s, is_active: res.is_active } : s))
+      const res = await api.post<{ success: boolean; is_active: number }>(`/items/${item.id}/toggle-status`)
+      setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, is_active: res.is_active } : s))
     } catch (e: any) {
       setError(e.message)
     }
   }
 
-  const handleTestNotify = async (sub: Subscription) => {
-    setTestingId(sub.id)
+  const handleTestNotify = async (item: Item) => {
+    setTestingId(item.id)
     try {
-      await api.post(`/subscriptions/${sub.id}/test-notify`)
+      await api.post(`/items/${item.id}/test-notify`)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -93,11 +93,11 @@ export function SubscriptionListPage() {
     }
   }
 
-  const handleDelete = async (sub: Subscription) => {
-    if (!window.confirm(t('common.confirmDelete', { name: sub.name }))) return
+  const handleDelete = async (item: Item) => {
+    if (!window.confirm(t('common.confirmDelete', { name: item.name }))) return
     try {
-      await api.delete(`/subscriptions/${sub.id}`)
-      setSubs((prev) => prev.filter((s) => s.id !== sub.id))
+      await api.delete(`/items/${item.id}`)
+      setItems((prev) => prev.filter((s) => s.id !== item.id))
     } catch (e: any) {
       setError(e.message)
     }
@@ -106,13 +106,13 @@ export function SubscriptionListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('subscriptions.title')}</h1>
+        <h1 className="text-2xl font-bold">{t('items.title')}</h1>
         <button
-          onClick={() => navigate('/subscriptions/new')}
+          onClick={() => navigate('/items/new')}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          {t('subscriptions.add')}
+          {t('items.add')}
         </button>
       </div>
 
@@ -129,7 +129,7 @@ export function SubscriptionListPage() {
             <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : subs.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <CreditCard className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>{t('dashboard.noData')}</p>
@@ -142,12 +142,12 @@ export function SubscriptionListPage() {
               <thead className="bg-muted/50">
                 <tr>
                   {[
-                    t('subscriptions.name'),
-                    t('subscriptions.type'),
-                    t('subscriptions.category'),
-                    t('subscriptions.expiryDate'),
+                    t('items.name'),
+                    t('items.type'),
+                    t('items.category'),
+                    t('items.expiryDate'),
                     t('common.status'),
-                    t('subscriptions.amount'),
+                    t('items.amount'),
                     t('common.actions'),
                   ].map((h) => (
                     <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
@@ -157,20 +157,20 @@ export function SubscriptionListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {subs.map((sub) => {
-                  const status = getStatus(sub)
-                  const days = getDaysRemaining(sub.expiry_date)
+                {items.map((item) => {
+                  const status = getStatus(item)
+                  const days = getDaysRemaining(item.expiry_date)
                   return (
-                    <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-medium">{sub.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{sub.custom_type || '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{sub.category || '—'}</td>
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium">{item.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.custom_type || '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.category || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div>
-                            <span>{sub.expiry_date}</span>
-                            {!!sub.use_lunar && (
-                              <span className="text-xs text-muted-foreground block">{formatLunarDate(sub.expiry_date)}</span>
+                            <span>{item.expiry_date}</span>
+                            {!!item.use_lunar && (
+                              <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
                             )}
                           </div>
                           <DaysBadge days={days} />
@@ -178,16 +178,16 @@ export function SubscriptionListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', STATUS_STYLES[status])}>
-                          {t(`subscriptions.status.${status}`)}
+                          {t(`items.status.${status}`)}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-medium tabular-nums whitespace-nowrap">
-                        {sub.amount != null ? `${sub.currency} ${sub.amount.toFixed(2)}` : '—'}
+                        {item.amount != null ? `${item.currency} ${item.amount.toFixed(2)}` : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => navigate(`/subscriptions/${sub.id}`)}
+                            onClick={() => navigate(`/items/${item.id}`)}
                             className="p-1.5 rounded hover:bg-accent transition-colors"
                             title={t('common.edit')}
                             aria-label={t('common.edit')}
@@ -195,28 +195,28 @@ export function SubscriptionListPage() {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleToggle(sub)}
+                            onClick={() => handleToggle(item)}
                             className="p-1.5 rounded hover:bg-accent transition-colors"
-                            title={sub.is_active ? t('admin.deactivate') : t('admin.activate')}
-                            aria-label={sub.is_active ? t('admin.deactivate') : t('admin.activate')}
+                            title={item.is_active ? t('admin.deactivate') : t('admin.activate')}
+                            aria-label={item.is_active ? t('admin.deactivate') : t('admin.activate')}
                           >
-                            {sub.is_active ? (
+                            {item.is_active ? (
                               <ToggleRight className="w-4 h-4 text-green-500" />
                             ) : (
                               <ToggleLeft className="w-4 h-4 text-muted-foreground" />
                             )}
                           </button>
                           <button
-                            onClick={() => handleTestNotify(sub)}
-                            disabled={testingId === sub.id}
+                            onClick={() => handleTestNotify(item)}
+                            disabled={testingId === item.id}
                             className="p-1.5 rounded hover:bg-accent transition-colors disabled:opacity-50"
-                            title={t('subscriptions.testNotify')}
-                            aria-label={t('subscriptions.testNotify')}
+                            title={t('items.testNotify')}
+                            aria-label={t('items.testNotify')}
                           >
                             <Bell className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(sub)}
+                            onClick={() => handleDelete(item)}
                             className="p-1.5 rounded hover:bg-accent transition-colors text-destructive"
                             title={t('common.delete')}
                             aria-label={t('common.delete')}
@@ -234,69 +234,69 @@ export function SubscriptionListPage() {
 
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
-            {subs.map((sub) => {
-              const status = getStatus(sub)
-              const days = getDaysRemaining(sub.expiry_date)
+            {items.map((item) => {
+              const status = getStatus(item)
+              const days = getDaysRemaining(item.expiry_date)
               return (
-                <div key={sub.id} className="bg-card rounded-xl border p-4 space-y-2">
+                <div key={item.id} className="bg-card rounded-xl border p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-semibold">{sub.name}</p>
-                      {(sub.custom_type || sub.category) && (
+                      <p className="font-semibold">{item.name}</p>
+                      {(item.custom_type || item.category) && (
                         <p className="text-xs text-muted-foreground">
-                          {[sub.custom_type, sub.category].filter(Boolean).join(' · ')}
+                          {[item.custom_type, item.category].filter(Boolean).join(' · ')}
                         </p>
                       )}
                     </div>
                     <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium shrink-0', STATUS_STYLES[status])}>
-                      {t(`subscriptions.status.${status}`)}
+                      {t(`items.status.${status}`)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <div>
-                        <span className="text-muted-foreground">{sub.expiry_date}</span>
-                        {sub.use_lunar && (
-                          <span className="text-xs text-muted-foreground block">{formatLunarDate(sub.expiry_date)}</span>
+                        <span className="text-muted-foreground">{item.expiry_date}</span>
+                        {item.use_lunar && (
+                          <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
                         )}
                       </div>
                       <DaysBadge days={days} />
                     </div>
-                    {sub.amount != null && (
+                    {item.amount != null && (
                       <span className="font-medium tabular-nums">
-                        {sub.currency} {sub.amount.toFixed(2)}
+                        {item.currency} {item.amount.toFixed(2)}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 pt-1 border-t">
                     <button
-                      onClick={() => navigate(`/subscriptions/${sub.id}`)}
+                      onClick={() => navigate(`/items/${item.id}`)}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
                       <Eye className="w-3 h-3" />
                       {t('common.edit')}
                     </button>
                     <button
-                      onClick={() => handleToggle(sub)}
+                      onClick={() => handleToggle(item)}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
-                      {sub.is_active ? (
+                      {item.is_active ? (
                         <ToggleRight className="w-3 h-3 text-green-500" />
                       ) : (
                         <ToggleLeft className="w-3 h-3" />
                       )}
-                      {sub.is_active ? t('admin.deactivate') : t('admin.activate')}
+                      {item.is_active ? t('admin.deactivate') : t('admin.activate')}
                     </button>
                     <button
-                      onClick={() => handleTestNotify(sub)}
-                      disabled={testingId === sub.id}
+                      onClick={() => handleTestNotify(item)}
+                      disabled={testingId === item.id}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
                     >
                       <Bell className="w-3 h-3" />
-                      {t('subscriptions.testNotify')}
+                      {t('items.testNotify')}
                     </button>
                     <button
-                      onClick={() => handleDelete(sub)}
+                      onClick={() => handleDelete(item)}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors ml-auto"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -312,4 +312,3 @@ export function SubscriptionListPage() {
     </div>
   )
 }
-

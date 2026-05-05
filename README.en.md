@@ -1,13 +1,13 @@
-# enotify
+# eNotify
 
 [中文](./README.md) | English
 
-A subscription management and expiry reminder system that helps you track subscriptions, expenses, and sends notifications through multiple channels.
+A smart notification management system that helps you track expiry dates and expenses, sending reminders through multiple channels.
 
 ## Features
 
 - **Multi-user** — Registration/login, first user becomes admin automatically
-- **Subscription Management** — Add, edit, renew, deactivate, with cycle/reset renewal modes
+- **Notification Management** — Add, edit, renew, deactivate, with cycle/reset modes
 - **Payment History** — Record every payment, multi-currency with real-time exchange rates
 - **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
 - **9 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX
@@ -16,7 +16,7 @@ A subscription management and expiry reminder system that helps you track subscr
 - **Lunar Calendar** — Lunar date display and period calculation (1900-2100)
 - **Theme Switching** — Light/Dark/System
 - **Bilingual** — Chinese/English
-- **Mobile-First** — Responsive design with bottom navigation
+- **Mobile-First** — Responsive design with top bar and bottom navigation
 
 ## Tech Stack
 
