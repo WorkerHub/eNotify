@@ -46,7 +46,7 @@ function Toggle({ checked, onChange, label, description }: { checked: boolean; o
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={cn('relative shrink-0 w-10 h-6 rounded-full transition-colors mt-0.5', checked ? 'bg-primary' : 'bg-muted')}
+        className={cn('relative shrink-0 w-10 h-6 rounded-full transition-colors mt-0.5', checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600')}
       >
         <span
           className={cn(
