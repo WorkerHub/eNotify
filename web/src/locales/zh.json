@@ -119,8 +119,8 @@
     "testNotify": "测试通知",
     "mode": {
       "label": "模式",
-      "cycle": "周期续费",
-      "reset": "重置续费"
+      "cycle": "周期续期",
+      "reset": "重置续期"
     },
     "status": {
       "active": "活跃",
