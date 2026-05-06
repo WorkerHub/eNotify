@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { getTablePrefix } from '../types'
+import { getTablePrefix, VALID_CHANNELS } from '../types'
 import type { Item, HonoEnv } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import {
@@ -55,7 +55,7 @@ itemRoutes.post('/', async (c) => {
   if (body.amount !== undefined && body.amount !== null && (typeof body.amount !== 'number' || body.amount < 0)) {
     return c.json({ error: 'Amount must be a non-negative number' }, 400)
   }
-  const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  const validChannels = VALID_CHANNELS
   if (body.channels !== undefined && !Array.isArray(body.channels)) {
     return c.json({ error: 'channels must be an array' }, 400)
   }
@@ -167,7 +167,7 @@ itemRoutes.put('/:id', async (c) => {
   if (body.reminder_value !== undefined && (typeof body.reminder_value !== 'number' || body.reminder_value < 0)) {
     return c.json({ error: 'reminder_value must be a non-negative number' }, 400)
   }
-  const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  const validChannels = VALID_CHANNELS
   if (body.channels !== undefined) {
     if (!Array.isArray(body.channels)) {
       return c.json({ error: 'channels must be an array' }, 400)

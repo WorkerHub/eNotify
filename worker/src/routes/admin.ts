@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { getTablePrefix } from '../types'
+import { getTablePrefix, VALID_CHANNELS } from '../types'
 import type { HonoEnv } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
@@ -216,8 +216,20 @@ adminRoutes.put('/users/:uid/items/:iid', async (c) => {
   if (body.amount !== undefined && body.amount !== null && typeof body.amount !== 'number') {
     return c.json({ error: 'Amount must be a number' }, 400)
   }
+  const validChannels = VALID_CHANNELS
+  if (body.channels !== undefined) {
+    if (!Array.isArray(body.channels)) {
+      return c.json({ error: 'channels must be an array' }, 400)
+    }
+    if (body.channels.some((ch: string) => !validChannels.includes(ch))) {
+      return c.json({ error: 'Invalid channel name' }, 400)
+    }
+  }
 
-  await updateItem(c.env.DB, prefix, iid, body)
+  const updates: Record<string, any> = { ...body }
+  if (body.channels !== undefined) updates.channels = JSON.stringify(body.channels)
+
+  await updateItem(c.env.DB, prefix, iid, updates)
   return c.json({ success: true })
 })
 

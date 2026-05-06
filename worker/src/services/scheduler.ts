@@ -147,7 +147,7 @@ async function processSubscription(
 
   // Filter channels if item has specific channels configured
   let itemChannels: string[] | undefined
-  try { itemChannels = JSON.parse((sub as any).channels || '[]') } catch { itemChannels = [] }
+  try { itemChannels = JSON.parse(sub.channels || '[]') } catch { itemChannels = [] }
 
   await sendNotifications(notifyConfig, message, env, {
     db: env.DB, prefix, userId, itemId: sub.id,

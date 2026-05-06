@@ -111,3 +111,5 @@ export function getTablePrefix(env: Env): string {
   if (!raw) return ''
   return raw.endsWith('_') ? raw : raw + '_'
 }
+
+export const VALID_CHANNELS: string[] = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']

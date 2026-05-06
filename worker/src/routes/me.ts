@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { getTablePrefix } from '../types'
+import { getTablePrefix, VALID_CHANNELS } from '../types'
 import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { findUserById, updateUser } from '../db/queries/users'
@@ -140,7 +140,7 @@ meRoutes.get('/notifications', async (c) => {
     notification_hours: (() => { try { return JSON.parse(config.notification_hours) } catch { return [] } })(),
   }
 
-  const channels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  const channels = VALID_CHANNELS
   for (const ch of channels) {
     const key = `${ch}_config` as keyof typeof config
     const raw = config[key] as string
@@ -171,7 +171,7 @@ meRoutes.put('/notifications', async (c) => {
 
   if (body.enabled_channels !== undefined) {
     if (!Array.isArray(body.enabled_channels)) return c.json({ error: 'enabled_channels must be an array' }, 400)
-    const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+    const validChannels = VALID_CHANNELS
     if (body.enabled_channels.some((ch: string) => !validChannels.includes(ch))) {
       return c.json({ error: 'Invalid channel name' }, 400)
     }
@@ -185,7 +185,7 @@ meRoutes.put('/notifications', async (c) => {
     updates.notification_hours = JSON.stringify(body.notification_hours)
   }
 
-  const channels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  const channels = VALID_CHANNELS
   const existing = await getNotificationConfig(c.env.DB, prefix, userId)
   for (const ch of channels) {
     if (body[`${ch}_config`]) {

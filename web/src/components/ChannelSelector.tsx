@@ -1,24 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, ChevronDown, X, Radio } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-
-const CHANNELS = [
-  { id: 'telegram', label: 'Telegram' },
-  { id: 'webhook', label: 'Webhook' },
-  { id: 'wechatbot', label: 'WeCom Bot' },
-  { id: 'email', label: 'Email' },
-  { id: 'bark', label: 'Bark' },
-  { id: 'gotify', label: 'Gotify' },
-  { id: 'serverchan', label: 'ServerChan' },
-  { id: 'pushplus', label: 'PushPlus' },
-  { id: 'notifyx', label: 'NotifyX' },
-] as const
-
-interface NotificationConfig {
-  enabled_channels: string
-}
+import { CHANNELS } from '@/lib/channels'
+import type { NotificationConfig } from '@/types'
 
 export function ChannelSelector({
   selected,
@@ -31,13 +17,13 @@ export function ChannelSelector({
   const [open, setOpen] = useState(false)
   const [enabledChannels, setEnabledChannels] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchConfig() {
       try {
         const config = await api.get<NotificationConfig>('/me/notifications')
-        const channels = JSON.parse(config.enabled_channels || '[]')
-        setEnabledChannels(channels)
+        setEnabledChannels(config.enabled_channels || [])
       } catch (e) {
         setEnabledChannels([])
       } finally {
@@ -46,6 +32,18 @@ export function ChannelSelector({
     }
     fetchConfig()
   }, [])
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
 
   const availableChannels = CHANNELS.filter(ch => enabledChannels.includes(ch.id))
 
@@ -69,7 +67,7 @@ export function ChannelSelector({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <label className="text-sm font-medium">{t('channels.selectChannels')}</label>
       <button
         type="button"

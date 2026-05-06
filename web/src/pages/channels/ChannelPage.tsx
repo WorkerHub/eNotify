@@ -173,7 +173,9 @@ function ChannelCard({
   const { t } = useTranslation()
 
   const isEnabled = config.enabled_channels.includes(channel.id)
-  const channelConfig = (config[channel.id] as Record<string, string>) ?? {}
+  // API returns channel config under `${channel.id}_config` key
+  const configKey = `${channel.id}_config` as keyof NotificationConfig
+  const channelConfig = (config[configKey] as Record<string, string>) ?? {}
 
   const [expanded, setExpanded] = useState(false)
   const [localFields, setLocalFields] = useState<Record<string, string>>(channelConfig)
@@ -182,7 +184,7 @@ function ChannelCard({
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
 
   // Sync if parent config changes (only from server, not local edits)
-  const configJson = JSON.stringify((config[channel.id] as Record<string, string>) ?? {})
+  const configJson = JSON.stringify((config[configKey] as Record<string, string>) ?? {})
   useEffect(() => {
     setLocalFields(JSON.parse(configJson))
   }, [configJson])
@@ -194,12 +196,11 @@ function ChannelCard({
         ? config.enabled_channels.filter((c) => c !== channel.id)
         : [...config.enabled_channels, channel.id],
     }
-    onConfigChange(next)
     try {
-      await api.put('/me/notifications', next)
+      await api.put('/me/notifications', { enabled_channels: next.enabled_channels })
+      onConfigChange(next)
     } catch {
-      // revert on error
-      onConfigChange(config)
+      // no state change on error
     }
   }
 
@@ -207,9 +208,9 @@ function ChannelCard({
     e.preventDefault()
     setSaving(true)
     setFeedback(null)
-    const next: NotificationConfig = { ...config, [channel.id]: localFields }
     try {
-      await api.put('/me/notifications', next)
+      await api.put('/me/notifications', { [configKey]: localFields })
+      const next: NotificationConfig = { ...config, [configKey]: localFields }
       onConfigChange(next)
       setFeedback({ ok: true, msg: t('common.success') })
     } catch (err: any) {
@@ -248,7 +249,7 @@ function ChannelCard({
           >
             <span
               className={cn(
-                'pointer-events-none absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                'pointer-events-none absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
                 isEnabled ? 'translate-x-4' : 'translate-x-0'
               )}
             />
