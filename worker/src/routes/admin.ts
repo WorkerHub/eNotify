@@ -8,6 +8,7 @@ import { listItemsByUser, createItem, updateItem, deleteItem, getItem } from '..
 import { getAllSettings, setSetting } from '../db/queries/settings'
 import { upsertNotificationConfig } from '../db/queries/notifications'
 import { generateId, hashPassword } from '../core/auth'
+import { sendEmail } from '../services/email'
 
 const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
@@ -306,6 +307,24 @@ adminRoutes.put('/system/settings', async (c) => {
     } else {
       await setSetting(c.env.DB, prefix, key, value)
     }
+  }
+
+  return c.json({ success: true })
+})
+
+// Test email
+adminRoutes.post('/system/settings/test-email', async (c) => {
+  const { to } = await c.req.json<{ to: string }>()
+  if (!to || !EMAIL_RE.test(to)) return c.json({ error: 'Invalid email address' }, 400)
+
+  const result = await sendEmail(c.env, {
+    to,
+    subject: 'eNotify Test Email',
+    html: '<p>This is a test email from eNotify. Your email configuration is working correctly.</p>',
+  })
+
+  if (!result.success) {
+    return c.json({ error: result.error || 'Failed to send email' }, 500)
   }
 
   return c.json({ success: true })

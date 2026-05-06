@@ -5,6 +5,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { SystemSettings } from '@/types'
+import { useAuth } from '@/hooks/useAuth'
 
 type EmailProvider = 'none' | 'smtp' | 'resend'
 
@@ -65,6 +66,7 @@ const DEFAULT_RESEND: ResendConfig = { api_key: '', from: '', from_name: '' }
 export function AdminSystemPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [appName, setAppName] = useState('')
   const [emailProvider, setEmailProvider] = useState<EmailProvider>('none')
@@ -78,6 +80,15 @@ export function AdminSystemPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
+
+  const [testEmailTo, setTestEmailTo] = useState('')
+  const [testEmailLoading, setTestEmailLoading] = useState(false)
+  const [testEmailMsg, setTestEmailMsg] = useState('')
+  const [testEmailError, setTestEmailError] = useState('')
+
+  useEffect(() => {
+    if (user?.email) setTestEmailTo(user.email)
+  }, [user?.email])
 
   useEffect(() => {
     api
@@ -153,6 +164,21 @@ export function AdminSystemPage() {
       setError(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    setTestEmailLoading(true)
+    setTestEmailMsg('')
+    setTestEmailError('')
+    try {
+      await api.post('/admin/system/settings/test-email', { to: testEmailTo })
+      setTestEmailMsg(t('admin.testEmailSent'))
+      setTimeout(() => setTestEmailMsg(''), 4000)
+    } catch (e: any) {
+      setTestEmailError(e.message || t('admin.testEmailFailed'))
+    } finally {
+      setTestEmailLoading(false)
     }
   }
 
@@ -258,6 +284,33 @@ export function AdminSystemPage() {
             </div>
           )}
         </section>
+
+        {/* Test email */}
+        {emailProvider !== 'none' && (
+          <section className="bg-card rounded-xl border p-5 space-y-4">
+            <h2 className="font-semibold">{t('admin.testEmail')}</h2>
+            <Field label={t('admin.testEmailAddress')}>
+              <input
+                className={INPUT}
+                type="email"
+                value={testEmailTo}
+                onChange={(e) => setTestEmailTo(e.target.value)}
+              />
+            </Field>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={testEmailLoading || !testEmailTo}
+                onClick={handleTestEmail}
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {testEmailLoading ? t('common.loading') : t('admin.testEmail')}
+              </button>
+              {testEmailMsg && <span className="text-sm text-green-600">{testEmailMsg}</span>}
+              {testEmailError && <span className="text-sm text-destructive">{testEmailError}</span>}
+            </div>
+          </section>
+        )}
 
         {/* Toggles */}
         <section className="bg-card rounded-xl border p-5 space-y-5">

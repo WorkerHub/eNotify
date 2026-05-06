@@ -154,7 +154,10 @@
     "notificationHours": "通知时段",
     "totpDescription": "使用验证器应用（如 Google Authenticator、Authy 等）",
     "emailOtpDescription": "登录时通过邮件接收一次性验证码",
-    "passkeyDescription": "使用生物识别或硬件密钥登录"
+    "passkeyDescription": "使用生物识别或硬件密钥登录",
+    "emailOtpVerifyPrompt": "验证码已发送至您的邮箱，请输入验证码以启用邮箱验证码登录。",
+    "emailOtpVerifyCode": "验证码",
+    "emailOtpSendCode": "发送验证码"
   },
   "about": {
     "title": "关于",
@@ -216,7 +219,11 @@
     "editUser": "编辑用户",
     "newPasswordOptional": "新密码（留空则不修改）",
     "appName": "应用名称",
-    "appSettings": "应用设置"
+    "appSettings": "应用设置",
+    "testEmail": "发送测试邮件",
+    "testEmailAddress": "测试收件地址",
+    "testEmailSent": "测试邮件发送成功",
+    "testEmailFailed": "测试邮件发送失败"
   },
   "channels": {
     "title": "渠道管理",

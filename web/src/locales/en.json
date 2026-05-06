@@ -153,7 +153,10 @@
     "notificationHours": "Notification Hours",
     "totpDescription": "Use an authenticator app (Google Authenticator, Authy, etc.)",
     "emailOtpDescription": "Receive a one-time code via email when signing in.",
-    "passkeyDescription": "Use biometrics or a hardware key for sign-in."
+    "passkeyDescription": "Use biometrics or a hardware key for sign-in.",
+    "emailOtpVerifyPrompt": "A verification code has been sent to your email. Enter it to enable Email OTP.",
+    "emailOtpVerifyCode": "Verification code",
+    "emailOtpSendCode": "Send Code"
   },
   "about": {
     "title": "About",
@@ -215,7 +218,11 @@
     "editUser": "Edit User",
     "newPasswordOptional": "New password (leave blank to keep)",
     "appName": "App Name",
-    "appSettings": "App Settings"
+    "appSettings": "App Settings",
+    "testEmail": "Send Test Email",
+    "testEmailAddress": "Test recipient address",
+    "testEmailSent": "Test email sent successfully",
+    "testEmailFailed": "Failed to send test email"
   },
   "channels": {
     "title": "Channel Management",

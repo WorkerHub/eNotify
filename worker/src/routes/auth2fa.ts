@@ -7,6 +7,7 @@ import { findUserById } from '../db/queries/users'
 
 interface StoredCredential { id: string; publicKey: string; counter: number }
 import { generateTOTPSecret, verifyTOTPAsync, generateEmailOTP, verifyEmailOTP, sendOTPEmail } from '../services/twofa'
+import { getSetting } from '../db/queries/settings'
 import { verifyJWT, signJWT, generateId, generateJti } from '../core/auth'
 import { setCookie } from 'hono/cookie'
 import { rateLimit } from '../middleware/ratelimit'
@@ -164,13 +165,36 @@ auth2faRoutes.post('/totp/disable', async (c) => {
   return c.json({ success: true })
 })
 
-// Email OTP enable
-auth2faRoutes.post('/email-otp/enable', async (c) => {
+// Send verification OTP before enabling Email OTP (authenticated)
+auth2faRoutes.post('/email-otp/send-verify', async (c) => {
   const userId = c.get('userId')
   const prefix = getTablePrefix(c.env)
 
-  await upsert2FAConfig(c.env.DB, prefix, userId, { email_otp_enabled: 1 })
+  const user = await findUserById(c.env.DB, prefix, userId)
+  if (!user) return c.json({ error: 'User not found' }, 404)
 
+  const code = await generateEmailOTP(c.env, userId, 'email_otp_setup')
+  await sendOTPEmail(c.env, user.email, code, user.language || 'en')
+
+  return c.json({ success: true })
+})
+
+// Email OTP enable — requires verification code if email provider is configured
+auth2faRoutes.post('/email-otp/enable', async (c) => {
+  const userId = c.get('userId')
+  const prefix = getTablePrefix(c.env)
+  const body = await c.req.json<{ code?: string }>().catch(() => ({ code: undefined }))
+  const code = body?.code
+
+  const provider = await getSetting(c.env.DB, prefix, 'email_provider')
+
+  if (provider && provider !== 'none') {
+    if (!code) return c.json({ error: 'Verification code required' }, 400)
+    const valid = await verifyEmailOTP(c.env, userId, code, 'email_otp_setup')
+    if (!valid) return c.json({ error: 'Invalid or expired verification code' }, 400)
+  }
+
+  await upsert2FAConfig(c.env.DB, prefix, userId, { email_otp_enabled: 1 })
   return c.json({ success: true })
 })
 

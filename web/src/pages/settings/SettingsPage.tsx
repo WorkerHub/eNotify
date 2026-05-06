@@ -154,6 +154,9 @@ function SecurityTab() {
   // Email OTP
   const [emailOtpLoading, setEmailOtpLoading] = useState(false)
   const [emailOtpError, setEmailOtpError] = useState('')
+  const [emailOtpVerifying, setEmailOtpVerifying] = useState(false)
+  const [emailOtpCode, setEmailOtpCode] = useState('')
+  const [emailOtpSending, setEmailOtpSending] = useState(false)
 
   const startTotpSetup = async () => {
     setTotpError('')
@@ -229,15 +232,41 @@ function SecurityTab() {
     }
   }
 
-  const toggleEmailOtp = async () => {
+  const sendEmailOtpVerify = async () => {
+    setEmailOtpError('')
+    setEmailOtpSending(true)
+    try {
+      await api.post('/auth/2fa/email-otp/send-verify')
+      setEmailOtpVerifying(true)
+      setEmailOtpCode('')
+    } catch (err: any) {
+      setEmailOtpError(err.message || t('common.error'))
+    } finally {
+      setEmailOtpSending(false)
+    }
+  }
+
+  const confirmEmailOtpEnable = async (e: React.FormEvent) => {
+    e.preventDefault()
     setEmailOtpError('')
     setEmailOtpLoading(true)
     try {
-      if (twofa?.email_otp_enabled) {
-        await api.post('/auth/2fa/email-otp/disable')
-      } else {
-        await api.post('/auth/2fa/email-otp/enable')
-      }
+      await api.post('/auth/2fa/email-otp/enable', { code: emailOtpCode })
+      setEmailOtpVerifying(false)
+      setEmailOtpCode('')
+      await refreshUser()
+    } catch (err: any) {
+      setEmailOtpError(err.message || t('common.error'))
+    } finally {
+      setEmailOtpLoading(false)
+    }
+  }
+
+  const disableEmailOtp = async () => {
+    setEmailOtpError('')
+    setEmailOtpLoading(true)
+    try {
+      await api.post('/auth/2fa/email-otp/disable')
       await refreshUser()
     } catch (err: any) {
       setEmailOtpError(err.message || t('common.error'))
@@ -336,22 +365,56 @@ function SecurityTab() {
           <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md mb-3">{emailOtpError}</p>
         )}
 
-        <button
-          onClick={toggleEmailOtp}
-          disabled={emailOtpLoading}
-          className={cn(
-            'py-1.5 px-3 text-xs font-medium rounded-md transition-colors disabled:opacity-50',
-            twofa?.email_otp_enabled
-              ? 'bg-destructive/10 hover:bg-destructive/20 text-destructive'
-              : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-          )}
-        >
-          {emailOtpLoading
-            ? t('common.loading')
-            : twofa?.email_otp_enabled
-            ? t('common.disable')
-            : t('common.enable')}
-        </button>
+        {!twofa?.email_otp_enabled && !emailOtpVerifying && (
+          <button
+            onClick={sendEmailOtpVerify}
+            disabled={emailOtpSending}
+            className="py-1.5 px-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-medium rounded-md transition-colors"
+          >
+            {emailOtpSending ? t('common.loading') : t('common.enable')}
+          </button>
+        )}
+
+        {!twofa?.email_otp_enabled && emailOtpVerifying && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{t('settings.emailOtpVerifyPrompt')}</p>
+            <form onSubmit={confirmEmailOtpEnable} className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={emailOtpCode}
+                onChange={(e) => setEmailOtpCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                type="submit"
+                disabled={emailOtpLoading || emailOtpCode.length < 6}
+                className="py-2 px-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+              >
+                {emailOtpLoading ? t('common.loading') : t('common.confirm')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmailOtpVerifying(false); setEmailOtpCode(''); setEmailOtpError('') }}
+                className="py-2 px-3 bg-muted hover:bg-muted/80 text-foreground text-sm font-medium rounded-md transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {twofa?.email_otp_enabled && (
+          <button
+            onClick={disableEmailOtp}
+            disabled={emailOtpLoading}
+            className="py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
+          >
+            {emailOtpLoading ? t('common.loading') : t('common.disable')}
+          </button>
+        )}
       </div>
 
       {/* Passkey */}
