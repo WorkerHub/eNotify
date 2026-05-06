@@ -188,6 +188,7 @@ adminRoutes.post('/users/:uid/items', async (c) => {
     auto_renew: body.auto_renew ?? 1,
     use_lunar: body.use_lunar ?? 0,
     channels: JSON.stringify(body.channels || []),
+    item_kind: body.item_kind || 'regular',
   })
 
   return c.json({ id }, 201)

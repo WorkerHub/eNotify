@@ -55,6 +55,7 @@ export interface Item {
   auto_renew: number
   use_lunar: number
   channels: string
+  item_kind: 'regular' | 'subscription'
   created_at: string
   updated_at: string
 }

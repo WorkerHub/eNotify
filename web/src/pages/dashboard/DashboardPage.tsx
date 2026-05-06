@@ -1,240 +1,172 @@
-import { useEffect, useState, type ElementType } from 'react'
-import { useTranslation } from 'react-i18next'
-import { TrendingUp, TrendingDown, CreditCard, AlertCircle } from 'lucide-react'
-import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
-import type { DashboardStats } from '@/types'
+import { Hono } from 'hono'
+import { getTablePrefix } from '../types'
+import type { HonoEnv } from '../types'
+import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
+import { getActiveItemsByUser } from '../db/queries/items'
+import { listPaymentsByUserSince } from '../db/queries/payments'
+import { getExchangeRates, convertAmount } from '../core/currency'
+import { findUserById } from '../db/queries/users'
+import { diffInDays, nowISO } from '../core/time'
 
-function SkeletonCard() {
-  return (
-    <div className="bg-card rounded-xl border p-4 animate-pulse">
-      <div className="h-4 bg-muted rounded w-1/2 mb-3" />
-      <div className="h-8 bg-muted rounded w-3/4 mb-2" />
-      <div className="h-3 bg-muted rounded w-1/3" />
-    </div>
-  )
-}
+export const dashboardRoutes = new Hono<HonoEnv>()
 
-function StatCard({
-  label,
-  value,
-  sub,
-  trend,
-  icon: Icon,
-}: {
-  label: string
-  value: string
-  sub?: string
-  trend?: number
-  icon: ElementType
-}) {
-  return (
-    <div className="bg-card rounded-xl border p-4 flex flex-col gap-1">
-      <div className="flex items-center justify-between text-muted-foreground text-sm">
-        <span>{label}</span>
-        <Icon className="w-4 h-4" />
-      </div>
-      <div className="text-2xl font-bold tracking-tight">{value}</div>
-      <div className="flex items-center gap-1 text-xs">
-        {trend !== undefined && (
-          <span
-            className={cn(
-              'flex items-center gap-0.5 font-medium',
-              trend > 0 ? 'text-red-500' : trend < 0 ? 'text-green-500' : 'text-muted-foreground',
-            )}
-          >
-            {trend > 0 ? (
-              <TrendingUp className="w-3 h-3" />
-            ) : trend < 0 ? (
-              <TrendingDown className="w-3 h-3" />
-            ) : null}
-            {trend > 0 ? '+' : ''}
-            {trend.toFixed(1)}%
-          </span>
-        )}
-        {sub && <span className="text-muted-foreground">{sub}</span>}
-      </div>
-    </div>
-  )
-}
+dashboardRoutes.use('*', authMiddleware)
 
-function ProgressBar({ name, amount, max }: { name: string; amount: number; max: number }) {
-  const pct = max > 0 ? Math.round((amount / max) * 100) : 0
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-24 truncate text-muted-foreground shrink-0">{name}</span>
-      <div className="flex-1 bg-muted rounded-full h-2">
-        <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-16 text-right font-medium tabular-nums">{amount.toFixed(2)}</span>
-    </div>
-  )
-}
+dashboardRoutes.get('/stats', async (c) => {
+  const userId = getEffectiveUserId(c)
+  const prefix = getTablePrefix(c.env)
 
-export function DashboardPage() {
-  const { t } = useTranslation()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const user = await findUserById(c.env.DB, prefix, userId)
+  if (!user) return c.json({ error: 'User not found' }, 404)
 
-  useEffect(() => {
-    let cancelled = false
-    api
-      .get<DashboardStats>('/dashboard/stats')
-      .then((data) => { if (!cancelled) setStats(data) })
-      .catch((e) => { if (!cancelled) setError(e.message) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [])
+  const baseCurrency = user.base_currency || 'CNY'
+  const allActiveItems = await getActiveItemsByUser(c.env.DB, prefix, userId)
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-7 bg-muted rounded w-32 animate-pulse" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-        <div className="bg-card rounded-xl border p-4 animate-pulse space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-4 bg-muted rounded" />
-          ))}
-        </div>
-      </div>
-    )
+  const subscriptionItems = allActiveItems.filter((s) => s.item_kind === 'subscription')
+  const regularItems = allActiveItems.filter((s) => s.item_kind !== 'subscription')
+
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
+  const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
+
+  const sinceDate = `${lastMonthYear}-01-01`
+  const payments = await listPaymentsByUserSince(c.env.DB, prefix, userId, sinceDate)
+
+  let rates: Record<string, number> = {}
+  try {
+    rates = await getExchangeRates(c.env.KV, baseCurrency)
+  } catch {
+    // Fallback: no conversion
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center gap-2 text-destructive p-4 rounded-xl border border-destructive/20 bg-destructive/5">
-        <AlertCircle className="w-4 h-4 shrink-0" />
-        <span className="text-sm">{error}</span>
-      </div>
-    )
+  // --- Subscription financial stats ---
+  let monthlyExpense = 0
+  let lastMonthExpense = 0
+  let yearlyExpense = 0
+
+  for (const payment of payments) {
+    const payDate = new Date(payment.date)
+    const converted = payment.currency === baseCurrency
+      ? payment.amount
+      : convertAmount(payment.amount, payment.currency, baseCurrency, rates)
+
+    if (payDate.getFullYear() === currentYear) {
+      yearlyExpense += converted
+      if (payDate.getMonth() === currentMonth) {
+        monthlyExpense += converted
+      }
+    }
+    if (payDate.getFullYear() === lastMonthYear && payDate.getMonth() === lastMonth) {
+      lastMonthExpense += converted
+    }
   }
 
-  if (!stats) return null
+  const monthlyTrend = lastMonthExpense > 0
+    ? ((monthlyExpense - lastMonthExpense) / lastMonthExpense * 100)
+    : 0
 
-  const currency = stats.base_currency
-  const fmt = (n: number) => `${currency} ${n.toFixed(2)}`
+  const today = nowISO().split('T')[0]
 
-  const categoryMax = stats.category_ranking[0]?.amount ?? 0
-  const typeMax = stats.type_ranking[0]?.amount ?? 0
+  // Subscription: upcoming renewals and expiring soon
+  const subUpcomingRenewals = subscriptionItems
+    .filter((s) => {
+      const days = diffInDays(today, s.expiry_date)
+      return days >= 0 && days <= 7
+    })
+    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
+  const subExpiringSoon = subUpcomingRenewals.length
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label={t('dashboard.monthlyExpense')}
-          value={fmt(stats.monthly_expense)}
-          trend={stats.monthly_trend}
-          sub={t('dashboard.trend')}
-          icon={CreditCard}
-        />
-        <StatCard
-          label={t('dashboard.yearlyExpense')}
-          value={fmt(stats.yearly_expense)}
-          sub={`${t('dashboard.monthlyAverage')}: ${fmt(stats.monthly_average)}`}
-          icon={CreditCard}
-        />
-        <StatCard
-          label={t('dashboard.activeCount')}
-          value={String(stats.active_count)}
-          icon={CreditCard}
-        />
-        <StatCard
-          label={t('dashboard.expiringSoon')}
-          value={String(stats.expiring_soon)}
-          icon={AlertCircle}
-        />
-      </div>
+  const recentPayments = payments
+    .filter((p) => {
+      const days = diffInDays(p.date, today)
+      return days >= 0 && days <= 7
+    })
+    .slice(0, 10)
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Upcoming renewals */}
-        <div className="bg-card rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            {t('dashboard.upcomingRenewals')}
-          </h2>
-          {stats.upcoming_renewals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
-          ) : (
-            <ul className="divide-y">
-              {stats.upcoming_renewals.map((sub) => (
-                <li key={sub.id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="font-medium truncate max-w-[140px]">{sub.name}</span>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-muted-foreground">{sub.expiry_date}</span>
-                    {sub.amount != null && (
-                      <span className="font-medium tabular-nums">
-                        {sub.currency} {sub.amount.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+  // Subscription: category & type rankings by amount
+  const categoryExpense: Record<string, number> = {}
+  const typeExpense: Record<string, number> = {}
 
-        {/* Recent payments */}
-        <div className="bg-card rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            {t('dashboard.recentPayments')}
-          </h2>
-          {stats.recent_payments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
-          ) : (
-            <ul className="divide-y">
-              {stats.recent_payments.map((p) => (
-                <li key={p.id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="text-muted-foreground">{p.date.slice(0, 10)}</span>
-                  <span className="font-medium tabular-nums">
-                    {p.currency} {p.amount.toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+  for (const sub of subscriptionItems) {
+    if (!sub.amount) continue
+    const converted = sub.currency === baseCurrency
+      ? sub.amount
+      : convertAmount(sub.amount, sub.currency, baseCurrency, rates)
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Category ranking */}
-        <div className="bg-card rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            {t('dashboard.categoryRanking')}
-          </h2>
-          {stats.category_ranking.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
-          ) : (
-            <div className="space-y-2">
-              {stats.category_ranking.slice(0, 8).map((item) => (
-                <ProgressBar key={item.name} name={item.name} amount={item.amount} max={categoryMax} />
-              ))}
-            </div>
-          )}
-        </div>
+    let monthly = converted
+    if (sub.period_unit === 'year') monthly = converted / 12
+    else if (sub.period_unit === 'day') monthly = converted * 30
 
-        {/* Type ranking */}
-        <div className="bg-card rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            {t('dashboard.typeRanking')}
-          </h2>
-          {stats.type_ranking.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
-          ) : (
-            <div className="space-y-2">
-              {stats.type_ranking.slice(0, 8).map((item) => (
-                <ProgressBar key={item.name} name={item.name} amount={item.amount} max={typeMax} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+    if (sub.category) {
+      const cats = sub.category.split(/[,/\s]+/).filter(Boolean)
+      for (const cat of cats) {
+        categoryExpense[cat] = (categoryExpense[cat] || 0) + monthly / cats.length
+      }
+    }
+    if (sub.custom_type) {
+      typeExpense[sub.custom_type] = (typeExpense[sub.custom_type] || 0) + monthly
+    }
+  }
+
+  const subCategoryRanking = Object.entries(categoryExpense)
+    .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
+    .sort((a, b) => b.amount - a.amount)
+
+  const subTypeRanking = Object.entries(typeExpense)
+    .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
+    .sort((a, b) => b.amount - a.amount)
+
+  // --- Regular reminder stats ---
+  const regExpiringSoon = regularItems.filter((s) => {
+    const days = diffInDays(today, s.expiry_date)
+    return days >= 0 && days <= 7
+  }).length
+
+  const regUpcomingReminders = regularItems
+    .filter((s) => {
+      const days = diffInDays(today, s.expiry_date)
+      return days >= 0 && days <= 7
+    })
+    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
+    .map((s) => ({ id: s.id, name: s.name, expiry_date: s.expiry_date }))
+
+  // Regular: category ranking by count
+  const categoryCount: Record<string, number> = {}
+  for (const item of regularItems) {
+    if (item.category) {
+      const cats = item.category.split(/[,/\s]+/).filter(Boolean)
+      for (const cat of cats) {
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1
+      }
+    }
+  }
+
+  const regCategoryRanking = Object.entries(categoryCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+
+  return c.json({
+    subscription: {
+      monthly_expense: Math.round(monthlyExpense * 100) / 100,
+      monthly_trend: Math.round(monthlyTrend * 10) / 10,
+      yearly_expense: Math.round(yearlyExpense * 100) / 100,
+      monthly_average: Math.round((yearlyExpense / (currentMonth + 1)) * 100) / 100,
+      active_count: subscriptionItems.length,
+      expiring_soon: subExpiringSoon,
+      upcoming_renewals: subUpcomingRenewals,
+      recent_payments: recentPayments,
+      category_ranking: subCategoryRanking,
+      type_ranking: subTypeRanking,
+      base_currency: baseCurrency,
+    },
+    regular: {
+      active_count: regularItems.length,
+      expiring_soon: regExpiringSoon,
+      upcoming_reminders: regUpcomingReminders,
+      category_ranking: regCategoryRanking,
+    },
+  })
+})

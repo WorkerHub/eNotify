@@ -12,6 +12,7 @@ const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY
 
 interface FormData {
   name: string
+  item_kind: 'regular' | 'subscription'
   item_mode: 'cycle' | 'reset'
   custom_type: string
   category: string
@@ -31,6 +32,7 @@ interface FormData {
 
 const DEFAULT: FormData = {
   name: '',
+  item_kind: 'regular',
   item_mode: 'cycle',
   custom_type: '',
   category: '',
@@ -87,9 +89,9 @@ export function ItemNewPage() {
         ...form,
         period_value: Number(form.period_value) || 1,
         reminder_value: Number(form.reminder_value) || 7,
-        amount: form.amount ? Number(form.amount) : null,
+        amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
         start_date: form.start_date || null,
-        auto_renew: form.auto_renew ? 1 : 0,
+        auto_renew: form.item_kind === 'subscription' && form.auto_renew ? 1 : 0,
         use_lunar: form.use_lunar ? 1 : 0,
         channels: form.channels,
       })
@@ -121,6 +123,34 @@ export function ItemNewPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Kind selector */}
+        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+          <button
+            type="button"
+            onClick={() => set('item_kind', 'regular')}
+            className={cn(
+              'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+              form.item_kind === 'regular'
+                ? 'bg-background shadow text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t('items.kindRegular')}
+          </button>
+          <button
+            type="button"
+            onClick={() => set('item_kind', 'subscription')}
+            className={cn(
+              'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+              form.item_kind === 'subscription'
+                ? 'bg-background shadow text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t('items.kindSubscription')}
+          </button>
+        </div>
+
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label={t('items.name')} required>
             <input
@@ -215,50 +245,54 @@ export function ItemNewPage() {
           </div>
         </Field>
 
-        {/* Amount + currency */}
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label={t('items.amount')}>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              className={INPUT}
-              value={form.amount}
-              onChange={(e) => set('amount', e.target.value)}
-            />
-          </Field>
+        {/* Amount + currency (subscription only) */}
+        {form.item_kind === 'subscription' && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label={t('items.amount')}>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={INPUT}
+                value={form.amount}
+                onChange={(e) => set('amount', e.target.value)}
+              />
+            </Field>
 
-          <Field label={t('items.currency')}>
-            <select className={SELECT} value={form.currency} onChange={(e) => set('currency', e.target.value)}>
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
+            <Field label={t('items.currency')}>
+              <select className={SELECT} value={form.currency} onChange={(e) => set('currency', e.target.value)}>
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
 
         {/* Toggles */}
-        <div className="flex gap-6">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.auto_renew}
-              onClick={() => set('auto_renew', !form.auto_renew)}
-              className={cn(
-                'relative w-10 h-6 rounded-full transition-colors',
-                form.auto_renew ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
-              )}
-            >
-              <span
+        <div className="flex gap-6 flex-wrap">
+          {form.item_kind === 'subscription' && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.auto_renew}
+                onClick={() => set('auto_renew', !form.auto_renew)}
                 className={cn(
-                  'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                  form.auto_renew && 'translate-x-4',
+                  'relative w-10 h-6 rounded-full transition-colors',
+                  form.auto_renew ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
                 )}
-              />
-            </button>
-            <span className="text-sm font-medium">{t('items.autoRenew')}</span>
-          </label>
+              >
+                <span
+                  className={cn(
+                    'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                    form.auto_renew && 'translate-x-4',
+                  )}
+                />
+              </button>
+              <span className="text-sm font-medium">{t('items.autoRenew')}</span>
+            </label>
+          )}
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <button

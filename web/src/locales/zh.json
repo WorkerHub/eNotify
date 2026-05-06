@@ -64,7 +64,7 @@
   "nav": {
     "dashboard": "仪表盘",
     "items": "通知",
-    "channels": "渠道",
+    "channels": "通道",
     "history": "历史通知",
     "settings": "设置",
     "admin": "管理",
@@ -83,7 +83,12 @@
     "typeRanking": "类型排行",
     "trend": "环比",
     "days": "天",
-    "noData": "暂无数据"
+    "noData": "暂无数据",
+    "subscriptionSection": "订阅提醒",
+    "regularSection": "普通提醒",
+    "activeRegularCount": "活跃普通提醒",
+    "upcomingReminders": "即将到期提醒",
+    "regularCategoryRanking": "分类排行（条数）"
   },
   "items": {
     "title": "通知管理",
@@ -131,7 +136,10 @@
       "manual": "手动",
       "auto": "自动"
     },
-    "type": "类型"
+    "type": "类型",
+    "kind": "提醒类型",
+    "kindRegular": "普通提醒",
+    "kindSubscription": "订阅提醒"
   },
   "settings": {
     "title": "设置",
@@ -150,7 +158,7 @@
     "themeDark": "深色",
     "themeSystem": "跟随系统",
     "showLunar": "显示农历",
-    "notificationChannels": "通知渠道",
+    "notificationChannels": "通知通道",
     "notificationHours": "通知时段",
     "totpDescription": "使用验证器应用（如 Google Authenticator、Authy 等）",
     "emailOtpDescription": "登录时通过邮件接收一次性验证码",
@@ -170,7 +178,7 @@
   "history": {
     "title": "历史通知",
     "title_col": "标题",
-    "channel": "渠道",
+    "channel": "通道",
     "time": "时间",
     "success": "成功",
     "failed": "失败",
@@ -226,8 +234,8 @@
     "testEmailFailed": "测试邮件发送失败"
   },
   "channels": {
-    "title": "渠道管理",
-    "description": "配置通知渠道，设置将发送到所有已启用的渠道。每个通知项可以单独选择要使用的渠道。",
+    "title": "通道管理",
+    "description": "配置通知通道，设置将发送到所有已启用的通道。每个通知项可以单独选择要使用的通道。",
     "telegram": "Telegram",
     "webhook": "Webhook",
     "wechatbot": "企业微信机器人",
@@ -258,6 +266,6 @@
     "allChannels": "所有已启用的渠道",
     "selectedChannels": "已选择 {{count}} 个渠道",
     "noChannelsSelected": "未选择（使用默认）",
-    "noChannelsEnabled": "未启用任何渠道，请先到渠道管理页面配置"
+    "noChannelsEnabled": "未启用任何通道，请先到通道管理页面配置"
   }
 }

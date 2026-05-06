@@ -83,7 +83,12 @@
     "typeRanking": "By Type",
     "trend": "vs last month",
     "days": "days",
-    "noData": "No data"
+    "noData": "No data",
+    "subscriptionSection": "Subscriptions",
+    "regularSection": "Regular Reminders",
+    "activeRegularCount": "Active Reminders",
+    "upcomingReminders": "Upcoming Reminders",
+    "regularCategoryRanking": "By Category (count)"
   },
   "items": {
     "title": "Notifications",
@@ -130,7 +135,10 @@
       "initial": "Initial",
       "manual": "Manual",
       "auto": "Auto"
-    }
+    },
+    "kind": "Reminder Type",
+    "kindRegular": "Regular",
+    "kindSubscription": "Subscription"
   },
   "settings": {
     "title": "Settings",

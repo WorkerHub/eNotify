@@ -39,6 +39,7 @@ export interface Item {
   auto_renew: number
   use_lunar: number
   channels: string
+  item_kind: 'regular' | 'subscription'
   created_at: string
   updated_at: string
 }
@@ -57,7 +58,7 @@ export interface Payment {
   created_at: string
 }
 
-export interface DashboardStats {
+export interface DashboardSubscriptionStats {
   monthly_expense: number
   monthly_trend: number
   yearly_expense: number
@@ -69,6 +70,18 @@ export interface DashboardStats {
   category_ranking: { name: string; amount: number }[]
   type_ranking: { name: string; amount: number }[]
   base_currency: string
+}
+
+export interface DashboardRegularStats {
+  active_count: number
+  expiring_soon: number
+  upcoming_reminders: { id: string; name: string; expiry_date: string }[]
+  category_ranking: { name: string; count: number }[]
+}
+
+export interface DashboardStats {
+  subscription: DashboardSubscriptionStats
+  regular: DashboardRegularStats
 }
 
 export interface NotificationConfig {

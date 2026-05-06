@@ -87,6 +87,7 @@ itemRoutes.post('/', async (c) => {
     auto_renew: body.auto_renew ?? 1,
     use_lunar: body.use_lunar ?? 0,
     channels: JSON.stringify(body.channels || []),
+    item_kind: body.item_kind || 'regular',
   }
 
   await createItem(c.env.DB, prefix, item)
@@ -152,6 +153,9 @@ itemRoutes.put('/:id', async (c) => {
   if (body.item_mode && !['cycle', 'reset'].includes(body.item_mode)) {
     return c.json({ error: 'Invalid item mode' }, 400)
   }
+  if (body.item_kind && !['regular', 'subscription'].includes(body.item_kind)) {
+    return c.json({ error: 'Invalid item_kind' }, 400)
+  }
   if (body.amount !== undefined && body.amount !== null && typeof body.amount !== 'number') {
     return c.json({ error: 'Amount must be a number' }, 400)
   }
@@ -181,7 +185,7 @@ itemRoutes.put('/:id', async (c) => {
   const allowedFields = [
     'name', 'item_mode', 'custom_type', 'category', 'start_date',
     'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
-    'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar',
+    'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
   ]
   for (const key of allowedFields) {
     if (body[key] !== undefined) updates[key] = body[key]

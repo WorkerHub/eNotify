@@ -257,6 +257,34 @@ export function ItemDetailPage() {
       <section className="bg-card rounded-xl border p-5 space-y-5">
         <h2 className="font-semibold text-base">{t('common.edit')}</h2>
         <form onSubmit={handleSave} className="space-y-4">
+          {/* Kind selector */}
+          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+            <button
+              type="button"
+              onClick={() => setField('item_kind', 'regular')}
+              className={cn(
+                'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                item.item_kind === 'regular'
+                  ? 'bg-background shadow text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t('items.kindRegular')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setField('item_kind', 'subscription')}
+              className={cn(
+                'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                item.item_kind === 'subscription'
+                  ? 'bg-background shadow text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t('items.kindSubscription')}
+            </button>
+          </div>
+
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label={t('items.name')}>
               <input className={INPUT} value={item.name} onChange={(e) => setField('name', e.target.value)} required />
@@ -348,24 +376,26 @@ export function ItemDetailPage() {
             </div>
           </Field>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t('items.amount')}>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={INPUT}
-                value={item.amount ?? ''}
-                onChange={(e) => setField('amount', e.target.value ? Number(e.target.value) : null)}
-              />
-            </Field>
+          {item.item_kind === 'subscription' && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label={t('items.amount')}>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={INPUT}
+                  value={item.amount ?? ''}
+                  onChange={(e) => setField('amount', e.target.value ? Number(e.target.value) : null)}
+                />
+              </Field>
 
-            <Field label={t('items.currency')}>
-              <select className={SELECT} value={item.currency} onChange={(e) => setField('currency', e.target.value)}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-          </div>
+              <Field label={t('items.currency')}>
+                <select className={SELECT} value={item.currency} onChange={(e) => setField('currency', e.target.value)}>
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
 
           <div className="flex gap-6 flex-wrap">
             <Toggle
