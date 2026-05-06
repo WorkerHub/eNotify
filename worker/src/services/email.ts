@@ -99,100 +99,160 @@ async function sendViaSMTP(env: Env, options: EmailOptions): Promise<{ success: 
 
   const from = options.from || config.from || 'noreply@example.com'
   const fromName = (options.fromName || config.from_name || 'eNotify').replace(/[\r\n]/g, '')
+  const isImplicitTls = config.port === 465
 
-  const smtpPromise = async (): Promise<{ success: boolean; error?: string }> => {
-    const socket = connect({ hostname: config.host, port: config.port }, { secureTransport: config.secure ? 'on' : 'starttls', allowHalfOpen: false })
-
-    const writer = socket.writable.getWriter()
-    const reader = socket.readable.getReader()
-    const decoder = new TextDecoder()
-    const encoder = new TextEncoder()
-
-    let buffer = ''
-
-    const readResponse = async (): Promise<string> => {
-      while (true) {
-        const { value } = await reader.read()
-        if (!value) return buffer
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\r\n')
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i]
-          if (line.length >= 4 && line[3] === ' ') {
-            buffer = lines.slice(i + 1).join('\r\n')
-            return line
-          }
-        }
-        buffer = lines[lines.length - 1]
-      }
-    }
-
-    const expectCode = async (expected: string): Promise<void> => {
-      const line = await readResponse()
-      if (!line.startsWith(expected)) {
-        throw new Error(`Expected ${expected}, got: ${line.trim()}`)
-      }
-    }
-
-    const writeLine = async (line: string): Promise<void> => {
-      await writer.write(encoder.encode(line + '\r\n'))
-    }
-
-    await expectCode('220')
-    await writeLine(`EHLO localhost`)
-    await expectCode('250')
-
-    if (config.username && config.password) {
-      await writeLine('AUTH LOGIN')
-      await expectCode('334')
-      await writeLine(btoa(config.username))
-      await expectCode('334')
-      await writeLine(btoa(config.password))
-      await expectCode('235')
-    }
-
-    await writeLine(`MAIL FROM:<${from}>`)
-    await expectCode('250')
-    await writeLine(`RCPT TO:<${options.to}>`)
-    await expectCode('250')
-    await writeLine('DATA')
-    await expectCode('354')
-
-    const dotStuffedHtml = options.html.replace(/^\./gm, '..').replace(/\r?\n/g, '\r\n')
-
-    const sanitizedSubject = options.subject.replace(/[\r\n]/g, ' ')
-    const encodedSubject = /^[\x20-\x7E]*$/.test(sanitizedSubject)
-      ? sanitizedSubject
-      : `=?UTF-8?B?${btoa(String.fromCharCode(...new TextEncoder().encode(sanitizedSubject)))}?=`
-
-    const message = [
-      `From: ${fromName} <${from}>`,
-      `To: ${options.to}`,
-      `Subject: ${encodedSubject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=utf-8`,
-      '',
-      dotStuffedHtml,
-      '.',
-    ].join('\r\n')
-
-    await writeLine(message)
-    await expectCode('250')
-    await writeLine('QUIT')
-
-    await writer.close()
-    await socket.close()
-
-    return { success: true }
-  }
-
-  const timeoutPromise = new Promise<{ success: boolean; error: string }>((resolve) =>
-    setTimeout(() => resolve({ success: false, error: 'SMTP connection timed out (15s)' }), 15000)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const socket: any = connect(
+    { hostname: config.host, port: config.port },
+    { secureTransport: isImplicitTls ? 'on' : 'off' } as any,
   )
 
   try {
-    return await Promise.race([smtpPromise(), timeoutPromise])
+    const session = new SmtpSession(socket)
+
+    await session.expect(220)
+    await session.cmd('EHLO enotify')
+    await session.expect(250)
+
+    if (!isImplicitTls) {
+      await session.tryStartTls()
+    }
+
+    if (config.username && config.password) {
+      await session.authLogin(config.username, config.password)
+    }
+
+    await session.sendMessage(from, fromName, options.to, options.subject, options.html)
+    await session.quit()
+
+    return { success: true }
   } catch (err) {
     return { success: false, error: `SMTP error: ${err instanceof Error ? err.message : String(err)}` }
+  } finally {
+    await socket.close().catch(() => {})
   }
+}
+
+class SmtpSession {
+  private buf = ''
+  private readonly dec = new TextDecoder()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private socket: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private reader: ReadableStreamDefaultReader<any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private writer: WritableStreamDefaultWriter<any>
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(socket: any) {
+    this.socket = socket
+    this.reader = socket.readable.getReader()
+    this.writer = socket.writable.getWriter()
+  }
+
+  async tryStartTls(): Promise<void> {
+    await this.cmd('STARTTLS')
+    const resp = await this.readResponse()
+    if (resp.code !== 220) return
+
+    this.reader.releaseLock()
+    this.writer.releaseLock()
+
+    const tls = this.socket.startTls()
+    this.socket = tls
+    this.reader = tls.readable.getReader()
+    this.writer = tls.writable.getWriter()
+    this.buf = ''
+
+    await this.cmd('EHLO enotify')
+    await this.expect(250)
+  }
+
+  async authLogin(user: string, pass: string): Promise<void> {
+    await this.cmd('AUTH LOGIN')
+    await this.expect(334)
+    await this.cmd(btoa(user))
+    await this.expect(334)
+    await this.cmd(btoa(pass))
+    await this.expect(235)
+  }
+
+  async sendMessage(from: string, fromName: string, to: string, subject: string, html: string): Promise<void> {
+    await this.cmd(`MAIL FROM:<${from}>`)
+    await this.expect(250)
+    await this.cmd(`RCPT TO:<${to}>`)
+    await this.expect(250)
+    await this.cmd('DATA')
+    await this.expect(354)
+
+    const date = new Date().toUTCString()
+    const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@enotify>`
+    const b64Body = wrapBase64(encodeUtf8Base64(html))
+    const encodedSubject = `=?UTF-8?B?${encodeUtf8Base64(subject)}?=`
+
+    const message =
+      `From: ${fromName} <${from}>\r\n` +
+      `To: ${to}\r\n` +
+      `Subject: ${encodedSubject}\r\n` +
+      `Date: ${date}\r\n` +
+      `Message-ID: ${msgId}\r\n` +
+      `MIME-Version: 1.0\r\n` +
+      `Content-Type: text/html; charset=UTF-8\r\n` +
+      `Content-Transfer-Encoding: base64\r\n` +
+      `\r\n` +
+      `${b64Body}\r\n` +
+      `.\r\n`
+
+    await this.writer.write(new TextEncoder().encode(message))
+    await this.expect(250)
+  }
+
+  async quit(): Promise<void> {
+    await this.cmd('QUIT').catch(() => {})
+  }
+
+  async cmd(text: string): Promise<void> {
+    await this.writer.write(new TextEncoder().encode(text + '\r\n'))
+  }
+
+  async expect(code: number): Promise<void> {
+    const resp = await this.readResponse()
+    if (resp.code !== code) {
+      throw new Error(`SMTP: expected ${code}, got ${resp.code} — ${resp.message}`)
+    }
+  }
+
+  async readResponse(): Promise<{ code: number; message: string }> {
+    const lines: string[] = []
+    for (;;) {
+      while (!this.buf.includes('\r\n')) {
+        const { value, done } = await this.reader.read()
+        if (done) throw new Error('SMTP: connection closed unexpectedly')
+        this.buf += this.dec.decode(value)
+      }
+
+      const eol = this.buf.indexOf('\r\n')
+      const line = this.buf.slice(0, eol)
+      this.buf = this.buf.slice(eol + 2)
+      lines.push(line)
+
+      // RFC 5321: last line has space at position 3; continuation lines have '-'
+      if (line.length <= 3 || line[3] === ' ') {
+        const code = parseInt(line.slice(0, 3), 10)
+        if (isNaN(code)) throw new Error(`SMTP: invalid response line: ${line}`)
+        return { code, message: lines.map((l) => l.slice(4)).join('\n') }
+      }
+    }
+  }
+}
+
+function encodeUtf8Base64(str: string): string {
+  const bytes = new TextEncoder().encode(str)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+function wrapBase64(b64: string): string {
+  return b64.match(/.{1,76}/g)?.join('\r\n') ?? b64
 }
