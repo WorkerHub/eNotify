@@ -6,6 +6,143 @@ import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monit
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 
+function AvatarDropdown({ user, onLogout, onNavigate }: {
+  user: { email: string; role: string } | null
+  onLogout: () => void
+  onNavigate: (path: string) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleNavigate = (path: string) => {
+    setOpen(false)
+    onNavigate(path)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
+      >
+        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+          <User className="w-4 h-4 text-primary" />
+        </div>
+        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg shadow-lg py-1 z-50">
+          <div className="px-3 py-2 border-b">
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+          </div>
+          <button onClick={() => handleNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+            <Settings className="w-4 h-4" />
+            {t('nav.settings')}
+          </button>
+          {user?.role === 'admin' && (
+            <button onClick={() => handleNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+              <Shield className="w-4 h-4" />
+              {t('nav.admin')}
+            </button>
+          )}
+          <button onClick={() => handleNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+            <Info className="w-4 h-4" />
+            {t('nav.about')}
+          </button>
+          <div className="border-t mt-1 pt-1">
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              {t('auth.logout')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MobileAvatarDropdown({ user, onLogout, onNavigate }: {
+  user: { email: string; role: string } | null
+  onLogout: () => void
+  onNavigate: (path: string) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleNavigate = (path: string) => {
+    setOpen(false)
+    onNavigate(path)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className="p-1 rounded-md hover:bg-accent transition-colors"
+      >
+        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+          <User className="w-3.5 h-3.5 text-primary" />
+        </div>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-44 bg-card border rounded-lg shadow-lg py-1 z-50">
+          <div className="px-3 py-2 border-b">
+            <p className="text-xs font-medium truncate">{user?.email}</p>
+          </div>
+          <button onClick={() => handleNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+            <Settings className="w-4 h-4" />
+            {t('nav.settings')}
+          </button>
+          {user?.role === 'admin' && (
+            <button onClick={() => handleNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+              <Shield className="w-4 h-4" />
+              {t('nav.admin')}
+            </button>
+          )}
+          <button onClick={() => handleNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+            <Info className="w-4 h-4" />
+            {t('nav.about')}
+          </button>
+          <div className="border-t mt-1 pt-1">
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              {t('auth.logout')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AppLayout() {
   const { t, i18n } = useTranslation()
   const { user, logout, refreshUser } = useAuth()
@@ -13,8 +150,6 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
   const [appName, setAppName] = useState('eNotify')
-  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
-  const avatarMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.get<{ app_name: string; version: string }>('/system/info')
@@ -37,17 +172,6 @@ export function AppLayout() {
     }
   }, [navigate])
 
-  // Close avatar menu on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
-        setAvatarMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
   const stopImpersonating = async () => {
     sessionStorage.removeItem('impersonate_user_id')
     window.dispatchEvent(new Event('impersonation-change'))
@@ -57,13 +181,11 @@ export function AppLayout() {
   }
 
   const handleLogout = async () => {
-    setAvatarMenuOpen(false)
     await logout()
     navigate('/login')
   }
 
   const handleMenuNavigate = (path: string) => {
-    setAvatarMenuOpen(false)
     navigate(path)
   }
 
@@ -88,7 +210,7 @@ export function AppLayout() {
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
-        <div className="p-4 border-b">
+        <div className="h-14 flex items-center px-4 border-b">
           <h1 className="text-xl font-bold text-primary">{appName}</h1>
         </div>
         <nav className="flex-1 p-2 space-y-1">
@@ -113,54 +235,14 @@ export function AppLayout() {
       {/* Main content */}
       <main className="flex-1 pt-11 pb-16 md:pt-0 md:pb-0">
         {/* Desktop top bar */}
-        <div className="hidden md:flex items-center justify-end gap-2 px-6 py-3 border-b bg-card">
+        <div className="hidden md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card">
           <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
             {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
           </button>
           <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
             {i18n.language === 'zh' ? 'EN' : '中'}
           </button>
-          <div ref={avatarMenuRef} className="relative">
-            <button
-              onClick={() => setAvatarMenuOpen((p) => !p)}
-              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
-            >
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-primary" />
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-            {avatarMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg shadow-lg py-1 z-50">
-                <div className="px-3 py-2 border-b">
-                  <p className="text-sm font-medium truncate">{user?.email}</p>
-                </div>
-                <button onClick={() => handleMenuNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                  <Settings className="w-4 h-4" />
-                  {t('nav.settings')}
-                </button>
-                {user?.role === 'admin' && (
-                  <button onClick={() => handleMenuNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                    <Shield className="w-4 h-4" />
-                    {t('nav.admin')}
-                  </button>
-                )}
-                <button onClick={() => handleMenuNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                  <Info className="w-4 h-4" />
-                  {t('nav.about')}
-                </button>
-                <div className="border-t mt-1 pt-1">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    {t('auth.logout')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
 
         {impersonating && (
@@ -187,46 +269,7 @@ export function AppLayout() {
           <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
             {i18n.language === 'zh' ? 'EN' : '中'}
           </button>
-          <div ref={avatarMenuRef} className="relative">
-            <button
-              onClick={() => setAvatarMenuOpen((p) => !p)}
-              className="p-1 rounded-md hover:bg-accent transition-colors"
-            >
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-3.5 h-3.5 text-primary" />
-              </div>
-            </button>
-            {avatarMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-card border rounded-lg shadow-lg py-1 z-50">
-                <div className="px-3 py-2 border-b">
-                  <p className="text-xs font-medium truncate">{user?.email}</p>
-                </div>
-                <button onClick={() => handleMenuNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                  <Settings className="w-4 h-4" />
-                  {t('nav.settings')}
-                </button>
-                {user?.role === 'admin' && (
-                  <button onClick={() => handleMenuNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                    <Shield className="w-4 h-4" />
-                    {t('nav.admin')}
-                  </button>
-                )}
-                <button onClick={() => handleMenuNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
-                  <Info className="w-4 h-4" />
-                  {t('nav.about')}
-                </button>
-                <div className="border-t mt-1 pt-1">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    {t('auth.logout')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <MobileAvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
       </header>
 
