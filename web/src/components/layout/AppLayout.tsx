@@ -2,8 +2,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History, User, ChevronDown } from 'lucide-react'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History, User, ChevronDown, Info } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 
 export function AppLayout() {
@@ -62,6 +62,11 @@ export function AppLayout() {
     navigate('/login')
   }
 
+  const handleMenuNavigate = (path: string) => {
+    setAvatarMenuOpen(false)
+    navigate(path)
+  }
+
   const toggleLanguage = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh'
     i18n.changeLanguage(next)
@@ -77,12 +82,6 @@ export function AppLayout() {
     { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/items', icon: CreditCard, label: t('nav.items') },
     { to: '/history', icon: History, label: t('nav.history') },
-  ]
-
-  // Avatar dropdown menu items
-  const avatarMenuItems = [
-    { to: '/settings', icon: Settings, label: t('nav.settings') },
-    ...(user?.role === 'admin' ? [{ to: '/admin', icon: Shield, label: t('nav.admin') }] : []),
   ]
 
   return (
@@ -109,16 +108,6 @@ export function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-2 border-t space-y-1">
-          <button onClick={cycleTheme} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-muted-foreground hover:bg-accent">
-            {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-            {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
-          </button>
-          <button onClick={toggleLanguage} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-muted-foreground hover:bg-accent">
-            <Globe className="w-4 h-4" />
-            {i18n.language === 'zh' ? 'English' : '中文'}
-          </button>
-        </div>
       </aside>
 
       {/* Main content */}
@@ -146,22 +135,20 @@ export function AppLayout() {
                 <div className="px-3 py-2 border-b">
                   <p className="text-sm font-medium truncate">{user?.email}</p>
                 </div>
-                {avatarMenuItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/settings'}
-                    onClick={() => setAvatarMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                        isActive ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-accent'
-                      }`
-                    }
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </NavLink>
-                ))}
+                <button onClick={() => handleMenuNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                  <Settings className="w-4 h-4" />
+                  {t('nav.settings')}
+                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => handleMenuNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                    <Shield className="w-4 h-4" />
+                    {t('nav.admin')}
+                  </button>
+                )}
+                <button onClick={() => handleMenuNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                  <Info className="w-4 h-4" />
+                  {t('nav.about')}
+                </button>
                 <div className="border-t mt-1 pt-1">
                   <button
                     onClick={handleLogout}
@@ -214,22 +201,20 @@ export function AppLayout() {
                 <div className="px-3 py-2 border-b">
                   <p className="text-xs font-medium truncate">{user?.email}</p>
                 </div>
-                {avatarMenuItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/settings'}
-                    onClick={() => setAvatarMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                        isActive ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-accent'
-                      }`
-                    }
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </NavLink>
-                ))}
+                <button onClick={() => handleMenuNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                  <Settings className="w-4 h-4" />
+                  {t('nav.settings')}
+                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => handleMenuNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                    <Shield className="w-4 h-4" />
+                    {t('nav.admin')}
+                  </button>
+                )}
+                <button onClick={() => handleMenuNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+                  <Info className="w-4 h-4" />
+                  {t('nav.about')}
+                </button>
                 <div className="border-t mt-1 pt-1">
                   <button
                     onClick={handleLogout}
