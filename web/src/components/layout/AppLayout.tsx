@@ -2,8 +2,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History, User, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 
 export function AppLayout() {
@@ -13,6 +13,8 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
   const [appName, setAppName] = useState('eNotify')
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
+  const avatarMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.get<{ app_name: string; version: string }>('/system/info')
@@ -35,6 +37,17 @@ export function AppLayout() {
     }
   }, [navigate])
 
+  // Close avatar menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const stopImpersonating = async () => {
     sessionStorage.removeItem('impersonate_user_id')
     window.dispatchEvent(new Event('impersonation-change'))
@@ -44,6 +57,7 @@ export function AppLayout() {
   }
 
   const handleLogout = async () => {
+    setAvatarMenuOpen(false)
     await logout()
     navigate('/login')
   }
@@ -63,12 +77,13 @@ export function AppLayout() {
     { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/items', icon: CreditCard, label: t('nav.items') },
     { to: '/history', icon: History, label: t('nav.history') },
-    { to: '/settings', icon: Settings, label: t('nav.settings') },
   ]
 
-  if (user?.role === 'admin') {
-    navItems.push({ to: '/admin', icon: Shield, label: t('nav.admin') })
-  }
+  // Avatar dropdown menu items
+  const avatarMenuItems = [
+    { to: '/settings', icon: Settings, label: t('nav.settings') },
+    ...(user?.role === 'admin' ? [{ to: '/admin', icon: Shield, label: t('nav.admin') }] : []),
+  ]
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -76,7 +91,6 @@ export function AppLayout() {
       <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
         <div className="p-4 border-b">
           <h1 className="text-xl font-bold text-primary">{appName}</h1>
-          <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {navItems.map((item) => (
@@ -104,15 +118,64 @@ export function AppLayout() {
             <Globe className="w-4 h-4" />
             {i18n.language === 'zh' ? 'English' : '中文'}
           </button>
-          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-muted-foreground hover:bg-accent text-destructive">
-            <LogOut className="w-4 h-4" />
-            {t('auth.logout')}
-          </button>
         </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 pt-11 pb-16 md:pt-0 md:pb-0">
+        {/* Desktop top bar */}
+        <div className="hidden md:flex items-center justify-end gap-2 px-6 py-3 border-b bg-card">
+          <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
+            {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+          </button>
+          <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
+            {i18n.language === 'zh' ? 'EN' : '中'}
+          </button>
+          <div ref={avatarMenuRef} className="relative">
+            <button
+              onClick={() => setAvatarMenuOpen((p) => !p)}
+              className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
+            >
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            {avatarMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg shadow-lg py-1 z-50">
+                <div className="px-3 py-2 border-b">
+                  <p className="text-sm font-medium truncate">{user?.email}</p>
+                </div>
+                {avatarMenuItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/settings'}
+                    onClick={() => setAvatarMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                        isActive ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-accent'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </NavLink>
+                ))}
+                <div className="border-t mt-1 pt-1">
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {t('auth.logout')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {impersonating && (
           <div className="bg-yellow-500/90 text-yellow-950 text-sm px-4 py-2 flex items-center justify-between">
             <span>{t('admin.impersonating', { defaultValue: 'Impersonating another user' })}</span>
@@ -137,6 +200,48 @@ export function AppLayout() {
           <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
             {i18n.language === 'zh' ? 'EN' : '中'}
           </button>
+          <div ref={avatarMenuRef} className="relative">
+            <button
+              onClick={() => setAvatarMenuOpen((p) => !p)}
+              className="p-1 rounded-md hover:bg-accent transition-colors"
+            >
+              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-3.5 h-3.5 text-primary" />
+              </div>
+            </button>
+            {avatarMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-card border rounded-lg shadow-lg py-1 z-50">
+                <div className="px-3 py-2 border-b">
+                  <p className="text-xs font-medium truncate">{user?.email}</p>
+                </div>
+                {avatarMenuItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/settings'}
+                    onClick={() => setAvatarMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                        isActive ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:bg-accent'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </NavLink>
+                ))}
+                <div className="border-t mt-1 pt-1">
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {t('auth.logout')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
