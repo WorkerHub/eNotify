@@ -1,8 +1,7 @@
 import { getTablePrefix } from '../types'
 import type { Env } from '../types'
 import { getSetting } from '../db/queries/settings'
-
-declare function connect(address: SocketAddress, options?: SocketOptions): Socket
+import { connect } from 'cloudflare:sockets'
 
 const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
