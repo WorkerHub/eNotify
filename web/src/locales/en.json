@@ -62,6 +62,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "items": "Notifications",
+    "history": "History",
     "settings": "Settings",
     "admin": "Admin",
     "about": "About"
@@ -149,11 +150,7 @@
     "notificationHours": "Notification Hours",
     "totpDescription": "Use an authenticator app (Google Authenticator, Authy, etc.)",
     "emailOtpDescription": "Receive a one-time code via email when signing in.",
-    "passkeyDescription": "Use biometrics or a hardware key for sign-in.",
-    "notificationHistory": "Notification History",
-    "noHistory": "No notification records yet",
-    "historySuccess": "Success",
-    "historyFailed": "Failed"
+    "passkeyDescription": "Use biometrics or a hardware key for sign-in."
   },
   "about": {
     "title": "About",
@@ -162,6 +159,15 @@
     "builtWith": "Built With",
     "sourceCode": "Source Code",
     "license": "License"
+  },
+  "history": {
+    "title": "Notification History",
+    "title_col": "Title",
+    "channel": "Channel",
+    "time": "Time",
+    "success": "Success",
+    "failed": "Failed",
+    "noData": "No notification records yet"
   },
   "admin": {
     "title": "Admin Panel",

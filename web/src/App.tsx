@@ -11,6 +11,7 @@ import { ItemListPage } from '@/pages/items/ItemListPage'
 import { ItemNewPage } from '@/pages/items/ItemNewPage'
 import { ItemDetailPage } from '@/pages/items/ItemDetailPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { HistoryPage } from '@/pages/history/HistoryPage'
 import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { AdminSystemPage } from '@/pages/admin/AdminSystemPage'
@@ -57,6 +58,7 @@ export function App() {
               <Route path="items" element={<ItemListPage />} />
               <Route path="items/new" element={<ItemNewPage />} />
               <Route path="items/:id" element={<ItemDetailPage />} />
+              <Route path="history" element={<HistoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
 
               {/* Admin routes */}

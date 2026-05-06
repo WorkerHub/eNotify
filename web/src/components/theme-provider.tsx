@@ -38,6 +38,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     applyTheme(theme)
 
+    // Update mobile status bar theme-color meta tag
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+    if (metaThemeColor) {
+      const isDark = theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        : theme === 'dark'
+      metaThemeColor.setAttribute('content', isDark ? 'hsl(222.2 84% 4.9%)' : '#ffffff')
+    }
+
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => { if (theme === 'system') applyTheme('system') }
     mediaQuery.addEventListener('change', handler)

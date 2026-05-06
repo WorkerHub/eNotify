@@ -62,6 +62,7 @@
   "nav": {
     "dashboard": "仪表盘",
     "items": "通知",
+    "history": "历史通知",
     "settings": "设置",
     "admin": "管理",
     "about": "关于"
@@ -150,11 +151,7 @@
     "notificationHours": "通知时段",
     "totpDescription": "使用验证器应用（如 Google Authenticator、Authy 等）",
     "emailOtpDescription": "登录时通过邮件接收一次性验证码",
-    "passkeyDescription": "使用生物识别或硬件密钥登录",
-    "notificationHistory": "通知历史",
-    "noHistory": "暂无通知记录",
-    "historySuccess": "成功",
-    "historyFailed": "失败"
+    "passkeyDescription": "使用生物识别或硬件密钥登录"
   },
   "about": {
     "title": "关于",
@@ -163,6 +160,15 @@
     "builtWith": "技术栈",
     "sourceCode": "源代码",
     "license": "开源协议"
+  },
+  "history": {
+    "title": "历史通知",
+    "title_col": "标题",
+    "channel": "渠道",
+    "time": "时间",
+    "success": "成功",
+    "failed": "失败",
+    "noData": "暂无通知记录"
   },
   "admin": {
     "title": "管理后台",

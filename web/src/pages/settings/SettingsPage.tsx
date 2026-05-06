@@ -11,7 +11,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
 import { cn, serializeRegistrationCredential, prepareRegistrationOptions } from '@/lib/utils'
-import type { NotificationConfig, NotificationHistory } from '@/types'
+import type { NotificationConfig } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -690,8 +690,6 @@ function NotificationsTab() {
   const [config, setConfig] = useState<NotificationConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [history, setHistory] = useState<NotificationHistory[]>([])
-  const [historyLoading, setHistoryLoading] = useState(true)
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -704,21 +702,9 @@ function NotificationsTab() {
     }
   }, [t])
 
-  const fetchHistory = useCallback(async () => {
-    try {
-      const data = await api.get<NotificationHistory[]>('/me/notification-history?limit=50')
-      setHistory(data)
-    } catch {
-      // ignore history errors
-    } finally {
-      setHistoryLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
     fetchConfig()
-    fetchHistory()
-  }, [fetchConfig, fetchHistory])
+  }, [fetchConfig])
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
@@ -739,37 +725,6 @@ function NotificationsTab() {
             onConfigChange={setConfig}
           />
         ))}
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs text-muted-foreground">{t('settings.notificationHistory')}</p>
-        <div className="bg-card border rounded-lg overflow-hidden">
-          {historyLoading ? (
-            <p className="text-sm text-muted-foreground p-4">{t('common.loading')}</p>
-          ) : history.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-4">{t('settings.noHistory')}</p>
-          ) : (
-            <div className="divide-y">
-              {history.map((h) => (
-                <div key={h.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{h.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {h.item_name && <span className="mr-2">{h.item_name}</span>}
-                      <span className="uppercase">{h.channel}</span>
-                      {' · '}
-                      {new Date(h.created_at).toLocaleString()}
-                    </p>
-                    {h.error && <p className="text-xs text-destructive mt-0.5 truncate">{h.error}</p>}
-                  </div>
-                  <span className={`text-xs font-medium shrink-0 ${h.success ? 'text-green-600' : 'text-destructive'}`}>
-                    {h.success ? t('settings.historySuccess') : t('settings.historyFailed')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
