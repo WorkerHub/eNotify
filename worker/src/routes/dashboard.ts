@@ -20,7 +20,10 @@ dashboardRoutes.get('/stats', async (c) => {
   if (!user) return c.json({ error: 'User not found' }, 404)
 
   const baseCurrency = user.base_currency || 'CNY'
-  const activeSubscriptions = await getActiveItemsByUser(c.env.DB, prefix, userId)
+  const allActiveItems = await getActiveItemsByUser(c.env.DB, prefix, userId)
+
+  const subscriptionItems = allActiveItems.filter((s) => s.item_kind === 'subscription')
+  const regularItems = allActiveItems.filter((s) => s.item_kind !== 'subscription')
 
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -38,6 +41,7 @@ dashboardRoutes.get('/stats', async (c) => {
     // Fallback: no conversion
   }
 
+  // --- Subscription financial stats ---
   let monthlyExpense = 0
   let lastMonthExpense = 0
   let yearlyExpense = 0
@@ -64,17 +68,16 @@ dashboardRoutes.get('/stats', async (c) => {
     : 0
 
   const today = nowISO().split('T')[0]
-  const upcomingRenewals = activeSubscriptions
+
+  // Subscription: upcoming renewals and expiring soon
+  const subUpcomingRenewals = subscriptionItems
     .filter((s) => {
       const days = diffInDays(today, s.expiry_date)
       return days >= 0 && days <= 7
     })
     .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
 
-  const expiringSoon = activeSubscriptions.filter((s) => {
-    const days = diffInDays(today, s.expiry_date)
-    return days >= 0 && days <= 7
-  }).length
+  const subExpiringSoon = subUpcomingRenewals.length
 
   const recentPayments = payments
     .filter((p) => {
@@ -83,17 +86,16 @@ dashboardRoutes.get('/stats', async (c) => {
     })
     .slice(0, 10)
 
-  // Category & type rankings
+  // Subscription: category & type rankings by amount
   const categoryExpense: Record<string, number> = {}
   const typeExpense: Record<string, number> = {}
 
-  for (const sub of activeSubscriptions) {
+  for (const sub of subscriptionItems) {
     if (!sub.amount) continue
     const converted = sub.currency === baseCurrency
       ? sub.amount
       : convertAmount(sub.amount, sub.currency, baseCurrency, rates)
 
-    // Normalize to monthly
     let monthly = converted
     if (sub.period_unit === 'year') monthly = converted / 12
     else if (sub.period_unit === 'day') monthly = converted * 30
@@ -104,31 +106,67 @@ dashboardRoutes.get('/stats', async (c) => {
         categoryExpense[cat] = (categoryExpense[cat] || 0) + monthly / cats.length
       }
     }
-
     if (sub.custom_type) {
       typeExpense[sub.custom_type] = (typeExpense[sub.custom_type] || 0) + monthly
     }
   }
 
-  const categoryRanking = Object.entries(categoryExpense)
+  const subCategoryRanking = Object.entries(categoryExpense)
     .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
     .sort((a, b) => b.amount - a.amount)
 
-  const typeRanking = Object.entries(typeExpense)
+  const subTypeRanking = Object.entries(typeExpense)
     .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
     .sort((a, b) => b.amount - a.amount)
+
+  // --- Regular reminder stats ---
+  const regExpiringSoon = regularItems.filter((s) => {
+    const days = diffInDays(today, s.expiry_date)
+    return days >= 0 && days <= 7
+  }).length
+
+  const regUpcomingReminders = regularItems
+    .filter((s) => {
+      const days = diffInDays(today, s.expiry_date)
+      return days >= 0 && days <= 7
+    })
+    .sort((a, b) => a.expiry_date.localeCompare(b.expiry_date))
+    .map((s) => ({ id: s.id, name: s.name, expiry_date: s.expiry_date }))
+
+  // Regular: category ranking by count
+  const categoryCount: Record<string, number> = {}
+  for (const item of regularItems) {
+    if (item.category) {
+      const cats = item.category.split(/[,/\s]+/).filter(Boolean)
+      for (const cat of cats) {
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1
+      }
+    }
+  }
+
+  const regCategoryRanking = Object.entries(categoryCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
 
   return c.json({
-    monthly_expense: Math.round(monthlyExpense * 100) / 100,
-    monthly_trend: Math.round(monthlyTrend * 10) / 10,
-    yearly_expense: Math.round(yearlyExpense * 100) / 100,
-    monthly_average: Math.round((yearlyExpense / (currentMonth + 1)) * 100) / 100,
-    active_count: activeSubscriptions.length,
-    expiring_soon: expiringSoon,
-    upcoming_renewals: upcomingRenewals,
-    recent_payments: recentPayments,
-    category_ranking: categoryRanking,
-    type_ranking: typeRanking,
-    base_currency: baseCurrency,
+    subscription: {
+      monthly_expense: Math.round(monthlyExpense * 100) / 100,
+      monthly_trend: Math.round(monthlyTrend * 10) / 10,
+      yearly_expense: Math.round(yearlyExpense * 100) / 100,
+      monthly_average: Math.round((yearlyExpense / (currentMonth + 1)) * 100) / 100,
+      active_count: subscriptionItems.length,
+      expiring_soon: subExpiringSoon,
+      upcoming_renewals: subUpcomingRenewals,
+      recent_payments: recentPayments,
+      category_ranking: subCategoryRanking,
+      type_ranking: subTypeRanking,
+      base_currency: baseCurrency,
+    },
+    regular: {
+      active_count: regularItems.length,
+      expiring_soon: regExpiringSoon,
+      upcoming_reminders: regUpcomingReminders,
+      category_ranking: regCategoryRanking,
+    },
   })
 })

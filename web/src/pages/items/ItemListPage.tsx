@@ -182,7 +182,9 @@ export function ItemListPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-medium tabular-nums whitespace-nowrap">
-                        {item.amount != null ? `${item.currency} ${item.amount.toFixed(2)}` : '—'}
+                        {item.item_kind === 'subscription' && item.amount != null
+                          ? `${item.currency} ${item.amount.toFixed(2)}`
+                          : '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -262,7 +264,7 @@ export function ItemListPage() {
                       </div>
                       <DaysBadge days={days} />
                     </div>
-                    {item.amount != null && (
+                    {item.item_kind === 'subscription' && item.amount != null && (
                       <span className="font-medium tabular-nums">
                         {item.currency} {item.amount.toFixed(2)}
                       </span>

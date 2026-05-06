@@ -245,7 +245,7 @@ export function ItemNewPage() {
           </div>
         </Field>
 
-        {/* Amount + currency (subscription only) */}
+        {/* Amount + currency */}
         {form.item_kind === 'subscription' && (
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label={t('items.amount')}>

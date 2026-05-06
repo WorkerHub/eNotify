@@ -110,6 +110,7 @@ export function ItemDetailPage() {
     try {
       await api.put(`/items/${id}`, {
         name: item.name,
+        item_kind: item.item_kind,
         item_mode: item.item_mode,
         custom_type: item.custom_type,
         category: item.category,
@@ -403,11 +404,13 @@ export function ItemDetailPage() {
               onChange={(v) => setField('is_active', v ? 1 : 0)}
               label={t('items.enableItem')}
             />
-            <Toggle
-              checked={!!item.auto_renew}
-              onChange={(v) => setField('auto_renew', v ? 1 : 0)}
-              label={t('items.autoRenew')}
-            />
+            {item.item_kind === 'subscription' && (
+              <Toggle
+                checked={!!item.auto_renew}
+                onChange={(v) => setField('auto_renew', v ? 1 : 0)}
+                label={t('items.autoRenew')}
+              />
+            )}
             <Toggle
               checked={!!item.use_lunar}
               onChange={(v) => setField('use_lunar', v ? 1 : 0)}
@@ -463,7 +466,7 @@ export function ItemDetailPage() {
       </section>
 
       {/* Renew */}
-      <section className="bg-card rounded-xl border p-5 space-y-4">
+      {item.item_kind === 'subscription' && <section className="bg-card rounded-xl border p-5 space-y-4">
         <h2 className="font-semibold text-base">{t('items.renew')}</h2>
         <form onSubmit={handleRenew} className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -510,10 +513,10 @@ export function ItemDetailPage() {
             {renewing ? t('common.loading') : t('items.renew')}
           </button>
         </form>
-      </section>
+      </section>}
 
       {/* Payment history */}
-      <section className="bg-card rounded-xl border p-5 space-y-4">
+      {item.item_kind === 'subscription' && <section className="bg-card rounded-xl border p-5 space-y-4">
         <h2 className="font-semibold text-base">{t('items.paymentHistory')}</h2>
 
         {payments.length === 0 ? (
@@ -665,7 +668,7 @@ export function ItemDetailPage() {
             </div>
           </>
         )}
-      </section>
+      </section>}
     </div>
   )
 }

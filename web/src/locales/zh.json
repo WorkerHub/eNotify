@@ -136,7 +136,6 @@
       "manual": "手动",
       "auto": "自动"
     },
-    "type": "类型",
     "kind": "提醒类型",
     "kindRegular": "普通提醒",
     "kindSubscription": "订阅提醒"
