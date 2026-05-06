@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import {
-  User, Shield, Bell, Sliders,
+  User, Shield, Bell, Sliders, Info,
   CheckCircle, XCircle, ChevronDown, ChevronUp,
   QrCode, Key,
 } from 'lucide-react'
@@ -17,7 +17,7 @@ import type { NotificationConfig } from '@/types'
 // Types
 // ---------------------------------------------------------------------------
 
-type TabId = 'account' | 'security' | 'notifications' | 'preferences'
+type TabId = 'account' | 'security' | 'notifications' | 'preferences' | 'about'
 
 interface ChannelFieldDef {
   key: string
@@ -944,6 +944,56 @@ function PreferencesTab() {
 }
 
 // ---------------------------------------------------------------------------
+// About Tab
+// ---------------------------------------------------------------------------
+
+function AboutTab() {
+  const { t } = useTranslation()
+
+  const stack = [
+    'Cloudflare Workers',
+    'Cloudflare D1 (SQLite)',
+    'Hono.js',
+    'React 19',
+    'Vite',
+    'Tailwind CSS v4',
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card border rounded-lg p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{t('about.version')}</span>
+          <span className="text-sm font-mono font-medium">1.0.0</span>
+        </div>
+        <div className="border-t pt-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">{t('about.description')}</p>
+        </div>
+      </div>
+
+      <div className="bg-card border rounded-lg p-5 space-y-3">
+        <h2 className="text-sm font-semibold">{t('about.builtWith')}</h2>
+        <ul className="space-y-1.5">
+          {stack.map((item) => (
+            <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="bg-card border rounded-lg p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{t('about.license')}</span>
+          <span className="text-sm font-medium">MIT</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main SettingsPage
 // ---------------------------------------------------------------------------
 
@@ -951,7 +1001,7 @@ export function SettingsPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const validTabs: TabId[] = ['account', 'security', 'notifications', 'preferences']
+  const validTabs: TabId[] = ['account', 'security', 'notifications', 'preferences', 'about']
   const rawTab = searchParams.get('tab') as TabId | null
   const activeTab: TabId = rawTab && validTabs.includes(rawTab) ? rawTab : 'account'
 
@@ -964,6 +1014,7 @@ export function SettingsPage() {
     { id: 'security', label: t('settings.security'), icon: <Shield className="w-4 h-4" /> },
     { id: 'notifications', label: t('settings.notifications'), icon: <Bell className="w-4 h-4" /> },
     { id: 'preferences', label: t('settings.preferences'), icon: <Sliders className="w-4 h-4" /> },
+    { id: 'about', label: t('nav.about'), icon: <Info className="w-4 h-4" /> },
   ]
 
   return (
@@ -994,6 +1045,7 @@ export function SettingsPage() {
       {activeTab === 'security' && <SecurityTab />}
       {activeTab === 'notifications' && <NotificationsTab />}
       {activeTab === 'preferences' && <PreferencesTab />}
+      {activeTab === 'about' && <AboutTab />}
     </div>
   )
 }

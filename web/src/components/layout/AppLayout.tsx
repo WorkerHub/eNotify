@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, Info, History } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 
@@ -104,17 +104,6 @@ export function AppLayout() {
             <Globe className="w-4 h-4" />
             {i18n.language === 'zh' ? 'English' : '中文'}
           </button>
-          <NavLink
-            to="/about"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full transition-colors ${
-                isActive ? 'text-primary' : 'text-muted-foreground hover:bg-accent'
-              }`
-            }
-          >
-            <Info className="w-4 h-4" />
-            {t('nav.about')}
-          </NavLink>
           <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-muted-foreground hover:bg-accent text-destructive">
             <LogOut className="w-4 h-4" />
             {t('auth.logout')}
