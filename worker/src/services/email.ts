@@ -100,7 +100,7 @@ async function sendViaSMTP(env: Env, options: EmailOptions): Promise<{ success: 
   const from = options.from || config.from || 'noreply@example.com'
   const fromName = (options.fromName || config.from_name || 'eNotify').replace(/[\r\n]/g, '')
 
-  try {
+  const smtpPromise = async (): Promise<{ success: boolean; error?: string }> => {
     const socket = connect({ hostname: config.host, port: config.port }, { secureTransport: config.secure ? 'on' : 'starttls', allowHalfOpen: false })
 
     const writer = socket.writable.getWriter()
@@ -184,6 +184,14 @@ async function sendViaSMTP(env: Env, options: EmailOptions): Promise<{ success: 
     await socket.close()
 
     return { success: true }
+  }
+
+  const timeoutPromise = new Promise<{ success: boolean; error: string }>((resolve) =>
+    setTimeout(() => resolve({ success: false, error: 'SMTP connection timed out (15s)' }), 15000)
+  )
+
+  try {
+    return await Promise.race([smtpPromise(), timeoutPromise])
   } catch (err) {
     return { success: false, error: `SMTP error: ${err instanceof Error ? err.message : String(err)}` }
   }
