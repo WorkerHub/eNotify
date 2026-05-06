@@ -54,6 +54,7 @@ export interface Item {
   is_active: number
   auto_renew: number
   use_lunar: number
+  channels: string
   created_at: string
   updated_at: string
 }

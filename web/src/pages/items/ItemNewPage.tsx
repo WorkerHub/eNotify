@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { formatLunarDate } from '@/lib/lunar'
+import { ChannelSelector } from '@/components/ChannelSelector'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -25,6 +26,7 @@ interface FormData {
   auto_renew: boolean
   use_lunar: boolean
   notes: string
+  channels: string[]
 }
 
 const DEFAULT: FormData = {
@@ -43,6 +45,7 @@ const DEFAULT: FormData = {
   auto_renew: true,
   use_lunar: false,
   notes: '',
+  channels: [],
 }
 
 function Field({ label, children, required }: { label: string; children: ReactNode; required?: boolean }) {
@@ -88,6 +91,7 @@ export function ItemNewPage() {
         start_date: form.start_date || null,
         auto_renew: form.auto_renew ? 1 : 0,
         use_lunar: form.use_lunar ? 1 : 0,
+        channels: form.channels,
       })
       navigate('/items')
     } catch (e: any) {
@@ -287,6 +291,12 @@ export function ItemNewPage() {
             onChange={(e) => set('notes', e.target.value)}
           />
         </Field>
+
+        {/* Channel selector */}
+        <ChannelSelector
+          selected={form.channels}
+          onChange={(channels) => set('channels', channels)}
+        />
 
         <div className="flex gap-3 pt-2">
           <button

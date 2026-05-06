@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Settings, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, History, User, ChevronDown, Info } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 
@@ -203,6 +203,7 @@ export function AppLayout() {
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/items', icon: CreditCard, label: t('nav.items') },
+    { to: '/channels', icon: Radio, label: t('nav.channels') },
     { to: '/history', icon: History, label: t('nav.history') },
   ]
 

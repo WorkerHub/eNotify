@@ -16,6 +16,7 @@ import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { AdminSystemPage } from '@/pages/admin/AdminSystemPage'
 import { AboutPage } from '@/pages/about/AboutPage'
+import { ChannelPage } from '@/pages/channels/ChannelPage'
 import type { ReactNode } from 'react'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -58,6 +59,7 @@ export function App() {
               <Route path="items" element={<ItemListPage />} />
               <Route path="items/new" element={<ItemNewPage />} />
               <Route path="items/:id" element={<ItemDetailPage />} />
+              <Route path="channels" element={<ChannelPage />} />
               <Route path="history" element={<HistoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="about" element={<AboutPage />} />

@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   is_active   INTEGER NOT NULL DEFAULT 1,
   auto_renew  INTEGER NOT NULL DEFAULT 1,
   use_lunar   INTEGER NOT NULL DEFAULT 0,
+  channels    TEXT NOT NULL DEFAULT '[]',
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );

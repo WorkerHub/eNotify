@@ -47,9 +47,16 @@ export async function sendNotifications(
   config: NotificationConfig,
   message: NotifyMessage,
   env: Env,
-  context?: NotifyContext
+  context?: NotifyContext,
+  channels?: string[]
 ): Promise<NotifyResult[]> {
-  const enabledChannels: string[] = JSON.parse(config.enabled_channels || '[]')
+  let enabledChannels: string[] = JSON.parse(config.enabled_channels || '[]')
+
+  // If specific channels are requested, intersect with enabled channels
+  if (channels && channels.length > 0) {
+    enabledChannels = enabledChannels.filter(ch => channels.includes(ch))
+  }
+
   const results: NotifyResult[] = []
 
   for (const channel of enabledChannels) {

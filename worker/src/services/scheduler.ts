@@ -145,8 +145,12 @@ async function processSubscription(
           : `Expires in ${Math.round(daysUntilExpiry)} days (${sub.expiry_date})`,
       }
 
+  // Filter channels if item has specific channels configured
+  let itemChannels: string[] | undefined
+  try { itemChannels = JSON.parse((sub as any).channels || '[]') } catch { itemChannels = [] }
+
   await sendNotifications(notifyConfig, message, env, {
     db: env.DB, prefix, userId, itemId: sub.id,
-  })
+  }, itemChannels?.length ? itemChannels : undefined)
   await kv.put(dedupeKey, '1', { expirationTtl: 172800 })
 }

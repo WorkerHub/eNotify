@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
+import { ChannelSelector } from '@/components/ChannelSelector'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -62,6 +63,7 @@ export function ItemDetailPage() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [channels, setChannels] = useState<string[]>([])
 
   // Renew form
   const [renewAmount, setRenewAmount] = useState('')
@@ -88,6 +90,13 @@ export function ItemDetailPage() {
         setItem(s)
         setPayments(p)
         setRenewAmount(String(s.amount ?? ''))
+        // Parse channels from the item
+        try {
+          const parsedChannels = JSON.parse(s.channels || '[]')
+          setChannels(Array.isArray(parsedChannels) ? parsedChannels : [])
+        } catch {
+          setChannels([])
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -116,6 +125,7 @@ export function ItemDetailPage() {
         is_active: item.is_active ? 1 : 0,
         auto_renew: item.auto_renew ? 1 : 0,
         use_lunar: item.use_lunar ? 1 : 0,
+        channels,
       })
       setSaveMsg(t('common.success'))
       setTimeout(() => setSaveMsg(''), 3000)
@@ -383,6 +393,11 @@ export function ItemDetailPage() {
               onChange={(e) => setField('notes', e.target.value)}
             />
           </Field>
+
+          <ChannelSelector
+            selected={channels}
+            onChange={setChannels}
+          />
 
           <div className="flex items-center gap-3 pt-1">
             <button

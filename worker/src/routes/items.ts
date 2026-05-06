@@ -55,6 +55,13 @@ itemRoutes.post('/', async (c) => {
   if (body.amount !== undefined && body.amount !== null && (typeof body.amount !== 'number' || body.amount < 0)) {
     return c.json({ error: 'Amount must be a non-negative number' }, 400)
   }
+  const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  if (body.channels !== undefined && !Array.isArray(body.channels)) {
+    return c.json({ error: 'channels must be an array' }, 400)
+  }
+  if (body.channels && body.channels.some((ch: string) => !validChannels.includes(ch))) {
+    return c.json({ error: 'Invalid channel name' }, 400)
+  }
 
   const id = generateId()
   const now = nowISO()
@@ -79,6 +86,7 @@ itemRoutes.post('/', async (c) => {
     is_active: body.is_active ?? 1,
     auto_renew: body.auto_renew ?? 1,
     use_lunar: body.use_lunar ?? 0,
+    channels: JSON.stringify(body.channels || []),
   }
 
   await createItem(c.env.DB, prefix, item)
@@ -159,6 +167,15 @@ itemRoutes.put('/:id', async (c) => {
   if (body.reminder_value !== undefined && (typeof body.reminder_value !== 'number' || body.reminder_value < 0)) {
     return c.json({ error: 'reminder_value must be a non-negative number' }, 400)
   }
+  const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  if (body.channels !== undefined) {
+    if (!Array.isArray(body.channels)) {
+      return c.json({ error: 'channels must be an array' }, 400)
+    }
+    if (body.channels.some((ch: string) => !validChannels.includes(ch))) {
+      return c.json({ error: 'Invalid channel name' }, 400)
+    }
+  }
 
   const updates: Record<string, any> = {}
   const allowedFields = [
@@ -169,6 +186,9 @@ itemRoutes.put('/:id', async (c) => {
   for (const key of allowedFields) {
     if (body[key] !== undefined) updates[key] = body[key]
   }
+
+  // channels is stored as JSON string
+  if (body.channels !== undefined) updates.channels = JSON.stringify(body.channels)
 
   if (Object.keys(updates).length === 0) {
     return c.json({ error: 'No valid fields to update' }, 400)
@@ -268,9 +288,13 @@ itemRoutes.post('/:id/test-notify', async (c) => {
     body: `This is a test notification for "${item.name}" expiring on ${item.expiry_date}.`,
   }
 
+  // Filter channels if item has specific channels configured
+  let itemChannels: string[] | undefined
+  try { itemChannels = JSON.parse(item.channels || '[]') } catch { itemChannels = [] }
+
   const results = await sendNotifications(notifyConfig, message, c.env, {
     db: c.env.DB, prefix, userId, itemId: id,
-  })
+  }, itemChannels?.length ? itemChannels : undefined)
   return c.json({ results })
 })
 

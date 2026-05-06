@@ -63,12 +63,12 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `lunar.ts` — Chinese lunar calendar support (1900–2100)
 - `currency.ts` — multi-currency / exchange rate conversion
 
-**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels.
+**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels, with optional per-item channel filtering via the `channels` parameter.
 
 **Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly via Cloudflare Cron Trigger (`0 * * * *`). For each active user it:
 1. Checks their allowed notification hours (per-timezone).
 2. Auto-renews expired items (with KV deduplication).
-3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication).
+3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication). If an item has specific channels configured (`channels` column), only those channels are used; otherwise all enabled channels receive the notification.
 
 **Cloudflare bindings**:
 - `DB` — D1 database
@@ -81,11 +81,11 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 
 **Entry point**: `web/src/main.tsx`
 
-**Routing** (React Router v7): Auth pages, dashboard, item list/detail/new (`/items/*`), settings, admin pages.
+**Routing** (React Router v7): Auth pages, dashboard, item list/detail/new (`/items/*`), channels (`/channels`), settings, admin pages.
 
 **API communication**: `web/src/lib/api.ts` — thin wrapper over `fetch` for the backend API.
 
-**i18n**: `react-i18next` with `zh.json` / `en.json` locale files in `web/src/locales/`. Language auto-detected from browser. The `items` namespace covers notification management UI strings; `nav.items` is the nav label.
+**i18n**: `react-i18next` with `zh.json` / `en.json` locale files in `web/src/locales/`. Language auto-detected from browser. The `items` namespace covers notification management UI strings; `nav.items` is the nav label. The `channels` namespace covers channel management UI strings.
 
 **Auth state**: `web/src/hooks/useAuth.tsx` — provides user context and JWT-based auth throughout the app.
 
@@ -95,6 +95,9 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - **UI (zh)**: shows "通知" / "通知管理"
 - **UI (en)**: shows "Notification" / "Notifications"
 - **`notification_config`** / `NotificationConfig` refers to push channel configuration, not items — these are separate concepts.
+- **Code/UI for channels**: `channels` / `Channel` in code and nav. DB column `channels` on items stores a JSON array of channel IDs (e.g. `["telegram","email"]`). Empty array `[]` means "use all enabled channels".
+- **UI (zh)**: shows "渠道" / "渠道管理"
+- **UI (en)**: shows "Channel" / "Channel Management"
 
 ### Tailwind CSS v4 notes
 
