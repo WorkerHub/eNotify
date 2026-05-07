@@ -16,7 +16,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [registrationEnabled, setRegistrationEnabled] = useState(true)
+  const [registrationEnabled, setRegistrationEnabled] = useState(false)
 
   useEffect(() => {
     api.get<{ registration_enabled: boolean }>('/system/info')
