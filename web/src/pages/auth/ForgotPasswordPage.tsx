@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api } from '@/lib/api'
@@ -14,16 +14,33 @@ export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const startCountdown = useCallback(() => {
+    setCountdown(60)
+  }, [])
+
+  useEffect(() => {
+    if (countdown <= 0) return
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
+  const handleSendCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     setError('')
     setLoading(true)
     try {
       await api.post('/auth/password/forgot', { email }, { skipRedirect: true })
       setStep('reset')
+      startCountdown()
     } catch (err: any) {
-      setError(err.message || t('common.error'))
+      if (err.status === 429) {
+        setError(t('auth.resetCodeCooldown'))
+        if (step === 'reset') startCountdown()
+      } else {
+        setError(err.message || t('common.error'))
+      }
     } finally {
       setLoading(false)
     }
@@ -153,8 +170,13 @@ export function ForgotPasswordPage() {
               </button>
 
               <p className="text-center text-sm text-muted-foreground">
-                <button type="button" onClick={() => { setStep('email'); setError('') }} className="text-primary hover:underline font-medium">
-                  {t('auth.resendCode')}
+                <button
+                  type="button"
+                  disabled={countdown > 0 || loading}
+                  onClick={() => handleSendCode()}
+                  className={`font-medium ${countdown > 0 ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:underline'}`}
+                >
+                  {countdown > 0 ? t('auth.resendCodeCountdown', { seconds: countdown }) : t('auth.resendCode')}
                 </button>
               </p>
             </form>

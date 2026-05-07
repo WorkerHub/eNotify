@@ -61,13 +61,15 @@
     "passwordMismatch": "Passwords do not match",
     "missingToken": "Missing verification token",
     "forgotPassword": "Forgot password?",
-    "forgotPasswordDesc": "Enter your registered email and we'll send you a code to reset your password.",
-    "resetCodeSent": "A verification code has been sent to your email. Enter it along with your new password.",
+    "forgotPasswordDesc": "Enter your email address. If it's registered, you'll receive a verification code.",
+    "resetCodeSent": "If this email is registered, a code will arrive within a few minutes. Check your spam folder too.",
     "verificationCode": "Verification code",
     "newPassword": "New password",
     "resetPassword": "Reset password",
     "resetPasswordSuccess": "Password reset successfully. You can now log in with your new password.",
     "resendCode": "Resend code",
+    "resendCodeCountdown": "Resend ({{seconds}}s)",
+    "resetCodeCooldown": "Too many requests, please try again later",
     "backToLogin": "Back to login"
   },
   "nav": {
