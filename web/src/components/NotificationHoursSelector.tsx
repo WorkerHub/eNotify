@@ -29,13 +29,10 @@ export function NotificationHoursSelector({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">
-        {t('items.notificationHours')}
-        {showTimezone && (
-          <span className="font-normal text-muted-foreground ml-2">({user?.timezone || 'UTC'})</span>
-        )}
-      </label>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {showTimezone && (
+        <p className="text-xs text-muted-foreground">({user?.timezone || 'UTC'})</p>
+      )}
 
       <div className="grid grid-cols-6 gap-1.5">
         {Array.from({ length: 24 }, (_, i) => i).map((h) => {

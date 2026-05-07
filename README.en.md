@@ -7,14 +7,18 @@ A smart notification management system that helps you track expiry dates and exp
 ## Features
 
 - **Multi-user** — Registration/login, first user becomes admin automatically
-- **Notification Management** — Add, edit, renew, deactivate, with cycle/reset modes
+- **Notification Management** — Add, edit, renew, deactivate, with cycle/reset modes, regular and subscription types
+- **Auto-renewal** — Expired subscriptions are automatically renewed with payment history recorded
 - **Payment History** — Record every payment, multi-currency with real-time exchange rates
 - **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
 - **9 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX
 - **Channel Management** — Dedicated page to enable and configure notification channels
 - **Per-Item Channel Selection** — Each notification item can specify which channels to use; defaults to all enabled channels if unset
-- **Scheduled Reminders** — Hourly auto-check with configurable notification hours
+- **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override
+- **Notification History** — View all sent notifications with delivery status
 - **Two-Factor Auth** — TOTP (authenticator app), Email OTP, Passkey
+- **Password Reset** — Reset password via email verification code
+- **Admin Panel** — User management, system settings, user impersonation
 - **Lunar Calendar** — Lunar date display and period calculation (1900-2100)
 - **Theme Switching** — Light/Dark/System
 - **Bilingual** — Chinese/English

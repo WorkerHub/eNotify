@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Clock, Radio } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -307,10 +307,12 @@ function ChannelCard({
 }
 
 // ---------------------------------------------------------------------------
-// NotificationHoursCard
+// NotificationHoursTab
 // ---------------------------------------------------------------------------
 
-function NotificationHoursCard({
+type ChannelTabId = 'hours' | 'channels'
+
+function NotificationHoursTab({
   config,
   onConfigChange,
 }: {
@@ -318,6 +320,7 @@ function NotificationHoursCard({
   onConfigChange: (updated: NotificationConfig) => void
 }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [localHours, setLocalHours] = useState<number[]>(config.notification_hours ?? [])
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -341,19 +344,14 @@ function NotificationHoursCard({
   }
 
   return (
-    <div className="bg-card border rounded-lg overflow-hidden">
-      <div className="px-4 py-3">
-        <h3 className="text-sm font-semibold text-foreground">
-          {t('channels.notificationHours')}
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('channels.notificationHoursHint')}</p>
-      </div>
+    <div className="space-y-4">
+      <div className="bg-card border rounded-lg p-5 space-y-4">
+        <p className="text-xs text-muted-foreground">{t('channels.notificationHoursHint')}</p>
 
-      <div className="border-t px-4 py-4 space-y-3">
         <NotificationHoursSelector
           selected={localHours}
           onChange={setLocalHours}
-          showTimezone={false}
+          showTimezone={true}
         />
 
         {feedback && (
@@ -383,6 +381,34 @@ function NotificationHoursCard({
 }
 
 // ---------------------------------------------------------------------------
+// ChannelsTab
+// ---------------------------------------------------------------------------
+
+function ChannelsTab({
+  config,
+  onConfigChange,
+}: {
+  config: NotificationConfig
+  onConfigChange: (updated: NotificationConfig) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">{t('channels.description')}</p>
+      {CHANNELS.map((ch) => (
+        <ChannelCard
+          key={ch.id}
+          channel={ch}
+          config={config}
+          onConfigChange={onConfigChange}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // ChannelPage
 // ---------------------------------------------------------------------------
 
@@ -391,6 +417,7 @@ export function ChannelPage() {
   const [config, setConfig] = useState<NotificationConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<ChannelTabId>('hours')
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -414,21 +441,37 @@ export function ChannelPage() {
     return <p className="text-sm text-destructive">{error || t('common.error')}</p>
   }
 
+  const tabs: { id: ChannelTabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'hours', label: t('channels.notificationHours'), icon: <Clock className="w-4 h-4" /> },
+    { id: 'channels', label: t('channels.title'), icon: <Radio className="w-4 h-4" /> },
+  ]
+
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold text-foreground mb-2">{t('channels.title')}</h1>
-      <p className="text-xs text-muted-foreground mb-6">{t('channels.description')}</p>
-      <div className="space-y-3">
-        <NotificationHoursCard config={config} onConfigChange={setConfig} />
-        {CHANNELS.map((ch) => (
-          <ChannelCard
-            key={ch.id}
-            channel={ch}
-            config={config}
-            onConfigChange={setConfig}
-          />
+      <h1 className="text-xl font-bold text-foreground mb-6">{t('channels.title')}</h1>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b mb-6 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors',
+              activeTab === tab.id
+                ? 'border-primary text-primary font-semibold'
+                : 'border-transparent text-muted-foreground font-medium hover:text-foreground'
+            )}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
         ))}
       </div>
+
+      {/* Tab content */}
+      {activeTab === 'hours' && <NotificationHoursTab config={config} onConfigChange={setConfig} />}
+      {activeTab === 'channels' && <ChannelsTab config={config} onConfigChange={setConfig} />}
     </div>
   )
 }
