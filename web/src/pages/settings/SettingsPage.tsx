@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import {
-  User, Shield, Sliders,
+  User, Shield, Sliders, Monitor,
   CheckCircle, QrCode, Key,
 } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -15,7 +15,7 @@ import { cn, serializeRegistrationCredential, prepareRegistrationOptions } from 
 // Types
 // ---------------------------------------------------------------------------
 
-type TabId = 'account' | 'security' | 'preferences'
+type TabId = 'account' | 'security' | 'sessions' | 'preferences'
 
 function StatusBadge({ ok }: { ok: boolean }) {
   const { t } = useTranslation()
@@ -457,6 +457,122 @@ function SecurityTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Sessions Tab
+// ---------------------------------------------------------------------------
+
+interface SessionInfo {
+  jti: string
+  iat: number
+  exp: number
+  current: boolean
+}
+
+function SessionsTab() {
+  const { t } = useTranslation()
+  const [sessions, setSessions] = useState<SessionInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [revoking, setRevoking] = useState<string | null>(null)
+  const [revokeMsg, setRevokeMsg] = useState('')
+
+  const fetchSessions = async () => {
+    try {
+      const data = await api.get<SessionInfo[]>('/me/sessions')
+      setSessions(data)
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSessions()
+  }, [])
+
+  const handleRevoke = async (jti: string) => {
+    setRevoking(jti)
+    setError('')
+    setRevokeMsg('')
+    try {
+      await api.delete(`/me/sessions/${jti}`)
+      setRevokeMsg(t('settings.revokeSuccess'))
+      setTimeout(() => setRevokeMsg(''), 3000)
+      await fetchSessions()
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    } finally {
+      setRevoking(null)
+    }
+  }
+
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleString()
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-20 bg-muted rounded-lg" />
+        <div className="h-20 bg-muted rounded-lg" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{t('settings.sessionsDescription')}</p>
+
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+      )}
+      {revokeMsg && (
+        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">{revokeMsg}</p>
+      )}
+
+      {sessions.length === 0 ? (
+        <div className="bg-card border rounded-lg p-5 text-center text-sm text-muted-foreground">
+          {t('settings.noSessions')}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sessions.map((s) => (
+            <div
+              key={s.jti}
+              className="bg-card border rounded-lg p-4 flex items-center justify-between gap-4"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Monitor className="w-4 h-4 text-muted-foreground shrink-0" />
+                  {s.current && (
+                    <span className="inline-flex items-center text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full font-medium">
+                      {t('settings.currentSession')}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>{t('settings.loggedInAt')}: {formatTime(s.iat)}</p>
+                  <p>{t('settings.expiresAt')}: {formatTime(s.exp)}</p>
+                </div>
+              </div>
+              {!s.current && (
+                <button
+                  onClick={() => handleRevoke(s.jti)}
+                  disabled={revoking === s.jti}
+                  className="shrink-0 py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
+                >
+                  {revoking === s.jti ? t('common.loading') : t('settings.revoke')}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Preferences Tab
 // ---------------------------------------------------------------------------
 
@@ -677,7 +793,7 @@ export function SettingsPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const validTabs: TabId[] = ['account', 'security', 'preferences']
+  const validTabs: TabId[] = ['account', 'security', 'sessions', 'preferences']
   const rawTab = searchParams.get('tab') as TabId | null
   const activeTab: TabId = rawTab && validTabs.includes(rawTab) ? rawTab : 'account'
 
@@ -688,6 +804,7 @@ export function SettingsPage() {
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'account', label: t('settings.account'), icon: <User className="w-4 h-4" /> },
     { id: 'security', label: t('settings.security'), icon: <Shield className="w-4 h-4" /> },
+    { id: 'sessions', label: t('settings.sessions'), icon: <Monitor className="w-4 h-4" /> },
     { id: 'preferences', label: t('settings.preferences'), icon: <Sliders className="w-4 h-4" /> },
   ]
 
@@ -717,6 +834,7 @@ export function SettingsPage() {
       {/* Tab content */}
       {activeTab === 'account' && <AccountTab />}
       {activeTab === 'security' && <SecurityTab />}
+      {activeTab === 'sessions' && <SessionsTab />}
       {activeTab === 'preferences' && <PreferencesTab />}
     </div>
   )

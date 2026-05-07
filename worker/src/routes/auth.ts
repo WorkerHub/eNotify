@@ -156,6 +156,10 @@ authRoutes.post('/logout', async (c) => {
     const payload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET)
     if (payload) {
       await c.env.KV.delete(`rt:${payload.jti}`)
+      // Remove from session index
+      if (payload.sub) {
+        await removeSessionIndex(c.env.KV, payload.sub, payload.jti)
+      }
     }
   }
 
@@ -316,6 +320,9 @@ async function issueTokens(c: Context<HonoEnv>, userId: string, role: string, ne
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 })
 
+  // Track session in KV index
+  await addSessionIndex(c.env.KV, userId, { jti: refreshJti, iat: now, exp: now + 604800 })
+
   setCookie(c, 'access_token', accessToken, {
     httpOnly: true,
     secure: true,
@@ -331,4 +338,44 @@ async function issueTokens(c: Context<HonoEnv>, userId: string, role: string, ne
     path: '/',
     maxAge: 604800,
   })
+}
+
+// ── Session index helpers ──────────────────────────────────────────────────
+
+interface SessionEntry {
+  jti: string
+  iat: number
+  exp: number
+}
+
+export async function addSessionIndex(kv: KVNamespace, userId: string, entry: SessionEntry): Promise<void> {
+  const key = `sessions:${userId}`
+  const raw = await kv.get(key)
+  const sessions: SessionEntry[] = raw ? JSON.parse(raw) : []
+  sessions.push(entry)
+  // TTL matches refresh token lifetime
+  await kv.put(key, JSON.stringify(sessions), { expirationTtl: 604800 })
+}
+
+export async function removeSessionIndex(kv: KVNamespace, userId: string, jti: string): Promise<void> {
+  const key = `sessions:${userId}`
+  const raw = await kv.get(key)
+  if (!raw) return
+  const sessions: SessionEntry[] = JSON.parse(raw)
+  const filtered = sessions.filter(s => s.jti !== jti)
+  if (filtered.length === 0) {
+    await kv.delete(key)
+  } else {
+    await kv.put(key, JSON.stringify(filtered), { expirationTtl: 604800 })
+  }
+}
+
+export async function getSessionIndex(kv: KVNamespace, userId: string): Promise<SessionEntry[]> {
+  const key = `sessions:${userId}`
+  const raw = await kv.get(key)
+  if (!raw) return []
+  const sessions: SessionEntry[] = JSON.parse(raw)
+  const now = Math.floor(Date.now() / 1000)
+  // Filter out expired entries
+  return sessions.filter(s => s.exp > now)
 }

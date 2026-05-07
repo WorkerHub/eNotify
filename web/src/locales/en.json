@@ -177,7 +177,15 @@
     "passkeyDescription": "Use biometrics or a hardware key for sign-in.",
     "emailOtpVerifyPrompt": "A verification code has been sent to your email. Enter it to enable Email OTP.",
     "emailOtpVerifyCode": "Verification code",
-    "emailOtpSendCode": "Send Code"
+    "emailOtpSendCode": "Send Code",
+    "sessions": "Sessions",
+    "sessionsDescription": "Manage your active sessions. You can revoke access on any device.",
+    "currentSession": "Current",
+    "loggedInAt": "Logged in",
+    "expiresAt": "Expires",
+    "revoke": "Revoke",
+    "revokeSuccess": "Session revoked",
+    "noSessions": "No active sessions"
   },
   "about": {
     "title": "About",

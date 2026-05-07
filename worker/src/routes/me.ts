@@ -8,6 +8,7 @@ import { getNotificationConfig, upsertNotificationConfig } from '../db/queries/n
 import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification-history'
 import { get2FAConfig } from '../db/queries/twofa'
 import { hashPassword, verifyPassword, generateJti, signJWT, verifyJWT } from '../core/auth'
+import { getSessionIndex, removeSessionIndex, addSessionIndex } from './auth'
 import { sendToChannel, type NotifyMessage } from '../services/notify/index'
 import { getCookie, setCookie } from 'hono/cookie'
 
@@ -105,6 +106,7 @@ meRoutes.put('/password', async (c) => {
     const rtPayload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET)
     if (rtPayload) {
       await c.env.KV.delete(`rt:${rtPayload.jti}`)
+      await removeSessionIndex(c.env.KV, userId, rtPayload.jti)
     }
   }
 
@@ -120,6 +122,8 @@ meRoutes.put('/password', async (c) => {
   const newRefreshToken = await signJWT(refreshPayload, c.env.JWT_SECRET)
 
   await c.env.KV.put(`rt:${newRefreshJti}`, userId, { expirationTtl: 604800 })
+  // Track new session in KV index
+  await addSessionIndex(c.env.KV, userId, { jti: newRefreshJti, iat: now, exp: now + 604800 })
 
   setCookie(c, 'access_token', newAccessToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 86400 })
   setCookie(c, 'refresh_token', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 604800 })
@@ -265,5 +269,83 @@ meRoutes.delete('/notifications/token/:token', async (c) => {
   const owner = await c.env.KV.get(`notify_token:${token}`)
   if (owner !== userId) return c.json({ error: 'Not found' }, 404)
   await c.env.KV.delete(`notify_token:${token}`)
+  return c.json({ success: true })
+})
+
+// ── Sessions ──────────────────────────────────────────────────────────────
+
+meRoutes.get('/sessions', async (c) => {
+  const userId = c.get('userId') // Use real user, not impersonated
+  const sessions = await getSessionIndex(c.env.KV, userId)
+
+  // Identify current session from refresh token
+  let currentJti: string | undefined
+  const refreshTokenStr = getCookie(c, 'refresh_token')
+  if (refreshTokenStr) {
+    const payload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET)
+    if (payload) currentJti = payload.jti
+  }
+
+  // Verify each session's refresh token still exists in KV (may have been revoked)
+  const validSessions = []
+  for (const s of sessions) {
+    const exists = await c.env.KV.get(`rt:${s.jti}`)
+    if (exists) {
+      validSessions.push({
+        jti: s.jti,
+        iat: s.iat,
+        exp: s.exp,
+        current: s.jti === currentJti,
+      })
+    }
+  }
+
+  // Clean up stale entries from the index
+  const validJtis = new Set(validSessions.map(s => s.jti))
+  const staleJtis = sessions.filter(s => !validJtis.has(s.jti))
+  if (staleJtis.length > 0) {
+    const key = `sessions:${userId}`
+    const remaining = sessions.filter(s => validJtis.has(s.jti))
+    if (remaining.length === 0) {
+      await c.env.KV.delete(key)
+    } else {
+      await c.env.KV.put(key, JSON.stringify(remaining), { expirationTtl: 604800 })
+    }
+  }
+
+  return c.json(validSessions)
+})
+
+meRoutes.delete('/sessions/:jti', async (c) => {
+  const userId = c.get('userId')
+  const jti = c.req.param('jti')
+
+  // Don't allow revoking current session via this endpoint (use logout instead)
+  const refreshTokenStr = getCookie(c, 'refresh_token')
+  if (refreshTokenStr) {
+    const payload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET)
+    if (payload && payload.jti === jti) {
+      return c.json({ error: 'Use logout to end current session' }, 400)
+    }
+  }
+
+  // Verify the session belongs to this user
+  const sessions = await getSessionIndex(c.env.KV, userId)
+  const target = sessions.find(s => s.jti === jti)
+  if (!target) return c.json({ error: 'Session not found' }, 404)
+
+  // Revoke: delete refresh token from KV
+  await c.env.KV.delete(`rt:${jti}`)
+
+  // Blacklist the access token associated with this session
+  const now = Math.floor(Date.now() / 1000)
+  const remaining = target.exp - now
+  if (remaining > 0) {
+    await c.env.KV.put(`bl:${jti}`, '1', { expirationTtl: Math.min(remaining, 86400) })
+  }
+
+  // Remove from session index
+  await removeSessionIndex(c.env.KV, userId, jti)
+
   return c.json({ success: true })
 })

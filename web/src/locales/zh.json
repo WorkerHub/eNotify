@@ -177,7 +177,15 @@
     "passkeyDescription": "使用生物识别或硬件密钥登录",
     "emailOtpVerifyPrompt": "验证码已发送至您的邮箱，请输入验证码以启用邮箱验证码登录。",
     "emailOtpVerifyCode": "验证码",
-    "emailOtpSendCode": "发送验证码"
+    "emailOtpSendCode": "发送验证码",
+    "sessions": "会话",
+    "sessionsDescription": "管理您的活跃会话，可以撤销任意设备上的登录状态。",
+    "currentSession": "当前",
+    "loggedInAt": "登录时间",
+    "expiresAt": "过期时间",
+    "revoke": "注销",
+    "revokeSuccess": "会话已注销",
+    "noSessions": "无活跃会话"
   },
   "about": {
     "title": "关于",
