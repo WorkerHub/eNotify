@@ -122,7 +122,7 @@ importers:
         version: 13.3.0
       hono:
         specifier: ^4.7.9
-        version: 4.12.17
+        version: 4.12.18
       otpauth:
         specifier: ^9.4.2
         version: 9.5.1
@@ -1429,8 +1429,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.12.17:
-    resolution: {integrity: sha512-FbJJNb/XgX7YW0hX/V8w5oYLztKEsRLykCMZWt1WdLtsfjzMvmoqWBA4H4t5norinq8/rh20oiZYr+WSl4UzAQ==}
+  hono@4.12.18:
+    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
     engines: {node: '>=16.9.0'}
 
   html-parse-stringify@3.0.1:
@@ -3044,7 +3044,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.12.17: {}
+  hono@4.12.18: {}
 
   html-parse-stringify@3.0.1:
     dependencies:
