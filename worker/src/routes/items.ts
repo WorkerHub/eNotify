@@ -80,7 +80,7 @@ itemRoutes.post('/', async (c) => {
   const item: Omit<Item, 'created_at' | 'updated_at'> = {
     id,
     user_id: userId,
-    name: body.name,
+    name: body.name.trim(),
     item_mode: body.item_mode || 'cycle',
     custom_type: body.custom_type || '',
     category: body.category || '',
@@ -208,7 +208,7 @@ itemRoutes.put('/:id', async (c) => {
     'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
   ]
   for (const key of allowedFields) {
-    if (body[key] !== undefined) updates[key] = body[key]
+    if (body[key] !== undefined) updates[key] = key === 'name' ? body[key].trim() : body[key]
   }
 
   // channels is stored as JSON string

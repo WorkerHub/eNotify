@@ -39,7 +39,7 @@ authRoutes.post('/register', async (c) => {
   }
 
   const registrationEnabled = await getSetting(c.env.DB, prefix, 'registration_enabled')
-  if (registrationEnabled === '0') {
+  if (registrationEnabled === 'false') {
     return c.json({ error: 'Registration is disabled' }, 403)
   }
 
@@ -67,7 +67,7 @@ authRoutes.post('/register', async (c) => {
 
   const emailVerificationEnabled = await getSetting(c.env.DB, prefix, 'email_verification_enabled')
 
-  if (emailVerificationEnabled === '1') {
+  if (emailVerificationEnabled === 'true') {
     const verifyToken = generateId()
     await c.env.KV.put(`email_verify:${verifyToken}`, id, { expirationTtl: 86400 })
 
@@ -114,7 +114,7 @@ authRoutes.post('/login', async (c) => {
   }
 
   const require2FA = await getSetting(c.env.DB, prefix, 'require_2fa')
-  if (require2FA === '1') {
+  if (require2FA === 'true') {
     const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id)
     const methods = getAvailable2FAMethods(twoFAConfig)
 
@@ -237,9 +237,10 @@ authRoutes.post('/password/forgot', async (c) => {
   // Check & set cooldown before user lookup to avoid email enumeration
   const cooldownKey = `pwd_reset_cd:${email}`
   const onCooldown = await c.env.KV.get(cooldownKey)
-  if (!onCooldown) {
-    await c.env.KV.put(cooldownKey, '1', { expirationTtl: 60 })
+  if (onCooldown) {
+    return c.json({ success: true })
   }
+  await c.env.KV.put(cooldownKey, '1', { expirationTtl: 60 })
 
   const prefix = getTablePrefix(c.env)
   const user = await findUserByEmail(c.env.DB, prefix, email)

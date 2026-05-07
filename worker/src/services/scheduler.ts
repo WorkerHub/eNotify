@@ -1,6 +1,6 @@
 import { getTablePrefix } from '../types'
 import type { Env, Item } from '../types'
-import { listUsers } from '../db/queries/users'
+import { listActiveUsersForScheduler } from '../db/queries/users'
 import { getActiveItemsByUser } from '../db/queries/items'
 import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
@@ -14,8 +14,7 @@ export async function handleScheduled(env: Env): Promise<void> {
   const db = env.DB
   const kv = env.KV
 
-  const users = await listUsers(db, prefix)
-  const activeUsers = users.filter(u => u.is_active)
+  const activeUsers = await listActiveUsersForScheduler(db, prefix)
 
   const BATCH_SIZE = 10
   for (let i = 0; i < activeUsers.length; i += BATCH_SIZE) {

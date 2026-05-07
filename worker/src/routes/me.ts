@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { getTablePrefix, VALID_CHANNELS } from '../types'
 import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
+import { rateLimit } from '../middleware/ratelimit'
 import { findUserById, updateUser } from '../db/queries/users'
 import { getNotificationConfig, upsertNotificationConfig } from '../db/queries/notifications'
 import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification-history'
@@ -13,6 +14,7 @@ import { getCookie, setCookie } from 'hono/cookie'
 export const meRoutes = new Hono<HonoEnv>()
 
 meRoutes.use('*', authMiddleware)
+meRoutes.use('/password', rateLimit({ max: 5, window: 300, keyPrefix: 'pwd_change' }))
 
 meRoutes.get('/', async (c) => {
   const userId = getEffectiveUserId(c)
@@ -214,7 +216,7 @@ meRoutes.post('/notifications/test', async (c) => {
 
   if (!channel) return c.json({ error: 'Channel required' }, 400)
 
-  const validChannels = ['telegram', 'webhook', 'wechatbot', 'email', 'bark', 'gotify', 'serverchan', 'pushplus', 'notifyx']
+  const validChannels = VALID_CHANNELS
   if (!validChannels.includes(channel)) return c.json({ error: 'Invalid channel' }, 400)
 
   const config = await getNotificationConfig(c.env.DB, prefix, userId)

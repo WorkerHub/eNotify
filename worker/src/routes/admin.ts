@@ -170,7 +170,7 @@ adminRoutes.post('/users/:uid/items', async (c) => {
   await createItem(c.env.DB, prefix, {
     id,
     user_id: uid,
-    name: body.name,
+    name: body.name.trim(),
     item_mode: body.item_mode || 'cycle',
     custom_type: body.custom_type || '',
     category: body.category || '',
@@ -236,8 +236,34 @@ adminRoutes.put('/users/:uid/items/:iid', async (c) => {
       return c.json({ error: 'notification_hours must be integers 0-23' }, 400)
     }
   }
+  if (body.item_mode && !['cycle', 'reset'].includes(body.item_mode)) {
+    return c.json({ error: 'Invalid item mode' }, 400)
+  }
+  if (body.item_kind && !['regular', 'subscription'].includes(body.item_kind)) {
+    return c.json({ error: 'Invalid item_kind' }, 400)
+  }
+  if (body.is_active !== undefined && ![0, 1].includes(body.is_active)) {
+    return c.json({ error: 'is_active must be 0 or 1' }, 400)
+  }
+  if (body.auto_renew !== undefined && ![0, 1].includes(body.auto_renew)) {
+    return c.json({ error: 'auto_renew must be 0 or 1' }, 400)
+  }
+  if (body.use_lunar !== undefined && ![0, 1].includes(body.use_lunar)) {
+    return c.json({ error: 'use_lunar must be 0 or 1' }, 400)
+  }
+  if (body.reminder_value !== undefined && (typeof body.reminder_value !== 'number' || body.reminder_value < 0)) {
+    return c.json({ error: 'reminder_value must be a non-negative number' }, 400)
+  }
 
-  const updates: Record<string, any> = { ...body }
+  const updates: Record<string, any> = {}
+  const allowedFields = [
+    'name', 'item_mode', 'custom_type', 'category', 'start_date',
+    'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
+    'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
+  ]
+  for (const key of allowedFields) {
+    if (body[key] !== undefined) updates[key] = body[key]
+  }
   if (body.channels !== undefined) updates.channels = JSON.stringify(body.channels)
   if (body.notification_hours !== undefined) updates.notification_hours = JSON.stringify(body.notification_hours)
 

@@ -84,6 +84,17 @@ export async function listUsers(
   return result.results;
 }
 
+export async function listActiveUsersForScheduler(
+  db: D1Database,
+  prefix: string
+): Promise<Pick<User, 'id' | 'timezone' | 'language' | 'is_active'>[]> {
+  const table = `${prefix}users`;
+  const result = await db
+    .prepare(`SELECT id, timezone, language, is_active FROM ${table} WHERE is_active = 1`)
+    .all<Pick<User, 'id' | 'timezone' | 'language' | 'is_active'>>();
+  return result.results;
+}
+
 export async function countUsers(
   db: D1Database,
   prefix: string

@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_{prefix}items_user_id
 CREATE TABLE IF NOT EXISTS {prefix}payment_history (
   id      TEXT PRIMARY KEY,
   item_id TEXT NOT NULL REFERENCES {prefix}items(id) ON DELETE CASCADE,
-  user_id         TEXT NOT NULL,
+  user_id         TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
   date            TEXT NOT NULL,
   amount          REAL NOT NULL DEFAULT 0,
   currency        TEXT NOT NULL DEFAULT 'CNY',
