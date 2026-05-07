@@ -233,22 +233,22 @@ authRoutes.post('/password/forgot', async (c) => {
   const { email } = await c.req.json<{ email: string }>()
   if (!email) return c.json({ error: 'Email required' }, 400)
 
+  // Per-email cooldown: 60s between resend
+  // Check & set cooldown before user lookup to avoid email enumeration
+  const cooldownKey = `pwd_reset_cd:${email}`
+  const onCooldown = await c.env.KV.get(cooldownKey)
+  if (!onCooldown) {
+    await c.env.KV.put(cooldownKey, '1', { expirationTtl: 60 })
+  }
+
   const prefix = getTablePrefix(c.env)
   const user = await findUserByEmail(c.env.DB, prefix, email)
 
   // Always return success to avoid email enumeration
   if (!user || !user.is_active) return c.json({ success: true })
 
-  // Per-email cooldown: 60s between resend
-  const cooldownKey = `pwd_reset_cd:${email}`
-  const onCooldown = await c.env.KV.get(cooldownKey)
-  if (onCooldown) {
-    return c.json({ error: 'Please wait before requesting another code' }, 429)
-  }
-
   const code = String(Math.floor(100000 + Math.random() * 900000))
   await c.env.KV.put(`pwd_reset:${user.id}`, code, { expirationTtl: 900 }) // 15 min
-  await c.env.KV.put(cooldownKey, '1', { expirationTtl: 60 })
 
   const appName = 'eNotify'
   await sendEmail(c.env, {
