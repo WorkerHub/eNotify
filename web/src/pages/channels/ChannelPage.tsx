@@ -49,7 +49,11 @@ const CHANNELS: ChannelDef[] = [
   {
     id: 'wechatbot',
     label: 'WeCom Bot',
-    fields: [{ key: 'webhook', label: 'Webhook URL', type: 'text', placeholder: 'https://' }],
+    fields: [
+      { key: 'webhook', label: 'Webhook URL', type: 'text', placeholder: 'https://' },
+      { key: 'msg_type', label: 'Message Type', type: 'select', options: ['markdown', 'text'] },
+      { key: 'at_all', label: 'At All', type: 'select', options: ['false', 'true'] },
+    ],
   },
   {
     id: 'email',
