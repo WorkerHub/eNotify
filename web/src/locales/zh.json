@@ -59,7 +59,16 @@
     "setup2fa": "设置两步验证",
     "setup2faRequired": "管理员要求您设置两步验证后才能继续使用",
     "passwordMismatch": "两次输入的密码不一致",
-    "missingToken": "缺少验证令牌"
+    "missingToken": "缺少验证令牌",
+    "forgotPassword": "忘记密码",
+    "forgotPasswordDesc": "输入您的注册邮箱，我们将发送一个验证码用于重置密码。",
+    "resetCodeSent": "验证码已发送至您的邮箱，请输入验证码和新密码。",
+    "verificationCode": "验证码",
+    "newPassword": "新密码",
+    "resetPassword": "重置密码",
+    "resetPasswordSuccess": "密码重置成功，请使用新密码登录。",
+    "resendCode": "重新发送验证码",
+    "backToLogin": "返回登录"
   },
   "nav": {
     "dashboard": "仪表盘",

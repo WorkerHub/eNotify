@@ -59,7 +59,16 @@
     "setup2fa": "Set Up 2FA",
     "setup2faRequired": "Your administrator requires you to set up two-factor authentication before continuing",
     "passwordMismatch": "Passwords do not match",
-    "missingToken": "Missing verification token"
+    "missingToken": "Missing verification token",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordDesc": "Enter your registered email and we'll send you a code to reset your password.",
+    "resetCodeSent": "A verification code has been sent to your email. Enter it along with your new password.",
+    "verificationCode": "Verification code",
+    "newPassword": "New password",
+    "resetPassword": "Reset password",
+    "resetPasswordSuccess": "Password reset successfully. You can now log in with your new password.",
+    "resendCode": "Resend code",
+    "backToLogin": "Back to login"
   },
   "nav": {
     "dashboard": "Dashboard",

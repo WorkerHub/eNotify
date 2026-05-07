@@ -19,6 +19,8 @@ authRoutes.use('/login', rateLimit({ max: 10, window: 300, keyPrefix: 'login' })
 authRoutes.use('/register', rateLimit({ max: 5, window: 300, keyPrefix: 'register' }))
 authRoutes.use('/refresh', rateLimit({ max: 20, window: 300, keyPrefix: 'refresh' }))
 authRoutes.use('/email/resend', rateLimit({ max: 3, window: 300, keyPrefix: 'email_resend' }))
+authRoutes.use('/password/forgot', rateLimit({ max: 3, window: 300, keyPrefix: 'pwd_forgot' }))
+authRoutes.use('/password/reset', rateLimit({ max: 5, window: 300, keyPrefix: 'pwd_reset' }))
 
 authRoutes.post('/register', async (c) => {
   const prefix = getTablePrefix(c.env)
@@ -223,6 +225,57 @@ authRoutes.post('/email/resend', async (c) => {
     subject: 'Verify your email - eNotify',
     html: `<p>Click <a href="${new URL(c.req.url).origin}/verify-email?token=${verifyToken}">here</a> to verify your email.</p>`,
   })
+
+  return c.json({ success: true })
+})
+
+authRoutes.post('/password/forgot', async (c) => {
+  const { email } = await c.req.json<{ email: string }>()
+  if (!email) return c.json({ error: 'Email required' }, 400)
+
+  const prefix = getTablePrefix(c.env)
+  const user = await findUserByEmail(c.env.DB, prefix, email)
+
+  // Always return success to avoid email enumeration
+  if (!user || !user.is_active) return c.json({ success: true })
+
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  await c.env.KV.put(`pwd_reset:${user.id}`, code, { expirationTtl: 900 }) // 15 min
+
+  const appName = 'eNotify'
+  await sendEmail(c.env, {
+    to: email,
+    subject: `Reset your password - ${appName}`,
+    html: `<p>Your password reset code is: <strong>${code}</strong></p><p>This code expires in 15 minutes.</p>`,
+  })
+
+  return c.json({ success: true })
+})
+
+authRoutes.post('/password/reset', async (c) => {
+  const { email, code, new_password } = await c.req.json<{ email: string; code: string; new_password: string }>()
+
+  if (!email || !code || !new_password) {
+    return c.json({ error: 'Email, code and new password required' }, 400)
+  }
+  if (new_password.length < 8) {
+    return c.json({ error: 'Password must be at least 8 characters' }, 400)
+  }
+
+  const prefix = getTablePrefix(c.env)
+  const user = await findUserByEmail(c.env.DB, prefix, email)
+  if (!user || !user.is_active) {
+    return c.json({ error: 'Invalid or expired code' }, 400)
+  }
+
+  const stored = await c.env.KV.get(`pwd_reset:${user.id}`)
+  if (!stored || stored !== code) {
+    return c.json({ error: 'Invalid or expired code' }, 400)
+  }
+
+  await c.env.KV.delete(`pwd_reset:${user.id}`)
+  const passwordHash = await hashPassword(new_password)
+  await updateUser(c.env.DB, prefix, user.id, { password_hash: passwordHash })
 
   return c.json({ success: true })
 })

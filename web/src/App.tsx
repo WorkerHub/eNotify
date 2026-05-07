@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { TwoFactorPage } from '@/pages/auth/TwoFactorPage'
 import { VerifyEmailPage } from '@/pages/auth/VerifyEmailPage'
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { ItemListPage } from '@/pages/items/ItemListPage'
 import { ItemNewPage } from '@/pages/items/ItemNewPage'
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
             <Route path="/2fa" element={<TwoFactorPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
