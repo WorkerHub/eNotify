@@ -169,7 +169,7 @@ export function ForgotPasswordPage() {
                 {loading ? t('common.loading') : t('auth.resetPassword')}
               </button>
 
-              <p className="text-center text-sm text-muted-foreground">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <button
                   type="button"
                   disabled={countdown > 0 || loading}
@@ -178,7 +178,10 @@ export function ForgotPasswordPage() {
                 >
                   {countdown > 0 ? t('auth.resendCodeCountdown', { seconds: countdown }) : t('auth.resendCode')}
                 </button>
-              </p>
+                <Link to="/login" className="text-primary hover:underline font-medium">
+                  {t('auth.backToLogin')}
+                </Link>
+              </div>
             </form>
           )}
         </div>
