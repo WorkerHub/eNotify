@@ -1,0 +1,28 @@
+name = "enotify"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER"
+keep_vars = true
+
+[define]
+APP_VERSION = "__APP_VERSION__"
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+
+
+[[d1_databases]]
+binding = "DB"
+database_name = "D1_DATABASE_NAME_PLACEHOLDER"
+database_id = "D1_DATABASE_ID_PLACEHOLDER"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "KV_NAMESPACE_ID_PLACEHOLDER"
+
+[triggers]
+crons = ["0 * * * *"]
+
+

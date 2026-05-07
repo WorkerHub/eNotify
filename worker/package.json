@@ -1,0 +1,22 @@
+{
+  "name": "worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.7.9",
+    "@simplewebauthn/server": "^13.1.1",
+    "@hexagon/base64": "^2.0.2",
+    "otpauth": "^9.4.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250508.0",
+    "wrangler": "^4.14.1",
+    "typescript": "^6.0.0"
+  }
+}

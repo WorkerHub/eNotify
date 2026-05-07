@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 6am on Monday"],
+  "timezone": "Asia/Shanghai",
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "groupName": "patch updates",
+      "automerge": true,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "groupName": "minor updates",
+      "automerge": true,
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "groupName": "Cloudflare packages",
+      "matchPackagePatterns": ["^@cloudflare/"],
+      "matchPackageNames": ["wrangler"]
+    },
+    {
+      "groupName": "SimpleWebAuthn packages",
+      "matchPackagePatterns": ["^@simplewebauthn/"]
+    },
+    {
+      "groupName": "Radix UI packages",
+      "matchPackagePatterns": ["^@radix-ui/"]
+    },
+    {
+      "groupName": "i18next packages",
+      "matchPackagePatterns": ["^i18next", "^react-i18next"]
+    },
+    {
+      "groupName": "Tailwind CSS packages",
+      "matchPackagePatterns": ["^tailwindcss", "^@tailwindcss/"]
+    },
+    {
+      "groupName": "React packages",
+      "matchPackageNames": ["react", "react-dom"],
+      "matchPackagePatterns": ["^@types/react"]
+    }
+  ]
+}
