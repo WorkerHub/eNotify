@@ -320,6 +320,120 @@ function ChannelCard({
 }
 
 // ---------------------------------------------------------------------------
+// NotificationHoursCard
+// ---------------------------------------------------------------------------
+
+function NotificationHoursCard({
+  config,
+  onConfigChange,
+}: {
+  config: NotificationConfig
+  onConfigChange: (updated: NotificationConfig) => void
+}) {
+  const { t } = useTranslation()
+  const [localHours, setLocalHours] = useState<number[]>(config.notification_hours ?? [])
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  useEffect(() => {
+    setLocalHours(config.notification_hours ?? [])
+  }, [config.notification_hours])
+
+  const toggleHour = (h: number) => {
+    setLocalHours((prev) =>
+      prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h].sort((a, b) => a - b)
+    )
+  }
+
+  const selectAll = () => setLocalHours(Array.from({ length: 24 }, (_, i) => i))
+  const clearAll = () => setLocalHours([])
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setFeedback(null)
+    try {
+      await api.put('/me/notifications', { notification_hours: localHours })
+      onConfigChange({ ...config, notification_hours: localHours })
+      setFeedback({ ok: true, msg: t('common.success') })
+    } catch (err: any) {
+      setFeedback({ ok: false, msg: err.message || t('common.error') })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-card border rounded-lg overflow-hidden">
+      <div className="px-4 py-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('channels.notificationHours')}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">{t('channels.notificationHoursHint')}</p>
+      </div>
+
+      <div className="border-t px-4 py-4 space-y-3">
+        <div className="grid grid-cols-6 gap-1.5">
+          {Array.from({ length: 24 }, (_, i) => i).map((h) => {
+            const selected = localHours.includes(h)
+            return (
+              <button
+                key={h}
+                type="button"
+                onClick={() => toggleHour(h)}
+                className={cn(
+                  'py-1.5 rounded-md text-xs font-medium transition-colors border',
+                  selected
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-input hover:border-primary/50'
+                )}
+              >
+                {h}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={selectAll} className="text-xs text-primary hover:underline">
+            {t('common.selectAll')}
+          </button>
+          <span className="text-xs text-muted-foreground">/</span>
+          <button type="button" onClick={clearAll} className="text-xs text-primary hover:underline">
+            {t('channels.notificationHoursClear')}
+          </button>
+          {localHours.length === 0 && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              {t('channels.notificationHoursNoLimit')}
+            </span>
+          )}
+        </div>
+
+        {feedback && (
+          <p
+            className={cn(
+              'text-xs px-3 py-2 rounded-md',
+              feedback.ok
+                ? 'text-green-600 bg-green-50 dark:bg-green-900/20'
+                : 'text-destructive bg-destructive/10'
+            )}
+          >
+            {feedback.msg}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="py-1.5 px-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-medium rounded-md transition-colors"
+        >
+          {saving ? t('common.loading') : t('common.save')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // ChannelPage
 // ---------------------------------------------------------------------------
 
@@ -356,6 +470,7 @@ export function ChannelPage() {
       <h1 className="text-xl font-bold text-foreground mb-2">{t('channels.title')}</h1>
       <p className="text-xs text-muted-foreground mb-6">{t('channels.description')}</p>
       <div className="space-y-3">
+        <NotificationHoursCard config={config} onConfigChange={setConfig} />
         {CHANNELS.map((ch) => (
           <ChannelCard
             key={ch.id}

@@ -276,6 +276,10 @@
     "allChannels": "所有已启用的渠道",
     "selectedChannels": "已选择 {{count}} 个渠道",
     "noChannelsSelected": "未选择（使用默认）",
-    "noChannelsEnabled": "未启用任何通道，请先到通道管理页面配置"
+    "noChannelsEnabled": "未启用任何通道，请先到通道管理页面配置",
+    "notificationHours": "通知时段",
+    "notificationHoursHint": "选择允许接收通知的小时，不选则不限制",
+    "notificationHoursClear": "清空",
+    "notificationHoursNoLimit": "不限制"
   }
 }
