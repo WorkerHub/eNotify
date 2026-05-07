@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, AlertCircle, ShieldCheck, UserX, UserCheck, Trash2, LogIn, UserPlus, Pencil, X } from 'lucide-react'
+import { AlertCircle, ShieldCheck, UserX, UserCheck, Trash2, LogIn, UserPlus, Pencil, X, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -142,13 +142,22 @@ export function AdminUsersPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/admin')} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="text-2xl font-bold">{t('admin.users')}</h1>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{t('admin.userCount')}</p>
+            {loading ? (
+              <div className="h-4 w-6 bg-muted rounded animate-pulse" />
+            ) : (
+              <p className="text-sm font-bold leading-tight">{users.length}</p>
+            )}
+          </div>
+        </div>
         <button
           onClick={() => { setShowAddForm((p) => !p); setError('') }}
-          className="ml-auto flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <UserPlus className="w-4 h-4" />
           {t('admin.addUser')}

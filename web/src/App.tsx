@@ -15,7 +15,9 @@ import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { HistoryPage } from '@/pages/history/HistoryPage'
 import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
-import { AdminSystemPage } from '@/pages/admin/AdminSystemPage'
+import { AdminAppPage } from '@/pages/admin/AdminAppPage'
+import { AdminEmailPage } from '@/pages/admin/AdminEmailPage'
+import { AdminSecurityPage } from '@/pages/admin/AdminSecurityPage'
 import { AboutPage } from '@/pages/about/AboutPage'
 import { ChannelPage } from '@/pages/channels/ChannelPage'
 import type { ReactNode } from 'react'
@@ -67,9 +69,13 @@ export function App() {
               <Route path="about" element={<AboutPage />} />
 
               {/* Admin routes */}
-              <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-              <Route path="admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-              <Route path="admin/system" element={<AdminRoute><AdminSystemPage /></AdminRoute>} />
+              <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>}>
+                <Route index element={<Navigate to="users" replace />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="app" element={<AdminAppPage />} />
+                <Route path="email" element={<AdminEmailPage />} />
+                <Route path="security" element={<AdminSecurityPage />} />
+              </Route>
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
