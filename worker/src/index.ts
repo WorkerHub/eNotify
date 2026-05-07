@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { serveStatic } from 'hono/cloudflare-workers'
 import type { Env, HonoEnv } from './types'
 import { getTablePrefix } from './types'
 import { authRoutes } from './routes/auth'
@@ -68,7 +67,7 @@ app.get('*', async (c) => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(handleScheduled(env))
   },
 }

@@ -8,7 +8,7 @@ import { findUserById } from '../db/queries/users'
 interface StoredCredential { id: string; publicKey: string; counter: number }
 import { generateTOTPSecret, verifyTOTPAsync, generateEmailOTP, verifyEmailOTP, sendOTPEmail } from '../services/twofa'
 import { getSetting } from '../db/queries/settings'
-import { verifyJWT, signJWT, generateId, generateJti } from '../core/auth'
+import { signJWT, generateJti } from '../core/auth'
 import { setCookie } from 'hono/cookie'
 import { rateLimit } from '../middleware/ratelimit'
 

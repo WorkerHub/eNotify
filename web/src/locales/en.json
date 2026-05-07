@@ -278,7 +278,7 @@
     "noChannelsSelected": "None selected (use default)",
     "noChannelsEnabled": "No channels enabled, please configure in Channel Management first",
     "notificationHours": "Notification Hours",
-    "notificationHoursHint": "Select hours to allow notifications. Leave empty for no restriction.",
+    "notificationHoursHint": "Notifications are sent at most once per hour. Leave empty to allow every hour.",
     "notificationHoursClear": "Clear",
     "notificationHoursNoLimit": "No restriction"
   }

@@ -3,11 +3,10 @@ import { useNavigate, Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/theme-provider'
+import { useTheme } from '@/components/ThemeProvider'
 
 export function RegisterPage() {
   const { t, i18n } = useTranslation()
-  const navigate = useNavigate()
   const { register } = useAuth()
   const { theme, setTheme } = useTheme()
 

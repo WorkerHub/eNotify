@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Globe, Sun, Moon, Monitor } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/theme-provider'
+import { useTheme } from '@/components/ThemeProvider'
 import { api } from '@/lib/api'
 
 export function LoginPage() {

@@ -1,8 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/theme-provider'
-import { LayoutDashboard, CreditCard, Shield, LogOut, Sun, Moon, Monitor, Globe, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
+import { LayoutDashboard, CreditCard, Shield, LogOut, Sun, Moon, Monitor, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 

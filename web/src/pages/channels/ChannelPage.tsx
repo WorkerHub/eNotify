@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import type { NotificationConfig } from '@/types'
 
@@ -143,21 +144,6 @@ function FormField({
       className={base}
       placeholder={def.placeholder}
     />
-  )
-}
-
-function StatusBadge({ ok }: { ok: boolean }) {
-  const { t } = useTranslation()
-  return ok ? (
-    <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-      <CheckCircle className="w-3 h-3" />
-      {t('common.enabled')}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-      <XCircle className="w-3 h-3" />
-      {t('common.disabled')}
-    </span>
   )
 }
 
@@ -331,6 +317,7 @@ function NotificationHoursCard({
   onConfigChange: (updated: NotificationConfig) => void
 }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [localHours, setLocalHours] = useState<number[]>(config.notification_hours ?? [])
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -366,7 +353,10 @@ function NotificationHoursCard({
   return (
     <div className="bg-card border rounded-lg overflow-hidden">
       <div className="px-4 py-3">
-        <h3 className="text-sm font-semibold text-foreground">{t('channels.notificationHours')}</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          {t('channels.notificationHours')}
+          <span className="font-normal text-muted-foreground ml-2">({user?.timezone || 'UTC'})</span>
+        </h3>
         <p className="text-xs text-muted-foreground mt-0.5">{t('channels.notificationHoursHint')}</p>
       </div>
 

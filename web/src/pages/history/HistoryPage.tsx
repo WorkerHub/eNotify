@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, History, Bell } from 'lucide-react'
+import { CheckCircle, XCircle, History } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { NotificationHistory } from '@/types'
 

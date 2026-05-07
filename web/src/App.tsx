@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
-import { ThemeProvider } from '@/components/theme-provider'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'

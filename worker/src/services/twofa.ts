@@ -1,5 +1,4 @@
 import type { Env, User2FA } from '../types'
-import { get2FAConfig, upsert2FAConfig } from '../db/queries/twofa'
 import { sendEmail } from './email'
 
 export async function generateTOTPSecret(email: string): Promise<{ secret: string; uri: string }> {

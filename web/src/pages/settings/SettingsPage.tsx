@@ -8,7 +8,7 @@ import {
 import QRCode from 'qrcode'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/theme-provider'
+import { useTheme } from '@/components/ThemeProvider'
 import { cn, serializeRegistrationCredential, prepareRegistrationOptions } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------

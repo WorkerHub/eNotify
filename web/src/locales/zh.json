@@ -278,7 +278,7 @@
     "noChannelsSelected": "未选择（使用默认）",
     "noChannelsEnabled": "未启用任何通道，请先到通道管理页面配置",
     "notificationHours": "通知时段",
-    "notificationHoursHint": "选择允许接收通知的小时，不选则不限制",
+    "notificationHoursHint": "每小时仅发送一次通知。不选则每小时都会发送通知。",
     "notificationHoursClear": "清空",
     "notificationHoursNoLimit": "不限制"
   }

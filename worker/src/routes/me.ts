@@ -4,7 +4,7 @@ import type { HonoEnv, JWTPayload } from '../types'
 import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { findUserById, updateUser } from '../db/queries/users'
 import { getNotificationConfig, upsertNotificationConfig } from '../db/queries/notifications'
-import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification_history'
+import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification-history'
 import { get2FAConfig } from '../db/queries/twofa'
 import { hashPassword, verifyPassword, generateJti, signJWT, verifyJWT } from '../core/auth'
 import { sendToChannel, type NotifyMessage } from '../services/notify/index'
@@ -146,7 +146,7 @@ meRoutes.get('/notifications', async (c) => {
     const raw = config[key] as string
     let parsed: Record<string, any>
     try { parsed = JSON.parse(raw || '{}') } catch { parsed = {} }
-    safeConfig[`${ch}_configured`] = Object.entries(parsed).some(([k, v]) => v !== '' && v !== null && v !== undefined && typeof v === 'string' && v.length > 0)
+    safeConfig[`${ch}_configured`] = Object.entries(parsed).some(([_k, v]) => v !== '' && v !== null && v !== undefined && typeof v === 'string' && v.length > 0)
     // Return non-sensitive fields only
     const redacted: Record<string, any> = {}
     for (const [k, v] of Object.entries(parsed)) {

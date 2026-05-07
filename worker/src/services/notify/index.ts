@@ -9,7 +9,7 @@ import { sendPushPlus } from './pushplus'
 import { sendNotifyX } from './notifyx'
 import { sendNotifyEmail } from './email-notify'
 import type { Env } from '../../types'
-import { insertNotificationHistory } from '../../db/queries/notification_history'
+import { insertNotificationHistory } from '../../db/queries/notification-history'
 import { generateId } from '../../core/auth'
 
 export interface NotifyMessage {
