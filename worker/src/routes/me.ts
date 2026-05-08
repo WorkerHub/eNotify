@@ -123,7 +123,9 @@ meRoutes.put('/password', async (c) => {
 
   await c.env.KV.put(`rt:${newRefreshJti}`, userId, { expirationTtl: 604800 })
   // Track new session in KV index
-  await addSessionIndex(c.env.KV, userId, { jti: newRefreshJti, iat: now, exp: now + 604800 })
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const ua = c.req.header('user-agent') || 'unknown'
+  await addSessionIndex(c.env.KV, userId, { jti: newRefreshJti, iat: now, exp: now + 604800, ip, ua })
 
   setCookie(c, 'access_token', newAccessToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 86400 })
   setCookie(c, 'refresh_token', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 604800 })
@@ -295,6 +297,8 @@ meRoutes.get('/sessions', async (c) => {
         jti: s.jti,
         iat: s.iat,
         exp: s.exp,
+        ip: s.ip,
+        ua: s.ua,
         current: s.jti === currentJti,
       })
     }

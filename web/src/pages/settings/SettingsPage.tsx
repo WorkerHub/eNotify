@@ -464,6 +464,8 @@ interface SessionInfo {
   jti: string
   iat: number
   exp: number
+  ip?: string
+  ua?: string
   current: boolean
 }
 
@@ -553,6 +555,8 @@ function SessionsTab() {
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>{t('settings.loggedInAt')}: {formatTime(s.iat)}</p>
                   <p>{t('settings.expiresAt')}: {formatTime(s.exp)}</p>
+                  {s.ip && <p>{t('settings.sessionIp')}: {s.ip}</p>}
+                  {s.ua && <p className="truncate" title={s.ua}>{t('settings.sessionUa')}: {s.ua}</p>}
                 </div>
               </div>
               {!s.current && (

@@ -185,7 +185,9 @@
     "expiresAt": "Expires",
     "revoke": "Revoke",
     "revokeSuccess": "Session revoked",
-    "noSessions": "No active sessions"
+    "noSessions": "No active sessions",
+    "sessionIp": "IP Address",
+    "sessionUa": "User Agent"
   },
   "about": {
     "title": "About",

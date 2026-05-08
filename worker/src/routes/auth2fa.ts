@@ -9,6 +9,7 @@ interface StoredCredential { id: string; publicKey: string; counter: number }
 import { generateTOTPSecret, verifyTOTPAsync, generateEmailOTP, verifyEmailOTP, sendOTPEmail } from '../services/twofa'
 import { getSetting } from '../db/queries/settings'
 import { signJWT, generateJti } from '../core/auth'
+import { addSessionIndex } from './auth'
 import { setCookie } from 'hono/cookie'
 import { rateLimit } from '../middleware/ratelimit'
 
@@ -71,6 +72,10 @@ auth2faRoutes.post('/verify', async (c) => {
   const refreshToken = await signJWT(refreshPayload, c.env.JWT_SECRET)
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 })
+
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const ua = c.req.header('user-agent') || 'unknown'
+  await addSessionIndex(c.env.KV, userId, { jti: refreshJti, iat: now, exp: now + 604800, ip, ua })
 
   setCookie(c, 'access_token', accessToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 86400 })
   setCookie(c, 'refresh_token', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 604800 })
@@ -385,6 +390,10 @@ auth2faRoutes.post('/passkey/authenticate/verify', async (c) => {
   const refreshTokenStr = await signJWT(refreshPayload, c.env.JWT_SECRET)
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 })
+
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const ua = c.req.header('user-agent') || 'unknown'
+  await addSessionIndex(c.env.KV, userId, { jti: refreshJti, iat: now, exp: now + 604800, ip, ua })
 
   setCookie(c, 'access_token', accessToken, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 86400 })
   setCookie(c, 'refresh_token', refreshTokenStr, { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAge: 604800 })

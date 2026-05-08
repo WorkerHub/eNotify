@@ -185,7 +185,9 @@
     "expiresAt": "过期时间",
     "revoke": "注销",
     "revokeSuccess": "会话已注销",
-    "noSessions": "无活跃会话"
+    "noSessions": "无活跃会话",
+    "sessionIp": "IP 地址",
+    "sessionUa": "用户代理"
   },
   "about": {
     "title": "关于",

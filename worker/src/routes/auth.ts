@@ -321,7 +321,9 @@ async function issueTokens(c: Context<HonoEnv>, userId: string, role: string, ne
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 })
 
   // Track session in KV index
-  await addSessionIndex(c.env.KV, userId, { jti: refreshJti, iat: now, exp: now + 604800 })
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const ua = c.req.header('user-agent') || 'unknown'
+  await addSessionIndex(c.env.KV, userId, { jti: refreshJti, iat: now, exp: now + 604800, ip, ua })
 
   setCookie(c, 'access_token', accessToken, {
     httpOnly: true,
@@ -346,6 +348,8 @@ interface SessionEntry {
   jti: string
   iat: number
   exp: number
+  ip?: string
+  ua?: string
 }
 
 export async function addSessionIndex(kv: KVNamespace, userId: string, entry: SessionEntry): Promise<void> {
