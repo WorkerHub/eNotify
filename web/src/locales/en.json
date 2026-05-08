@@ -151,7 +151,8 @@
     "kindRegular": "Regular",
     "kindSubscription": "Subscription",
     "notificationHours": "Notification Hours",
-    "notificationHoursHint": "Leave empty to use global notification hours"
+    "notificationHoursHint": "Leave empty to use global notification hours",
+    "tagCreate": "Use \"{{value}}\""
   },
   "settings": {
     "title": "Settings",

@@ -8,6 +8,7 @@ import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
+import { TagCombobox } from '@/components/TagCombobox'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -66,6 +67,7 @@ export function ItemDetailPage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [channels, setChannels] = useState<string[]>([])
   const [notificationHours, setNotificationHours] = useState<number[]>([])
+  const [tags, setTags] = useState<{ types: string[]; categories: string[] }>({ types: [], categories: [] })
 
   // Renew form
   const [renewAmount, setRenewAmount] = useState('')
@@ -81,6 +83,10 @@ export function ItemDetailPage() {
 
   // Inline payment edit
   const [editingPayment, setEditingPayment] = useState<EditPaymentState | null>(null)
+
+  useEffect(() => {
+    api.get<{ types: string[]; categories: string[] }>('/items/tags').then(setTags).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -121,7 +127,7 @@ export function ItemDetailPage() {
         name: item.name,
         item_kind: item.item_kind,
         item_mode: item.item_mode,
-        custom_type: item.custom_type,
+        type: item.type,
         category: item.category,
         start_date: item.start_date,
         expiry_date: item.expiry_date,
@@ -313,11 +319,19 @@ export function ItemDetailPage() {
             </Field>
 
             <Field label={t('items.type')}>
-              <input className={INPUT} value={item.custom_type} onChange={(e) => setField('custom_type', e.target.value)} />
+              <TagCombobox
+                value={item.type}
+                onChange={(v) => setField('type', v)}
+                options={tags.types}
+              />
             </Field>
 
             <Field label={t('items.category')}>
-              <input className={INPUT} value={item.category} onChange={(e) => setField('category', e.target.value)} />
+              <TagCombobox
+                value={item.category}
+                onChange={(v) => setField('category', v)}
+                options={tags.categories}
+              />
             </Field>
 
             <Field label={t('items.startDate')}>

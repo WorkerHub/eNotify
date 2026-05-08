@@ -23,7 +23,7 @@ export interface Item {
   user_id: string
   name: string
   item_mode: 'cycle' | 'reset'
-  custom_type: string
+  type: string
   category: string
   start_date: string | null
   expiry_date: string

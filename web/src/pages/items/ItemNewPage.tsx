@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type FormEvent } from 'react'
+import { useState, useEffect, type ReactNode, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { formatLunarDate } from '@/lib/lunar'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
+import { TagCombobox } from '@/components/TagCombobox'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -15,7 +16,7 @@ interface FormData {
   name: string
   item_kind: 'regular' | 'subscription'
   item_mode: 'cycle' | 'reset'
-  custom_type: string
+  type: string
   category: string
   start_date: string
   expiry_date: string
@@ -36,7 +37,7 @@ const DEFAULT: FormData = {
   name: '',
   item_kind: 'regular',
   item_mode: 'cycle',
-  custom_type: '',
+  type: '',
   category: '',
   start_date: '',
   expiry_date: '',
@@ -76,6 +77,11 @@ export function ItemNewPage() {
   const [form, setForm] = useState<FormData>({ ...DEFAULT, currency: user?.base_currency || 'CNY' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [tags, setTags] = useState<{ types: string[]; categories: string[] }>({ types: [], categories: [] })
+
+  useEffect(() => {
+    api.get<{ types: string[]; categories: string[] }>('/items/tags').then(setTags).catch(() => {})
+  }, [])
 
   const set = <K extends keyof FormData>(key: K, val: FormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: val }))
@@ -173,18 +179,18 @@ export function ItemNewPage() {
           </Field>
 
           <Field label={t('items.type')}>
-            <input
-              className={INPUT}
-              value={form.custom_type}
-              onChange={(e) => set('custom_type', e.target.value)}
+            <TagCombobox
+              value={form.type}
+              onChange={(v) => set('type', v)}
+              options={tags.types}
             />
           </Field>
 
           <Field label={t('items.category')}>
-            <input
-              className={INPUT}
+            <TagCombobox
               value={form.category}
-              onChange={(e) => set('category', e.target.value)}
+              onChange={(v) => set('category', v)}
+              options={tags.categories}
             />
           </Field>
 

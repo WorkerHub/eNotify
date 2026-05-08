@@ -151,7 +151,8 @@
     "kindRegular": "普通提醒",
     "kindSubscription": "订阅提醒",
     "notificationHours": "通知时段",
-    "notificationHoursHint": "不选则跟随全局通知时段设置"
+    "notificationHoursHint": "不选则跟随全局通知时段设置",
+    "tagCreate": "使用 \"{{value}}\" 新建"
   },
   "settings": {
     "title": "设置",

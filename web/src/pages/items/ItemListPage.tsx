@@ -163,7 +163,7 @@ export function ItemListPage() {
                   return (
                     <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">{item.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.custom_type || '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.type || '—'}</td>
                       <td className="px-4 py-3 text-muted-foreground">{item.category || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -244,9 +244,9 @@ export function ItemListPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold">{item.name}</p>
-                      {(item.custom_type || item.category) && (
+                      {(item.type || item.category) && (
                         <p className="text-xs text-muted-foreground">
-                          {[item.custom_type, item.category].filter(Boolean).join(' · ')}
+                          {[item.type, item.category].filter(Boolean).join(' · ')}
                         </p>
                       )}
                     </div>

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   user_id     TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
   item_mode   TEXT NOT NULL DEFAULT 'cycle',
-  custom_type TEXT NOT NULL DEFAULT '',
+  type        TEXT NOT NULL DEFAULT '',
   category    TEXT NOT NULL DEFAULT '',
   start_date  TEXT,
   expiry_date TEXT NOT NULL,

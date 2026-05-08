@@ -10,7 +10,7 @@ export async function createItem(
   await db
     .prepare(
       `INSERT INTO ${table}
-         (id, user_id, name, item_mode, custom_type, category, start_date, expiry_date,
+         (id, user_id, name, item_mode, type, category, start_date, expiry_date,
           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
           last_payment_date, is_active, auto_renew, use_lunar, channels, notification_hours, item_kind, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -20,7 +20,7 @@ export async function createItem(
       data.user_id,
       data.name,
       data.item_mode,
-      data.custom_type,
+      data.type,
       data.category,
       data.start_date,
       data.expiry_date,
@@ -77,7 +77,7 @@ export async function updateItem(
 ): Promise<void> {
   const table = `${prefix}items`;
   const now = new Date().toISOString();
-  const allowedCols = new Set(['name', 'item_mode', 'custom_type', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'use_lunar', 'channels', 'notification_hours', 'item_kind']);
+  const allowedCols = new Set(['name', 'item_mode', 'type', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'use_lunar', 'channels', 'notification_hours', 'item_kind']);
   const entries = (Object.entries(data) as [string, unknown][]).filter(
     ([col]) => allowedCols.has(col)
   );

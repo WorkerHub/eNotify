@@ -106,8 +106,8 @@ dashboardRoutes.get('/stats', async (c) => {
         categoryExpense[cat] = (categoryExpense[cat] || 0) + monthly / cats.length
       }
     }
-    if (sub.custom_type) {
-      typeExpense[sub.custom_type] = (typeExpense[sub.custom_type] || 0) + monthly
+    if (sub.type) {
+      typeExpense[sub.type] = (typeExpense[sub.type] || 0) + monthly
     }
   }
 
