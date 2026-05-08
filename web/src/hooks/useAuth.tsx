@@ -48,7 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     const res = await api.post<LoginResponse>('/auth/login', { email, password })
-    if (res.success && res.user) {
+    if (res.success && !res.requires2fa) {
+      await refreshUser()
+    } else if (res.success && res.user) {
       setUser(res.user as User)
     }
     return res
