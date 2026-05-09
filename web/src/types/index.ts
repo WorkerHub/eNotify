@@ -23,7 +23,6 @@ export interface Item {
   user_id: string
   name: string
   item_mode: 'cycle' | 'reset'
-  type: string
   category: string
   start_date: string | null
   expiry_date: string
@@ -69,7 +68,6 @@ export interface DashboardSubscriptionStats {
   upcoming_renewals: Item[]
   recent_payments: Payment[]
   category_ranking: { name: string; amount: number }[]
-  type_ranking: { name: string; amount: number }[]
   base_currency: string
 }
 

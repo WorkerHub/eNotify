@@ -83,7 +83,6 @@ itemRoutes.post('/', async (c) => {
     user_id: userId,
     name: body.name.trim(),
     item_mode: body.item_mode || 'cycle',
-    type: body.type || '',
     category: body.category || '',
     start_date: body.start_date || null,
     expiry_date: body.expiry_date,
@@ -128,17 +127,11 @@ itemRoutes.get('/tags', async (c) => {
   const prefix = getTablePrefix(c.env)
   const table = `${prefix}items`
 
-  const [typesResult, categoriesResult] = await Promise.all([
-    c.env.DB.prepare(
-      `SELECT type, COUNT(*) as cnt FROM ${table} WHERE user_id = ? AND type != '' GROUP BY type ORDER BY cnt DESC`
-    ).bind(userId).all<{ type: string; cnt: number }>(),
-    c.env.DB.prepare(
-      `SELECT category, COUNT(*) as cnt FROM ${table} WHERE user_id = ? AND category != '' GROUP BY category ORDER BY cnt DESC`
-    ).bind(userId).all<{ category: string; cnt: number }>(),
-  ])
+  const categoriesResult = await c.env.DB.prepare(
+    `SELECT category, COUNT(*) as cnt FROM ${table} WHERE user_id = ? AND category != '' GROUP BY category ORDER BY cnt DESC`
+  ).bind(userId).all<{ category: string; cnt: number }>()
 
   return c.json({
-    types: typesResult.results.map((r) => r.type),
     categories: categoriesResult.results.map((r) => r.category),
   })
 })
@@ -224,7 +217,7 @@ itemRoutes.put('/:id', async (c) => {
 
   const updates: Record<string, any> = {}
   const allowedFields = [
-    'name', 'item_mode', 'type', 'category', 'start_date',
+    'name', 'item_mode', 'category', 'start_date',
     'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
     'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
   ]
@@ -330,14 +323,15 @@ itemRoutes.post('/:id/reset', async (c) => {
   }
 
   const now = nowISO()
+  const today = now.split('T')[0]
   let newExpiry: string
 
   if (item.use_lunar && item.period_unit === 'month') {
-    newExpiry = addLunarMonths(now, item.period_value)
+    newExpiry = addLunarMonths(today, item.period_value)
   } else if (item.use_lunar && item.period_unit === 'year') {
-    newExpiry = addLunarYears(now, item.period_value)
+    newExpiry = addLunarYears(today, item.period_value)
   } else {
-    newExpiry = addPeriod(now, item.period_value, item.period_unit)
+    newExpiry = addPeriod(today, item.period_value, item.period_unit)
   }
 
   await updateItem(c.env.DB, prefix, id, {

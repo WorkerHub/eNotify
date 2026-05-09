@@ -124,7 +124,6 @@ export function DashboardPage() {
   const fmt = (n: number) => `${currency} ${n.toFixed(2)}`
 
   const subCategoryMax = sub.category_ranking[0]?.amount ?? 0
-  const subTypeMax = sub.type_ranking[0]?.amount ?? 0
   const regCategoryMax = reg.category_ranking[0]?.count ?? 0
 
   return (
@@ -221,21 +220,6 @@ export function DashboardPage() {
               <div className="space-y-2">
                 {sub.category_ranking.slice(0, 8).map((item) => (
                   <ProgressBar key={item.name} name={item.name} value={item.amount} max={subCategoryMax} unit={currency} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-card rounded-xl border p-4 space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              {t('dashboard.typeRanking')}
-            </h3>
-            {sub.type_ranking.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
-            ) : (
-              <div className="space-y-2">
-                {sub.type_ranking.slice(0, 8).map((item) => (
-                  <ProgressBar key={item.name} name={item.name} value={item.amount} max={subTypeMax} unit={currency} />
                 ))}
               </div>
             )}

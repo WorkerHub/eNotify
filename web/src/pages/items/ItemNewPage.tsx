@@ -75,10 +75,10 @@ export function ItemNewPage() {
   const [form, setForm] = useState<FormData>({ ...DEFAULT, currency: user?.base_currency || 'CNY' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [tags, setTags] = useState<{ types: string[]; categories: string[] }>({ types: [], categories: [] })
+  const [tags, setTags] = useState<string[]>([])
 
   useEffect(() => {
-    api.get<{ types: string[]; categories: string[] }>('/items/tags').then((r) => setTags(r)).catch(() => {})
+    api.get<{ categories: string[] }>('/items/tags').then((r) => setTags(r.categories || [])).catch(() => {})
   }, [])
 
   const set = <K extends keyof FormData>(key: K, val: FormData[K]) =>
@@ -180,7 +180,7 @@ export function ItemNewPage() {
             <TagCombobox
               value={form.category}
               onChange={(v) => set('category', v)}
-              options={tags.categories}
+              options={tags}
             />
           </Field>
 

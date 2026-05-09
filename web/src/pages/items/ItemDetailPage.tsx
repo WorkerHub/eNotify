@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, HelpCircle } from 'lucide-react'
 import { api } from '@/lib/api'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
@@ -30,9 +31,9 @@ function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip
     <div className="space-y-1.5">
       <div className="flex items-center gap-1">
         <label className="text-sm font-medium">{label}</label>
-        <span className="relative group">
+        <span className="relative group ml-0.5">
           <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 rounded text-xs bg-foreground text-background whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-[250px] whitespace-normal">
+          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 whitespace-normal">
             {tooltip}
           </span>
         </span>
@@ -84,7 +85,7 @@ export function ItemDetailPage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [channels, setChannels] = useState<string[]>([])
   const [notificationHours, setNotificationHours] = useState<number[]>([])
-  const [tags, setTags] = useState<{ types: string[]; categories: string[] }>({ types: [], categories: [] })
+  const [tags, setTags] = useState<string[]>([])
 
   // Renew form
   const [renewAmount, setRenewAmount] = useState('')
@@ -104,11 +105,18 @@ export function ItemDetailPage() {
   // Show lunar (independent of use_lunar for cycle)
   const [showLunar, setShowLunar] = useState(false)
 
+  // Confirm dialog
+  const [confirm, setConfirm] = useState<{
+    message: string
+    variant: 'danger' | 'primary'
+    onConfirm: () => void
+  } | null>(null)
+
   // Inline payment edit
   const [editingPayment, setEditingPayment] = useState<EditPaymentState | null>(null)
 
   useEffect(() => {
-    api.get<{ types: string[]; categories: string[] }>('/items/tags').then(setTags).catch(() => {})
+    api.get<{ categories: string[] }>('/items/tags').then((r) => setTags(r.categories || [])).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -175,14 +183,20 @@ export function ItemDetailPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm(t('common.confirmDelete', { name: item?.name }))) return
-    try {
-      await api.delete(`/items/${id}`)
-      navigate('/items')
-    } catch (e: any) {
-      setError(e.message)
-    }
+  const handleDelete = () => {
+    setConfirm({
+      message: t('common.confirmDelete', { name: item?.name }),
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await api.delete(`/items/${id}`)
+          navigate('/items')
+        } catch (e: any) {
+          setError(e.message)
+        }
+      },
+    })
   }
 
   const handleRenew = async (e: FormEvent) => {
@@ -224,21 +238,27 @@ export function ItemDetailPage() {
     }
   }
 
-  const handleReset = async () => {
-    if (!window.confirm(t('items.resetConfirm'))) return
-    setResetting(true)
-    try {
-      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`)
-      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
-      if (item?.item_kind === 'subscription') {
-        const updated = await api.get<Payment[]>(`/items/${id}/payments`)
-        setPayments(updated)
-      }
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setResetting(false)
-    }
+  const handleReset = () => {
+    setConfirm({
+      message: t('items.resetConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setResetting(true)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`)
+          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
+          if (item?.item_kind === 'subscription') {
+            const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+            setPayments(updated)
+          }
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setResetting(false)
+        }
+      },
+    })
   }
 
   const handleSavePayment = async () => {
@@ -262,14 +282,20 @@ export function ItemDetailPage() {
     }
   }
 
-  const handleDeletePayment = async (pid: string) => {
-    if (!window.confirm(t('common.confirmDeletePayment'))) return
-    try {
-      await api.delete(`/items/${id}/payments/${pid}`)
-      setPayments((prev) => prev.filter((p) => p.id !== pid))
-    } catch (e: any) {
-      setError(e.message)
-    }
+  const handleDeletePayment = (pid: string) => {
+    setConfirm({
+      message: t('common.confirmDeletePayment'),
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await api.delete(`/items/${id}/payments/${pid}`)
+          setPayments((prev) => prev.filter((p) => p.id !== pid))
+        } catch (e: any) {
+          setError(e.message)
+        }
+      },
+    })
   }
 
   const setField = <K extends keyof Item>(key: K, val: Item[K]) =>
@@ -361,7 +387,7 @@ export function ItemDetailPage() {
               <TagCombobox
                 value={item.category}
                 onChange={(v) => setField('category', v)}
-                options={tags.categories}
+                options={tags}
               />
             </FieldWithTooltip>
 
@@ -747,6 +773,16 @@ export function ItemDetailPage() {
           </>
         )}
       </section>}
+
+      <ConfirmDialog
+        open={!!confirm}
+        message={confirm?.message || ''}
+        variant={confirm?.variant || 'primary'}
+        confirmLabel={t('common.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirm?.onConfirm || (() => {})}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

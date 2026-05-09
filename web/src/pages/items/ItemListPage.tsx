@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 type StatusKey = 'active' | 'expiringSoon' | 'expired' | 'inactive'
 
@@ -51,9 +52,9 @@ function DaysBadge({ days }: { days: number }) {
 
 function HelpIcon({ tooltip }: { tooltip: string }) {
   return (
-    <span className="relative group inline-flex">
+    <span className="relative group inline-flex ml-0.5">
       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 rounded text-xs bg-foreground text-background whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-[250px] whitespace-normal">
+      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 whitespace-normal">
         {tooltip}
       </span>
     </span>
@@ -71,9 +72,9 @@ function FilterIcon({ options, selected, onChange, allLabel }: { options: string
       />
       {open && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 bg-card border rounded-lg shadow-lg p-2 z-30 min-w-[140px]">
-            <label className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-accent rounded">
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 bg-popover border rounded-lg shadow-lg p-2 z-50 min-w-[140px]">
+            <label className="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-accent rounded">
               <input
                 type="radio"
                 checked={selected === ''}
@@ -83,7 +84,7 @@ function FilterIcon({ options, selected, onChange, allLabel }: { options: string
               {allLabel}
             </label>
             {options.map((opt) => (
-              <label key={opt} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-accent rounded">
+              <label key={opt} className="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-accent rounded">
                 <input
                   type="radio"
                   checked={selected === opt}
@@ -109,6 +110,13 @@ export function ItemListPage() {
   const [testingId, setTestingId] = useState<string | null>(null)
   const [resettingId, setResettingId] = useState<string | null>(null)
   const [renewingId, setRenewingId] = useState<string | null>(null)
+
+  // Confirm dialog
+  const [confirm, setConfirm] = useState<{
+    message: string
+    variant: 'danger' | 'primary'
+    onConfirm: () => void
+  } | null>(null)
 
   // Sort & filter
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
@@ -150,41 +158,60 @@ export function ItemListPage() {
     }
   }
 
-  const handleDelete = async (item: Item) => {
-    if (!window.confirm(t('common.confirmDelete', { name: item.name }))) return
-    try {
-      await api.delete(`/items/${item.id}`)
-      setItems((prev) => prev.filter((s) => s.id !== item.id))
-    } catch (e: any) {
-      setError(e.message)
-    }
+  const handleDelete = (item: Item) => {
+    setConfirm({
+      message: t('common.confirmDelete', { name: item.name }),
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await api.delete(`/items/${item.id}`)
+          setItems((prev) => prev.filter((s) => s.id !== item.id))
+        } catch (e: any) {
+          setError(e.message)
+        }
+      },
+    })
   }
 
-  const handleReset = async (item: Item) => {
-    if (!window.confirm(t('items.resetConfirm'))) return
-    setResettingId(item.id)
-    try {
-      const res = await api.post<{ new_expiry_date: string }>(`/items/${item.id}/reset`)
-      setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : s))
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setResettingId(null)
-    }
+  const handleReset = (item: Item) => {
+    setConfirm({
+      message: t('items.resetConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setResettingId(item.id)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${item.id}/reset`)
+          setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : s))
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setResettingId(null)
+        }
+      },
+    })
   }
 
-  const handleRenew = async (item: Item) => {
-    setRenewingId(item.id)
-    try {
-      const res = await api.post<{ new_expiry_date: string }>(`/items/${item.id}/renew`, {
-        multiplier: 1,
-      })
-      setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : s))
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setRenewingId(null)
-    }
+  const handleRenew = (item: Item) => {
+    setConfirm({
+      message: t('items.renewConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setRenewingId(item.id)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${item.id}/renew`, {
+            multiplier: 1,
+          })
+          setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : s))
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setRenewingId(null)
+        }
+      },
+    })
   }
 
   // Derived filter options
@@ -234,7 +261,7 @@ export function ItemListPage() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block rounded-xl border overflow-hidden">
+          <div className="hidden md:block rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
@@ -300,7 +327,7 @@ export function ItemListPage() {
                             title={t('common.edit')}
                             aria-label={t('common.edit')}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleToggle(item)}
@@ -404,7 +431,7 @@ export function ItemListPage() {
                       onClick={() => navigate(`/items/${item.id}`)}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
-                      <Eye className="w-3 h-3" />
+                      <Pencil className="w-3 h-3" />
                       {t('common.edit')}
                     </button>
                     <button
@@ -459,6 +486,16 @@ export function ItemListPage() {
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        message={confirm?.message || ''}
+        variant={confirm?.variant || 'primary'}
+        confirmLabel={t('common.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirm?.onConfirm || (() => {})}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

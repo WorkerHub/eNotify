@@ -86,9 +86,8 @@ dashboardRoutes.get('/stats', async (c) => {
     })
     .slice(0, 10)
 
-  // Subscription: category & type rankings by amount
+  // Subscription: category ranking by amount
   const categoryExpense: Record<string, number> = {}
-  const typeExpense: Record<string, number> = {}
 
   for (const sub of subscriptionItems) {
     if (!sub.amount) continue
@@ -106,16 +105,9 @@ dashboardRoutes.get('/stats', async (c) => {
         categoryExpense[cat] = (categoryExpense[cat] || 0) + monthly / cats.length
       }
     }
-    if (sub.type) {
-      typeExpense[sub.type] = (typeExpense[sub.type] || 0) + monthly
-    }
   }
 
   const subCategoryRanking = Object.entries(categoryExpense)
-    .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
-    .sort((a, b) => b.amount - a.amount)
-
-  const subTypeRanking = Object.entries(typeExpense)
     .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }))
     .sort((a, b) => b.amount - a.amount)
 
@@ -159,7 +151,6 @@ dashboardRoutes.get('/stats', async (c) => {
       upcoming_renewals: subUpcomingRenewals,
       recent_payments: recentPayments,
       category_ranking: subCategoryRanking,
-      type_ranking: subTypeRanking,
       base_currency: baseCurrency,
     },
     regular: {

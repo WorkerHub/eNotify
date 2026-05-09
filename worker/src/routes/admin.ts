@@ -172,7 +172,6 @@ adminRoutes.post('/users/:uid/items', async (c) => {
     user_id: uid,
     name: body.name.trim(),
     item_mode: body.item_mode || 'cycle',
-    type: body.type || '',
     category: body.category || '',
     start_date: body.start_date || null,
     expiry_date: body.expiry_date,
@@ -257,7 +256,7 @@ adminRoutes.put('/users/:uid/items/:iid', async (c) => {
 
   const updates: Record<string, any> = {}
   const allowedFields = [
-    'name', 'item_mode', 'type', 'category', 'start_date',
+    'name', 'item_mode', 'category', 'start_date',
     'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
     'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
   ]

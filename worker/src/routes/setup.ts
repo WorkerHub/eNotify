@@ -37,11 +37,56 @@ setupRoutes.post('/', async (c) => {
 })
 
 async function runMigrations(db: D1Database, prefix: string): Promise<void> {
-  // Migration: rename custom_type -> type
+  // Migration: drop type column from items
+  // SQLite doesn't support DROP COLUMN before 3.35.0, so we recreate the table
   try {
-    await db.prepare(`ALTER TABLE ${prefix}items RENAME COLUMN custom_type TO type`).run()
+    const colCheck = await db.prepare(`PRAGMA table_info(${prefix}items)`).all<{ name: string }>()
+    const hasType = colCheck.results.some((c) => c.name === 'type')
+    if (hasType) {
+      await db.prepare(`
+        CREATE TABLE ${prefix}items_new (
+          id          TEXT PRIMARY KEY,
+          user_id     TEXT NOT NULL REFERENCES ${prefix}users(id) ON DELETE CASCADE,
+          name        TEXT NOT NULL,
+          item_mode   TEXT NOT NULL DEFAULT 'cycle',
+          category    TEXT NOT NULL DEFAULT '',
+          start_date  TEXT,
+          expiry_date TEXT NOT NULL,
+          period_value  INTEGER NOT NULL DEFAULT 1,
+          period_unit   TEXT NOT NULL DEFAULT 'month',
+          reminder_unit  TEXT NOT NULL DEFAULT 'day',
+          reminder_value INTEGER NOT NULL DEFAULT 7,
+          notes             TEXT NOT NULL DEFAULT '',
+          amount            REAL,
+          currency          TEXT NOT NULL DEFAULT 'CNY',
+          last_payment_date TEXT,
+          is_active         INTEGER NOT NULL DEFAULT 1,
+          auto_renew        INTEGER NOT NULL DEFAULT 1,
+          use_lunar         INTEGER NOT NULL DEFAULT 0,
+          channels          TEXT NOT NULL DEFAULT '[]',
+          notification_hours TEXT NOT NULL DEFAULT '[]',
+          item_kind         TEXT NOT NULL DEFAULT 'regular',
+          created_at        TEXT NOT NULL,
+          updated_at        TEXT NOT NULL
+        )
+      `).run()
+      await db.prepare(`
+        INSERT INTO ${prefix}items_new
+          (id, user_id, name, item_mode, category, start_date, expiry_date,
+           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
+           last_payment_date, is_active, auto_renew, use_lunar, channels, notification_hours, item_kind, created_at, updated_at)
+        SELECT
+          id, user_id, name, item_mode, category, start_date, expiry_date,
+           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
+           last_payment_date, is_active, auto_renew, use_lunar, channels, notification_hours, item_kind, created_at, updated_at
+        FROM ${prefix}items
+      `).run()
+      await db.prepare(`DROP TABLE ${prefix}items`).run()
+      await db.prepare(`ALTER TABLE ${prefix}items_new RENAME TO ${prefix}items`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_${prefix}items_user_id ON ${prefix}items(user_id)`).run()
+    }
   } catch {
-    // Already renamed — ignore
+    // Migration failed — ignore
   }
 }
 
@@ -118,7 +163,6 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   user_id     TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
   item_mode   TEXT NOT NULL DEFAULT 'cycle',
-  type        TEXT NOT NULL DEFAULT '',
   category    TEXT NOT NULL DEFAULT '',
   start_date  TEXT,
   expiry_date TEXT NOT NULL,
