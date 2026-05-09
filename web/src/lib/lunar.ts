@@ -1,6 +1,6 @@
 /**
  * Lunar calendar utilities (1900–2100).
- * Frontend mirror of worker/src/core/lunar.ts – solarToLunar only.
+ * Frontend mirror of worker/src/core/lunar.ts.
  */
 
 const lunarInfo: readonly number[] = [
@@ -29,7 +29,6 @@ const lunarInfo: readonly number[] = [
 
 const HEAVENLY = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const
 const EARTHLY = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const
-const ZODIAC = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'] as const
 
 function lunarYearName(year: number): string {
   const h = (year - 4) % 10
@@ -53,7 +52,16 @@ function lunarYearDays(year: number): number {
   return sum + leapDays(year)
 }
 
-export function solarToLunar(year: number, month: number, day: number): { lunarYear: number; monthStr: string; dayStr: string; isLeap: boolean } | null {
+export interface LunarDate {
+  lunarYear: number
+  month: number
+  day: number
+  isLeap: boolean
+  monthStr: string
+  dayStr: string
+}
+
+export function solarToLunar(year: number, month: number, day: number): LunarDate | null {
   if (year < 1900 || year > 2100) return null
   const baseMs = Date.UTC(1900, 0, 31)
   const dateMs = Date.UTC(year, month - 1, day)
@@ -78,16 +86,56 @@ export function solarToLunar(year: number, month: number, day: number): { lunarY
   }
   if (offset < 0) { offset += temp; --lunarMonth }
 
+  const lunarDay = offset + 1
+
   return {
     lunarYear,
-    monthStr: (isLeap ? '闰' : '') + MONTHS[lunarMonth - 1] + '月',
-    dayStr: DAYS[offset],
+    month: lunarMonth,
+    day: lunarDay,
     isLeap,
+    monthStr: (isLeap ? '闰' : '') + MONTHS[lunarMonth - 1] + '月',
+    dayStr: DAYS[lunarDay - 1],
   }
 }
 
 /**
- * Convert a YYYY-MM-DD solar date string to a display string like "农历 三月初七".
+ * Convert a Chinese lunar date back to its Gregorian equivalent.
+ * Searches solar dates in the range [lunarYear−1, lunarYear+1].
+ */
+export function lunarToSolar(
+  year: number,
+  month: number,
+  day: number,
+  isLeap: boolean,
+): { year: number; month: number; day: number } | null {
+  for (let y = year - 1; y <= year + 1; y++) {
+    for (let m = 1; m <= 12; m++) {
+      for (let d = 1; d <= 31; d++) {
+        const probe = new Date(y, m - 1, d)
+        if (
+          probe.getFullYear() !== y ||
+          probe.getMonth() + 1 !== m ||
+          probe.getDate() !== d
+        ) continue
+
+        const lunar = solarToLunar(y, m, d)
+        if (
+          lunar &&
+          lunar.lunarYear === year &&
+          lunar.month === month &&
+          lunar.day === day &&
+          lunar.isLeap === isLeap
+        ) {
+          return { year: y, month: m, day: d }
+        }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Convert a YYYY-MM-DD solar date string to a display string like "丙午年二月初十".
  * Returns null if the date is invalid or out of range.
  */
 export function formatLunarDate(solarDateStr: string): string | null {
@@ -98,4 +146,32 @@ export function formatLunarDate(solarDateStr: string): string | null {
   const lunar = solarToLunar(y, m, d)
   if (!lunar) return null
   return `${lunarYearName(lunar.lunarYear)}年${lunar.monthStr}${lunar.dayStr}`
+}
+
+/**
+ * Given a solar date (YYYY-MM-DD), compute the next lunar anniversary's solar date.
+ * Returns the solar date as YYYY-MM-DD, or null if out of range.
+ */
+export function nextLunarAnniversary(solarDateStr: string): string | null {
+  const [y, m, d] = solarDateStr.split('-').map(Number)
+  const lunar = solarToLunar(y, m, d)
+  if (!lunar) return null
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+
+  // Try this year
+  const thisYear = lunarToSolar(currentYear, lunar.month, lunar.day, lunar.isLeap)
+  if (thisYear) {
+    const dateStr = `${thisYear.year.toString().padStart(4, '0')}-${thisYear.month.toString().padStart(2, '0')}-${thisYear.day.toString().padStart(2, '0')}`
+    if (new Date(dateStr) > now) return dateStr
+  }
+
+  // Try next year
+  const nextYear = lunarToSolar(currentYear + 1, lunar.month, lunar.day, lunar.isLeap)
+  if (nextYear) {
+    return `${nextYear.year.toString().padStart(4, '0')}-${nextYear.month.toString().padStart(2, '0')}-${nextYear.day.toString().padStart(2, '0')}`
+  }
+
+  return null
 }

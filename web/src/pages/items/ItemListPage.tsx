@@ -342,8 +342,9 @@ export function ItemListPage() {
                         <div className="flex items-center gap-2">
                           <div>
                             <span>{item.expiry_date}</span>
-                            {item.calendar_mode !== 'solar' && (
-                              <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
+                            <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
+                            {item.start_date && (
+                              <span className="text-xs text-muted-foreground block">{t('items.startDate')}：{item.start_date}</span>
                             )}
                           </div>
                           <DaysBadge days={days} />
@@ -454,8 +455,9 @@ export function ItemListPage() {
                     <div className="flex items-center gap-2">
                       <div>
                         <span className="text-muted-foreground">{item.expiry_date}</span>
-                        {item.calendar_mode !== 'solar' && (
-                          <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
+                        <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
+                        {item.start_date && (
+                          <span className="text-xs text-muted-foreground block">{t('items.startDate')}：{item.start_date}</span>
                         )}
                       </div>
                       <DaysBadge days={days} />
