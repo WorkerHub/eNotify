@@ -75,7 +75,9 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
             className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
             style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
           >
-            {tooltip}
+            {tooltip.split('\n').map((line, i) => (
+              <span key={i}>{i > 0 && <br />}{line}</span>
+            ))}
           </div>
         </Portal>
       )}
@@ -302,7 +304,16 @@ export function ItemListPage() {
         <>
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
+              <colgroup>
+                <col className="w-[20%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[24%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
+                <col className="w-[14%]" />
+              </colgroup>
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.name')}</th>
@@ -331,14 +342,14 @@ export function ItemListPage() {
                   const status = getStatus(item)
                   const days = getDaysRemaining(item.expiry_date)
                   return (
-                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{item.name}</div>
-                        {item.notes && <div className="text-xs text-muted-foreground mt-0.5 max-w-[200px] truncate">{item.notes}</div>}
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors h-[68px]">
+                      <td className="px-4 py-2 overflow-hidden">
+                        <div className="font-medium truncate">{item.name}</div>
+                        {item.notes && <div className="text-xs text-muted-foreground mt-0.5 truncate">{item.notes}</div>}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.category || '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-2 text-muted-foreground overflow-hidden truncate">{item.category || '—'}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
+                      <td className="px-4 py-2 whitespace-nowrap overflow-hidden">
                         <div className="flex items-center gap-2">
                           <div>
                             <span>{item.expiry_date}</span>
@@ -350,17 +361,17 @@ export function ItemListPage() {
                           <DaysBadge days={days} />
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2">
                         <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', STATUS_STYLES[status])}>
                           {t(`items.status.${status}`)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                      <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
                         {item.reminder_unit === 'hour'
                           ? t('items.reminderHours', { value: item.reminder_value })
                           : t('items.reminderDays', { value: item.reminder_value })}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => navigate(`/items/${item.id}`)}

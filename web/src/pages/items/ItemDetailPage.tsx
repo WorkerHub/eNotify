@@ -55,7 +55,9 @@ function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip
                 className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
                 style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
               >
-                {tooltip}
+                {tooltip.split('\n').map((line, i) => (
+                  <span key={i}>{i > 0 && <br />}{line}</span>
+                ))}
               </div>
             </Portal>
           )}

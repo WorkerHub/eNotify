@@ -139,9 +139,9 @@
     "renewConfirm": "Are you sure you want to renew? The new expiry date will be one period after the current expiry date.",
     "mode": {
       "label": "Mode",
-      "cycle": "Cycle renewal",
-      "reset": "Reset renewal",
-      "tooltip": "Cycle renewal: add period from old expiry date (e.g. domains, memberships)|Reset renewal: start new period from today (e.g. gym cards, parking cards)"
+      "cycle": "Cycle",
+      "reset": "Reset",
+      "tooltip": "Cycle: add period from old expiry date (e.g. domains, memberships)\nReset: start new period from today (e.g. gym cards, parking cards)"
     },
     "status": {
       "active": "Active",
