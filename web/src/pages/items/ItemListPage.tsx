@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil } from 'lucide-react'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Portal } from '@/components/Portal'
 
 type StatusKey = 'active' | 'expiringSoon' | 'expired' | 'inactive'
 
@@ -51,29 +52,68 @@ function DaysBadge({ days }: { days: number }) {
 }
 
 function HelpIcon({ tooltip }: { tooltip: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+
+  const updatePos = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setPos({ x: rect.left + rect.width / 2, y: rect.top })
+  }
+
   return (
-    <span className="relative group inline-flex ml-0.5">
+    <span
+      ref={ref}
+      className="inline-flex ml-0.5"
+      onMouseEnter={updatePos}
+      onMouseLeave={() => setPos(null)}
+    >
       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 whitespace-normal">
-        {tooltip}
-      </span>
+      {pos && (
+        <Portal>
+          <div
+            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
+            style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
+          >
+            {tooltip}
+          </div>
+        </Portal>
+      )}
     </span>
   )
 }
 
 function FilterIcon({ options, selected, onChange, allLabel }: { options: string[]; selected: string; onChange: (v: string) => void; allLabel: string }) {
   const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setPos({ x: rect.left, y: rect.bottom + 4 })
+      setOpen(true)
+    } else {
+      setOpen(false)
+    }
+  }
+
   if (options.length === 0) return null
+
   return (
-    <span className="relative inline-flex">
+    <span ref={ref} className="inline-flex">
       <Filter
         className={cn('w-3.5 h-3.5 cursor-pointer', selected ? 'text-primary' : 'text-muted-foreground opacity-40')}
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        onClick={toggle}
       />
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 bg-popover border rounded-lg shadow-lg p-2 z-50 min-w-[140px]">
+      {open && pos && (
+        <Portal>
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed bg-popover border rounded-lg shadow-lg p-2 z-[101] min-w-[140px]"
+            style={{ left: pos.x, top: pos.y }}
+          >
             <label className="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-accent rounded">
               <input
                 type="radio"
@@ -95,7 +135,7 @@ function FilterIcon({ options, selected, onChange, allLabel }: { options: string
               </label>
             ))}
           </div>
-        </>
+        </Portal>
       )}
     </span>
   )
@@ -261,7 +301,7 @@ export function ItemListPage() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block rounded-xl border overflow-x-auto">
+          <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>

@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type ReactNode, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, HelpCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Portal } from '@/components/Portal'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
@@ -27,15 +28,36 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip: string; children: ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+
+  const updatePos = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setPos({ x: rect.left + rect.width / 2, y: rect.top })
+  }
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1">
         <label className="text-sm font-medium">{label}</label>
-        <span className="relative group ml-0.5">
+        <span
+          ref={ref}
+          className="inline-flex ml-0.5"
+          onMouseEnter={updatePos}
+          onMouseLeave={() => setPos(null)}
+        >
           <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 whitespace-normal">
-            {tooltip}
-          </span>
+          {pos && (
+            <Portal>
+              <div
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
+                style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
+              >
+                {tooltip}
+              </div>
+            </Portal>
+          )}
         </span>
       </div>
       {children}
