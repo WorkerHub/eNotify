@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, HelpCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
@@ -20,6 +20,23 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <label className="text-sm font-medium">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1">
+        <label className="text-sm font-medium">{label}</label>
+        <span className="relative group">
+          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 rounded text-xs bg-foreground text-background whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-[250px] whitespace-normal">
+            {tooltip}
+          </span>
+        </span>
+      </div>
       {children}
     </div>
   )
@@ -80,6 +97,12 @@ export function ItemDetailPage() {
   const [notifying, setNotifying] = useState(false)
   const [notifyMsg, setNotifyMsg] = useState('')
   const [notifyError, setNotifyError] = useState(false)
+
+  // Reset cycle
+  const [resetting, setResetting] = useState(false)
+
+  // Show lunar (independent of use_lunar for cycle)
+  const [showLunar, setShowLunar] = useState(false)
 
   // Inline payment edit
   const [editingPayment, setEditingPayment] = useState<EditPaymentState | null>(null)
@@ -202,6 +225,23 @@ export function ItemDetailPage() {
     }
   }
 
+  const handleReset = async () => {
+    if (!window.confirm(t('items.resetConfirm'))) return
+    setResetting(true)
+    try {
+      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`)
+      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
+      if (item?.item_kind === 'subscription') {
+        const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+        setPayments(updated)
+      }
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const handleSavePayment = async () => {
     if (!editingPayment) return
     try {
@@ -307,7 +347,7 @@ export function ItemDetailPage() {
               <input className={INPUT} value={item.name} onChange={(e) => setField('name', e.target.value)} required />
             </Field>
 
-            <Field label={t('items.mode.label')}>
+            <FieldWithTooltip label={t('items.mode.label')} tooltip={t('items.mode.tooltip')}>
               <select
                 className={SELECT}
                 value={item.item_mode}
@@ -316,23 +356,23 @@ export function ItemDetailPage() {
                 <option value="cycle">{t('items.mode.cycle')}</option>
                 <option value="reset">{t('items.mode.reset')}</option>
               </select>
-            </Field>
+            </FieldWithTooltip>
 
-            <Field label={t('items.type')}>
+            <FieldWithTooltip label={t('items.type')} tooltip={t('items.typeTooltip')}>
               <TagCombobox
                 value={item.type}
                 onChange={(v) => setField('type', v)}
                 options={tags.types}
               />
-            </Field>
+            </FieldWithTooltip>
 
-            <Field label={t('items.category')}>
+            <FieldWithTooltip label={t('items.category')} tooltip={t('items.categoryTooltip')}>
               <TagCombobox
                 value={item.category}
                 onChange={(v) => setField('category', v)}
                 options={tags.categories}
               />
-            </Field>
+            </FieldWithTooltip>
 
             <Field label={t('items.startDate')}>
               <input
@@ -341,7 +381,7 @@ export function ItemDetailPage() {
                 value={item.start_date ?? ''}
                 onChange={(e) => setField('start_date', e.target.value || null)}
               />
-              {!!item.use_lunar && item.start_date && (
+              {(!!item.use_lunar || showLunar) && item.start_date && (
                 <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.start_date)}</p>
               )}
             </Field>
@@ -354,7 +394,7 @@ export function ItemDetailPage() {
                 onChange={(e) => setField('expiry_date', e.target.value)}
                 required
               />
-              {!!item.use_lunar && item.expiry_date && (
+              {(!!item.use_lunar || showLunar) && item.expiry_date && (
                 <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.expiry_date)}</p>
               )}
             </Field>
@@ -440,6 +480,13 @@ export function ItemDetailPage() {
               onChange={(v) => setField('use_lunar', v ? 1 : 0)}
               label={t('items.useLunar')}
             />
+            {!item.use_lunar && (
+              <Toggle
+                checked={showLunar}
+                onChange={setShowLunar}
+                label={t('items.showLunar')}
+              />
+            )}
           </div>
 
           <Field label={t('items.notes')}>
@@ -475,8 +522,18 @@ export function ItemDetailPage() {
         </form>
       </section>
 
-      {/* Actions: Test notify + Delete */}
+      {/* Actions: Reset + Test notify + Delete */}
       <section className="flex flex-wrap gap-3">
+        {item.item_mode === 'reset' && (
+          <button
+            onClick={handleReset}
+            disabled={resetting}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" />
+            {resetting ? t('common.loading') : t('items.resetCycle')}
+          </button>
+        )}
         <button
           onClick={handleTestNotify}
           disabled={notifying}

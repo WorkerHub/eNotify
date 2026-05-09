@@ -129,10 +129,13 @@
     "renewMultiplier": "Renewal multiplier",
     "paymentHistory": "Payment History",
     "testNotify": "Test Notification",
+    "resetCycle": "Reset Cycle",
+    "resetConfirm": "Are you sure you want to reset the cycle? The new expiry date will be calculated from today.",
     "mode": {
       "label": "Mode",
       "cycle": "Cycle renewal",
-      "reset": "Reset renewal"
+      "reset": "Reset renewal",
+      "tooltip": "Cycle renewal: add period from old expiry date (e.g. domains, memberships)|Reset renewal: start new period from today (e.g. gym cards, parking cards)"
     },
     "status": {
       "active": "Active",
@@ -153,7 +156,16 @@
     "kindSubscription": "Subscription",
     "notificationHours": "Notification Hours",
     "notificationHoursHint": "Leave empty to use global notification hours",
-    "tagCreate": "Use \"{{value}}\""
+    "tagCreate": "Use \"{{value}}\"",
+    "showLunar": "Show Lunar",
+    "typeTooltip": "Describe the specific area, e.g.: Video membership / VPS / Domain / Gym card / Insurance, etc.",
+    "categoryTooltip": "Describe the nature, e.g.: Personal / Work / Life / Entertainment",
+    "reminderDays": "{{value}} days before",
+    "reminderHours": "{{value}} hours before",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "filter": "Filter",
+    "filterAll": "All"
   },
   "settings": {
     "title": "Settings",

@@ -10,6 +10,7 @@ import { createPayment, listPaymentsByItem, updatePayment, deletePayment, getPay
 import { getNotificationConfig } from '../db/queries/notifications'
 import { generateId } from '../core/auth'
 import { nowISO, addPeriod } from '../core/time'
+import { addLunarMonths, addLunarYears } from '../core/lunar'
 import { sendNotifications, type NotifyMessage } from '../services/notify/index'
 
 export const itemRoutes = new Hono<HonoEnv>()
@@ -311,6 +312,53 @@ itemRoutes.post('/:id/renew', async (c) => {
     period_start: item.expiry_date,
     period_end: newExpiry,
   })
+
+  return c.json({ success: true, new_expiry_date: newExpiry })
+})
+
+itemRoutes.post('/:id/reset', async (c) => {
+  const userId = getEffectiveUserId(c)
+  const prefix = getTablePrefix(c.env)
+  const id = c.req.param('id')
+
+  const item = await getItem(c.env.DB, prefix, id)
+  if (!item || item.user_id !== userId) {
+    return c.json({ error: 'Not found' }, 404)
+  }
+  if (item.item_mode !== 'reset') {
+    return c.json({ error: 'Item is not in reset mode' }, 400)
+  }
+
+  const now = nowISO()
+  let newExpiry: string
+
+  if (item.use_lunar && item.period_unit === 'month') {
+    newExpiry = addLunarMonths(now, item.period_value)
+  } else if (item.use_lunar && item.period_unit === 'year') {
+    newExpiry = addLunarYears(now, item.period_value)
+  } else {
+    newExpiry = addPeriod(now, item.period_value, item.period_unit)
+  }
+
+  await updateItem(c.env.DB, prefix, id, {
+    expiry_date: newExpiry,
+    last_payment_date: now,
+  })
+
+  if (item.amount) {
+    await createPayment(c.env.DB, prefix, {
+      id: generateId(),
+      item_id: id,
+      user_id: userId,
+      date: now,
+      amount: item.amount,
+      currency: item.currency,
+      type: 'manual',
+      note: 'Reset renewal',
+      period_start: now,
+      period_end: newExpiry,
+    })
+  }
 
   return c.json({ success: true, new_expiry_date: newExpiry })
 })
