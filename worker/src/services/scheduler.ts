@@ -6,7 +6,7 @@ import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
 import { sendNotifications, type NotifyMessage } from './notify/index'
 import { addPeriod, nowISO, diffInHours, diffInDays, nowInTimezone } from '../core/time'
-import { addLunarMonths, addLunarYears } from '../core/lunar'
+import { addLunarMonths, addLunarYears, solarToLunar, lunarToSolar } from '../core/lunar'
 import { generateId } from '../core/auth'
 
 export async function handleScheduled(env: Env): Promise<void> {
@@ -55,6 +55,35 @@ async function processUser(env: Env, prefix: string, db: D1Database, kv: KVNames
   }
 }
 
+/**
+ * Compute the solar date of the next lunar anniversary.
+ * Given an item's expiry_date (solar), find the lunar month/day,
+ * then convert that to the current year's solar date.
+ * If that date has already passed this year, use next year's.
+ */
+function lunarAnniversarySolarDate(solarExpiry: string, now: Date): string | null {
+  const [y, m, d] = solarExpiry.split('-').map(Number)
+  const lunar = solarToLunar(y, m, d)
+  if (!lunar) return null
+
+  const currentYear = now.getUTCFullYear()
+
+  // Try this year
+  const thisYearSolar = lunarToSolar(currentYear, lunar.month, lunar.day, lunar.isLeap)
+  if (thisYearSolar) {
+    const thisYearDate = `${thisYearSolar.year.toString().padStart(4, '0')}-${thisYearSolar.month.toString().padStart(2, '0')}-${thisYearSolar.day.toString().padStart(2, '0')}`
+    if (new Date(thisYearDate) > now) return thisYearDate
+  }
+
+  // Try next year
+  const nextYearSolar = lunarToSolar(currentYear + 1, lunar.month, lunar.day, lunar.isLeap)
+  if (nextYearSolar) {
+    return `${nextYearSolar.year.toString().padStart(4, '0')}-${nextYearSolar.month.toString().padStart(2, '0')}-${nextYearSolar.day.toString().padStart(2, '0')}`
+  }
+
+  return null
+}
+
 async function processSubscription(
   env: Env,
   prefix: string,
@@ -65,6 +94,9 @@ async function processSubscription(
   lang: string
 ): Promise<void> {
   const now = new Date()
+  const nowISOStr = nowISO()
+
+  // ── Auto-renew logic ────────────────────────────────────────────────────
   const expiryDate = new Date(sub.expiry_date)
 
   if (expiryDate <= now && sub.auto_renew) {
@@ -81,9 +113,9 @@ async function processSubscription(
 
     while (new Date(newExpiry) <= now && iterations < maxIterations) {
       prevExpiry = newExpiry
-      if (sub.use_lunar && sub.period_unit === 'month') {
+      if ((sub.calendar_mode === 'lunar' || sub.calendar_mode === 'both') && sub.period_unit === 'month') {
         newExpiry = addLunarMonths(prevExpiry, sub.period_value)
-      } else if (sub.use_lunar && sub.period_unit === 'year') {
+      } else if ((sub.calendar_mode === 'lunar' || sub.calendar_mode === 'both') && sub.period_unit === 'year') {
         newExpiry = addLunarYears(prevExpiry, sub.period_value)
       } else {
         newExpiry = addPeriod(prevExpiry, sub.period_value, sub.period_unit)
@@ -92,7 +124,7 @@ async function processSubscription(
       iterations++
     }
 
-    const renewedAt = nowISO()
+    const renewedAt = nowISOStr
 
     await env.DB.prepare(
       `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
@@ -118,43 +150,74 @@ async function processSubscription(
     return
   }
 
-  const hoursUntilExpiry = diffInHours(nowISO(), sub.expiry_date)
-  const daysUntilExpiry = diffInDays(nowISO(), sub.expiry_date)
+  // ── Reminder logic ──────────────────────────────────────────────────────
+  // For 'both' mode, we check both solar and lunar expiry dates independently
+  const checkDates: { date: string; label: 'solar' | 'lunar' }[] = []
 
-  let shouldNotify = false
-  if (sub.reminder_unit === 'hour') {
-    shouldNotify = hoursUntilExpiry <= sub.reminder_value && hoursUntilExpiry > 0
+  if (sub.calendar_mode === 'both') {
+    // Solar expiry date
+    checkDates.push({ date: sub.expiry_date, label: 'solar' })
+    // Lunar anniversary date
+    const lunarDate = lunarAnniversarySolarDate(sub.expiry_date, now)
+    if (lunarDate) {
+      checkDates.push({ date: lunarDate, label: 'lunar' })
+    }
+  } else if (sub.calendar_mode === 'lunar') {
+    // For lunar-only, the expiry_date is already stored as solar,
+    // but the date was computed using lunar arithmetic.
+    // We treat the stored expiry_date as the primary date.
+    checkDates.push({ date: sub.expiry_date, label: 'solar' })
   } else {
-    shouldNotify = daysUntilExpiry <= sub.reminder_value && daysUntilExpiry > 0
+    // solar mode
+    checkDates.push({ date: sub.expiry_date, label: 'solar' })
   }
-
-  if (!shouldNotify) return
-
-  const hourBucket = Math.floor(now.getTime() / 3600000)
-  const dedupeKey = `notify_dedupe:${userId}:${sub.id}:${hourBucket}`
-  const existing = await kv.get(dedupeKey)
-  if (existing) return
-
-  const message: NotifyMessage = lang === 'zh'
-    ? {
-        title: `📅 ${sub.name} 即将到期`,
-        body: sub.reminder_unit === 'hour'
-          ? `将在 ${Math.round(hoursUntilExpiry)} 小时后到期 (${sub.expiry_date})`
-          : `将在 ${Math.round(daysUntilExpiry)} 天后到期 (${sub.expiry_date})`,
-      }
-    : {
-        title: `📅 ${sub.name} expiring soon`,
-        body: sub.reminder_unit === 'hour'
-          ? `Expires in ${Math.round(hoursUntilExpiry)} hours (${sub.expiry_date})`
-          : `Expires in ${Math.round(daysUntilExpiry)} days (${sub.expiry_date})`,
-      }
 
   // Filter channels if item has specific channels configured
   let itemChannels: string[] | undefined
   try { itemChannels = JSON.parse(sub.channels || '[]') } catch { itemChannels = [] }
+  const channels = itemChannels?.length ? itemChannels : undefined
 
-  await sendNotifications(notifyConfig, message, env, {
-    db: env.DB, prefix, userId, itemId: sub.id,
-  }, itemChannels?.length ? itemChannels : undefined)
-  await kv.put(dedupeKey, '1', { expirationTtl: 172800 })
+  for (const { date: checkDate, label } of checkDates) {
+    const hoursUntil = diffInHours(nowISOStr, checkDate)
+    const daysUntil = diffInDays(nowISOStr, checkDate)
+
+    let shouldNotify = false
+    if (sub.reminder_unit === 'hour') {
+      shouldNotify = hoursUntil <= sub.reminder_value && hoursUntil > 0
+    } else {
+      shouldNotify = daysUntil <= sub.reminder_value && daysUntil > 0
+    }
+
+    if (!shouldNotify) continue
+
+    // Dedup: include label in key so solar and lunar reminders are deduplicated independently
+    // If they happen on the same day, the hour-bucket dedup will naturally merge them
+    const hourBucket = Math.floor(now.getTime() / 3600000)
+    const dedupeKey = `notify_dedupe:${userId}:${sub.id}:${label}:${hourBucket}`
+    const existing = await kv.get(dedupeKey)
+    if (existing) continue
+
+    const lunarSuffix = label === 'lunar'
+      ? (lang === 'zh' ? ' (农历)' : ' (Lunar)')
+      : ''
+
+    const message: NotifyMessage = lang === 'zh'
+      ? {
+          title: `📅 ${sub.name} 即将到期${lunarSuffix}`,
+          body: sub.reminder_unit === 'hour'
+            ? `将在 ${Math.round(hoursUntil)} 小时后到期 (${checkDate})${lunarSuffix}`
+            : `将在 ${Math.round(daysUntil)} 天后到期 (${checkDate})${lunarSuffix}`,
+        }
+      : {
+          title: `📅 ${sub.name} expiring soon${lunarSuffix}`,
+          body: sub.reminder_unit === 'hour'
+            ? `Expires in ${Math.round(hoursUntil)} hours (${checkDate})${lunarSuffix}`
+            : `Expires in ${Math.round(daysUntil)} days (${checkDate})${lunarSuffix}`,
+        }
+
+    await sendNotifications(notifyConfig, message, env, {
+      db: env.DB, prefix, userId, itemId: sub.id,
+    }, channels)
+    await kv.put(dedupeKey, '1', { expirationTtl: 172800 })
+  }
 }

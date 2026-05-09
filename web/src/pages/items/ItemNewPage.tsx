@@ -26,7 +26,7 @@ interface FormData {
   amount: string
   currency: string
   auto_renew: boolean
-  use_lunar: boolean
+  calendar_mode: 'solar' | 'lunar' | 'both'
   notes: string
   channels: string[]
   notification_hours: number[]
@@ -46,7 +46,7 @@ const DEFAULT: FormData = {
   amount: '',
   currency: 'CNY',
   auto_renew: true,
-  use_lunar: false,
+  calendar_mode: 'solar',
   notes: '',
   channels: [],
   notification_hours: [],
@@ -99,7 +99,7 @@ export function ItemNewPage() {
         amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
         start_date: form.start_date || null,
         auto_renew: form.auto_renew ? 1 : 0,
-        use_lunar: form.use_lunar ? 1 : 0,
+        calendar_mode: form.calendar_mode,
         channels: form.channels,
         notification_hours: form.notification_hours,
       })
@@ -192,7 +192,7 @@ export function ItemNewPage() {
                 value={form.start_date}
                 onChange={(e) => set('start_date', e.target.value)}
               />
-              {form.use_lunar && form.start_date && (
+              {form.calendar_mode !== 'solar' && form.start_date && (
                 <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.start_date)}</span>
               )}
             </div>
@@ -207,7 +207,7 @@ export function ItemNewPage() {
                 onChange={(e) => set('expiry_date', e.target.value)}
                 required
               />
-              {form.use_lunar && form.expiry_date && (
+              {form.calendar_mode !== 'solar' && form.expiry_date && (
                 <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.expiry_date)}</span>
               )}
             </div>
@@ -297,27 +297,28 @@ export function ItemNewPage() {
             <span className="text-sm font-medium">{t('items.autoRenew')}</span>
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.use_lunar}
-              onClick={() => set('use_lunar', !form.use_lunar)}
-              className={cn(
-                'relative w-10 h-6 rounded-full transition-colors',
-                form.use_lunar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                  form.use_lunar && 'translate-x-4',
-                )}
-              />
-            </button>
-            <span className="text-sm font-medium">{t('items.useLunar')}</span>
-          </label>
         </div>
+
+        {/* Calendar mode selector */}
+        <Field label={t('items.calendarMode')}>
+          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+            {(['solar', 'lunar', 'both'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => set('calendar_mode', mode)}
+                className={cn(
+                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  form.calendar_mode === mode
+                    ? 'bg-background shadow text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+              </button>
+            ))}
+          </div>
+        </Field>
 
         {/* Notes */}
         <Field label={t('items.notes')}>

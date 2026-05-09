@@ -96,7 +96,7 @@ itemRoutes.post('/', async (c) => {
     last_payment_date: body.last_payment_date || null,
     is_active: body.is_active ?? 1,
     auto_renew: body.auto_renew ?? 1,
-    use_lunar: body.use_lunar ?? 0,
+    calendar_mode: body.calendar_mode || 'solar',
     channels: JSON.stringify(body.channels || []),
     notification_hours: JSON.stringify(body.notification_hours || []),
     item_kind: body.item_kind || 'regular',
@@ -191,8 +191,8 @@ itemRoutes.put('/:id', async (c) => {
   if (body.auto_renew !== undefined && ![0, 1].includes(body.auto_renew)) {
     return c.json({ error: 'auto_renew must be 0 or 1' }, 400)
   }
-  if (body.use_lunar !== undefined && ![0, 1].includes(body.use_lunar)) {
-    return c.json({ error: 'use_lunar must be 0 or 1' }, 400)
+  if (body.calendar_mode && !['solar', 'lunar', 'both'].includes(body.calendar_mode)) {
+    return c.json({ error: 'Invalid calendar_mode' }, 400)
   }
   if (body.reminder_value !== undefined && (typeof body.reminder_value !== 'number' || body.reminder_value < 0)) {
     return c.json({ error: 'reminder_value must be a non-negative number' }, 400)
@@ -219,7 +219,7 @@ itemRoutes.put('/:id', async (c) => {
   const allowedFields = [
     'name', 'item_mode', 'category', 'start_date',
     'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
-    'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'use_lunar', 'item_kind',
+    'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'calendar_mode', 'item_kind',
   ]
   for (const key of allowedFields) {
     if (body[key] !== undefined) updates[key] = key === 'name' ? body[key].trim() : body[key]
@@ -326,9 +326,9 @@ itemRoutes.post('/:id/reset', async (c) => {
   const today = now.split('T')[0]
   let newExpiry: string
 
-  if (item.use_lunar && item.period_unit === 'month') {
+  if ((item.calendar_mode === 'lunar' || item.calendar_mode === 'both') && item.period_unit === 'month') {
     newExpiry = addLunarMonths(today, item.period_value)
-  } else if (item.use_lunar && item.period_unit === 'year') {
+  } else if ((item.calendar_mode === 'lunar' || item.calendar_mode === 'both') && item.period_unit === 'year') {
     newExpiry = addLunarYears(today, item.period_value)
   } else {
     newExpiry = addPeriod(today, item.period_value, item.period_unit)

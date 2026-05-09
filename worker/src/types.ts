@@ -52,7 +52,7 @@ export interface Item {
   last_payment_date: string | null
   is_active: number
   auto_renew: number
-  use_lunar: number
+  calendar_mode: 'solar' | 'lunar' | 'both'
   channels: string
   notification_hours: string
   item_kind: 'regular' | 'subscription'

@@ -342,7 +342,7 @@ export function ItemListPage() {
                         <div className="flex items-center gap-2">
                           <div>
                             <span>{item.expiry_date}</span>
-                            {!!item.use_lunar && (
+                            {item.calendar_mode !== 'solar' && (
                               <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
                             )}
                           </div>
@@ -454,7 +454,7 @@ export function ItemListPage() {
                     <div className="flex items-center gap-2">
                       <div>
                         <span className="text-muted-foreground">{item.expiry_date}</span>
-                        {!!item.use_lunar && (
+                        {item.calendar_mode !== 'solar' && (
                           <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
                         )}
                       </div>

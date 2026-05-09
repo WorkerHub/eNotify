@@ -125,7 +125,7 @@ export function ItemDetailPage() {
   // Reset cycle
   const [resetting, setResetting] = useState(false)
 
-  // Show lunar (independent of use_lunar for cycle)
+  // Show lunar (independent of calendar_mode for display)
   const { user } = useAuth()
   const [showLunar, setShowLunar] = useState(!!user?.show_lunar)
 
@@ -194,7 +194,7 @@ export function ItemDetailPage() {
         currency: item.currency,
         is_active: item.is_active ? 1 : 0,
         auto_renew: item.auto_renew ? 1 : 0,
-        use_lunar: item.use_lunar ? 1 : 0,
+        calendar_mode: item.calendar_mode,
         channels,
         notification_hours: notificationHours,
       })
@@ -423,7 +423,7 @@ export function ItemDetailPage() {
                   value={item.start_date ?? ''}
                   onChange={(e) => setField('start_date', e.target.value || null)}
                 />
-                {(!!item.use_lunar || showLunar) && item.start_date && (
+                {(item.calendar_mode !== 'solar' || showLunar) && item.start_date && (
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.start_date)}</span>
                 )}
               </div>
@@ -438,7 +438,7 @@ export function ItemDetailPage() {
                   onChange={(e) => setField('expiry_date', e.target.value)}
                   required
                 />
-                {(!!item.use_lunar || showLunar) && item.expiry_date && (
+                {(item.calendar_mode !== 'solar' || showLunar) && item.expiry_date && (
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
                 )}
               </div>
@@ -519,12 +519,7 @@ export function ItemDetailPage() {
               onChange={(v) => setField('auto_renew', v ? 1 : 0)}
               label={t('items.autoRenew')}
             />
-            <Toggle
-              checked={!!item.use_lunar}
-              onChange={(v) => setField('use_lunar', v ? 1 : 0)}
-              label={t('items.useLunar')}
-            />
-            {!item.use_lunar && (
+            {item.calendar_mode === 'solar' && (
               <Toggle
                 checked={showLunar}
                 onChange={setShowLunar}
@@ -532,6 +527,27 @@ export function ItemDetailPage() {
               />
             )}
           </div>
+
+          {/* Calendar mode selector */}
+          <Field label={t('items.calendarMode')}>
+            <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+              {(['solar', 'lunar', 'both'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setField('calendar_mode', mode)}
+                  className={cn(
+                    'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    item.calendar_mode === mode
+                      ? 'bg-background shadow text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                </button>
+              ))}
+            </div>
+          </Field>
 
           <Field label={t('items.notes')}>
             <textarea

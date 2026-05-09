@@ -37,12 +37,13 @@ setupRoutes.post('/', async (c) => {
 })
 
 async function runMigrations(db: D1Database, prefix: string): Promise<void> {
-  // Migration: drop type column from items
+  // Migration: drop type column from items + convert use_lunar to calendar_mode
   // SQLite doesn't support DROP COLUMN before 3.35.0, so we recreate the table
   try {
     const colCheck = await db.prepare(`PRAGMA table_info(${prefix}items)`).all<{ name: string }>()
     const hasType = colCheck.results.some((c) => c.name === 'type')
-    if (hasType) {
+    const hasUseLunar = colCheck.results.some((c) => c.name === 'use_lunar')
+    if (hasType || hasUseLunar) {
       await db.prepare(`
         CREATE TABLE ${prefix}items_new (
           id          TEXT PRIMARY KEY,
@@ -62,7 +63,7 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
           last_payment_date TEXT,
           is_active         INTEGER NOT NULL DEFAULT 1,
           auto_renew        INTEGER NOT NULL DEFAULT 1,
-          use_lunar         INTEGER NOT NULL DEFAULT 0,
+          calendar_mode     TEXT NOT NULL DEFAULT 'solar',
           channels          TEXT NOT NULL DEFAULT '[]',
           notification_hours TEXT NOT NULL DEFAULT '[]',
           item_kind         TEXT NOT NULL DEFAULT 'regular',
@@ -70,17 +71,28 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
           updated_at        TEXT NOT NULL
         )
       `).run()
-      await db.prepare(`
-        INSERT INTO ${prefix}items_new
-          (id, user_id, name, item_mode, category, start_date, expiry_date,
-           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
-           last_payment_date, is_active, auto_renew, use_lunar, channels, notification_hours, item_kind, created_at, updated_at)
-        SELECT
-          id, user_id, name, item_mode, category, start_date, expiry_date,
-           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
-           last_payment_date, is_active, auto_renew, use_lunar, channels, notification_hours, item_kind, created_at, updated_at
-        FROM ${prefix}items
-      `).run()
+      // Map use_lunar → calendar_mode: use_lunar=1 → 'lunar', use_lunar=0 → 'solar'
+      // If use_lunar column doesn't exist yet (fresh from type migration), default to 'solar'
+      const useLunarExpr = hasUseLunar
+        ? `CASE WHEN use_lunar = 1 THEN 'lunar' ELSE 'solar' END`
+        : `'solar'`
+      // Build column lists for INSERT...SELECT
+      const srcCols = [
+        'id', 'user_id', 'name', 'item_mode', 'category', 'start_date', 'expiry_date',
+        'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency',
+        'last_payment_date', 'is_active', 'auto_renew',
+        useLunarExpr,
+        'channels', 'notification_hours', 'item_kind', 'created_at', 'updated_at',
+      ].join(', ')
+      const dstCols = [
+        'id', 'user_id', 'name', 'item_mode', 'category', 'start_date', 'expiry_date',
+        'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency',
+        'last_payment_date', 'is_active', 'auto_renew', 'calendar_mode',
+        'channels', 'notification_hours', 'item_kind', 'created_at', 'updated_at',
+      ].join(', ')
+      await db.prepare(
+        `INSERT INTO ${prefix}items_new (${dstCols}) SELECT ${srcCols} FROM ${prefix}items`
+      ).run()
       await db.prepare(`DROP TABLE ${prefix}items`).run()
       await db.prepare(`ALTER TABLE ${prefix}items_new RENAME TO ${prefix}items`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_${prefix}items_user_id ON ${prefix}items(user_id)`).run()
@@ -176,7 +188,7 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   last_payment_date TEXT,
   is_active         INTEGER NOT NULL DEFAULT 1,
   auto_renew        INTEGER NOT NULL DEFAULT 1,
-  use_lunar         INTEGER NOT NULL DEFAULT 0,
+  calendar_mode     TEXT NOT NULL DEFAULT 'solar',
   channels          TEXT NOT NULL DEFAULT '[]',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   item_kind         TEXT NOT NULL DEFAULT 'regular',
