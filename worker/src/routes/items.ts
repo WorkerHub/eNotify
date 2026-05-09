@@ -44,7 +44,7 @@ itemRoutes.post('/', async (c) => {
   if (body.period_value !== undefined && (typeof body.period_value !== 'number' || body.period_value < 1)) {
     return c.json({ error: 'Period value must be >= 1' }, 400)
   }
-  if (body.period_unit && !['day', 'month', 'year'].includes(body.period_unit)) {
+  if (body.period_unit && !['day', 'week', 'month', 'year'].includes(body.period_unit)) {
     return c.json({ error: 'Invalid period unit' }, 400)
   }
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {
@@ -170,7 +170,7 @@ itemRoutes.put('/:id', async (c) => {
   if (body.start_date && isNaN(Date.parse(body.start_date))) {
     return c.json({ error: 'Invalid start date' }, 400)
   }
-  if (body.period_unit && !['day', 'month', 'year'].includes(body.period_unit)) {
+  if (body.period_unit && !['day', 'week', 'month', 'year'].includes(body.period_unit)) {
     return c.json({ error: 'Invalid period unit' }, 400)
   }
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {

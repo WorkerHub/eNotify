@@ -27,7 +27,7 @@ export interface Item {
   start_date: string | null
   expiry_date: string
   period_value: number
-  period_unit: 'day' | 'month' | 'year'
+  period_unit: 'day' | 'week' | 'month' | 'year'
   reminder_unit: 'day' | 'hour'
   reminder_value: number
   notes: string

@@ -115,6 +115,7 @@
     "period": "Period",
     "periodUnit": {
       "day": "Days",
+      "week": "Weeks",
       "month": "Months",
       "year": "Years",
       "hour": "Hours"

@@ -115,13 +115,14 @@
     "period": "周期",
     "periodUnit": {
       "day": "天",
+      "week": "周",
       "month": "月",
       "year": "年",
       "hour": "小时"
     },
     "reminder": "提醒",
     "reminderBefore": "提前提醒",
-    "autoRenew": "自动续费",
+    "autoRenew": "自动续期",
     "useLunar": "周期按农历",
     "enableItem": "启用通知",
     "notes": "备注",

@@ -42,11 +42,13 @@ export function nowInTimezone(timezone: string): Date {
  * Add a calendar period to an ISO date string (YYYY-MM-DD or full ISO).
  * Returns YYYY-MM-DD of the resulting UTC date.
  */
-export function addPeriod(date: string, value: number, unit: 'day' | 'month' | 'year'): string {
+export function addPeriod(date: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string {
   const d = new Date(date);
 
   if (unit === 'day') {
     d.setUTCDate(d.getUTCDate() + value);
+  } else if (unit === 'week') {
+    d.setUTCDate(d.getUTCDate() + value * 7);
   } else if (unit === 'month') {
     const origDay = d.getUTCDate();
     d.setUTCMonth(d.getUTCMonth() + value);

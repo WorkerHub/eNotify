@@ -416,28 +416,32 @@ export function ItemDetailPage() {
             </FieldWithTooltip>
 
             <Field label={t('items.startDate')}>
-              <input
-                type="date"
-                className={INPUT}
-                value={item.start_date ?? ''}
-                onChange={(e) => setField('start_date', e.target.value || null)}
-              />
-              {(!!item.use_lunar || showLunar) && item.start_date && (
-                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.start_date)}</p>
-              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className={cn(INPUT, 'flex-1')}
+                  value={item.start_date ?? ''}
+                  onChange={(e) => setField('start_date', e.target.value || null)}
+                />
+                {(!!item.use_lunar || showLunar) && item.start_date && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.start_date)}</span>
+                )}
+              </div>
             </Field>
 
             <Field label={t('items.expiryDate')}>
-              <input
-                type="date"
-                className={INPUT}
-                value={item.expiry_date}
-                onChange={(e) => setField('expiry_date', e.target.value)}
-                required
-              />
-              {(!!item.use_lunar || showLunar) && item.expiry_date && (
-                <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(item.expiry_date)}</p>
-              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className={cn(INPUT, 'flex-1')}
+                  value={item.expiry_date}
+                  onChange={(e) => setField('expiry_date', e.target.value)}
+                  required
+                />
+                {(!!item.use_lunar || showLunar) && item.expiry_date && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
+                )}
+              </div>
             </Field>
           </div>
 
@@ -456,6 +460,7 @@ export function ItemDetailPage() {
                 onChange={(e) => setField('period_unit', e.target.value as any)}
               >
                 <option value="day">{t('items.periodUnit.day')}</option>
+                <option value="week">{t('items.periodUnit.week')}</option>
                 <option value="month">{t('items.periodUnit.month')}</option>
                 <option value="year">{t('items.periodUnit.year')}</option>
               </select>
@@ -509,13 +514,11 @@ export function ItemDetailPage() {
               onChange={(v) => setField('is_active', v ? 1 : 0)}
               label={t('items.enableItem')}
             />
-            {item.item_kind === 'subscription' && (
-              <Toggle
-                checked={!!item.auto_renew}
-                onChange={(v) => setField('auto_renew', v ? 1 : 0)}
-                label={t('items.autoRenew')}
-              />
-            )}
+            <Toggle
+              checked={!!item.auto_renew}
+              onChange={(v) => setField('auto_renew', v ? 1 : 0)}
+              label={t('items.autoRenew')}
+            />
             <Toggle
               checked={!!item.use_lunar}
               onChange={(v) => setField('use_lunar', v ? 1 : 0)}

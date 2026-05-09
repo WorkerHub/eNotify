@@ -20,7 +20,7 @@ interface FormData {
   start_date: string
   expiry_date: string
   period_value: string
-  period_unit: 'day' | 'month' | 'year'
+  period_unit: 'day' | 'week' | 'month' | 'year'
   reminder_value: string
   reminder_unit: 'day' | 'hour'
   amount: string
@@ -98,7 +98,7 @@ export function ItemNewPage() {
         reminder_value: Number(form.reminder_value) || 7,
         amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
         start_date: form.start_date || null,
-        auto_renew: form.item_kind === 'subscription' && form.auto_renew ? 1 : 0,
+        auto_renew: form.auto_renew ? 1 : 0,
         use_lunar: form.use_lunar ? 1 : 0,
         channels: form.channels,
         notification_hours: form.notification_hours,
@@ -185,28 +185,32 @@ export function ItemNewPage() {
           </Field>
 
           <Field label={t('items.startDate')}>
-            <input
-              type="date"
-              className={INPUT}
-              value={form.start_date}
-              onChange={(e) => set('start_date', e.target.value)}
-            />
-            {form.use_lunar && form.start_date && (
-              <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(form.start_date)}</p>
-            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                className={cn(INPUT, 'flex-1')}
+                value={form.start_date}
+                onChange={(e) => set('start_date', e.target.value)}
+              />
+              {form.use_lunar && form.start_date && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.start_date)}</span>
+              )}
+            </div>
           </Field>
 
           <Field label={t('items.expiryDate')} required>
-            <input
-              type="date"
-              className={INPUT}
-              value={form.expiry_date}
-              onChange={(e) => set('expiry_date', e.target.value)}
-              required
-            />
-            {form.use_lunar && form.expiry_date && (
-              <p className="text-xs text-muted-foreground mt-1">{formatLunarDate(form.expiry_date)}</p>
-            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                className={cn(INPUT, 'flex-1')}
+                value={form.expiry_date}
+                onChange={(e) => set('expiry_date', e.target.value)}
+                required
+              />
+              {form.use_lunar && form.expiry_date && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.expiry_date)}</span>
+              )}
+            </div>
           </Field>
         </div>
 
@@ -222,6 +226,7 @@ export function ItemNewPage() {
             />
             <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
               <option value="day">{t('items.periodUnit.day')}</option>
+              <option value="week">{t('items.periodUnit.week')}</option>
               <option value="month">{t('items.periodUnit.month')}</option>
               <option value="year">{t('items.periodUnit.year')}</option>
             </select>
@@ -271,28 +276,26 @@ export function ItemNewPage() {
 
         {/* Toggles */}
         <div className="flex gap-6 flex-wrap">
-          {form.item_kind === 'subscription' && (
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.auto_renew}
-                onClick={() => set('auto_renew', !form.auto_renew)}
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.auto_renew}
+              onClick={() => set('auto_renew', !form.auto_renew)}
+              className={cn(
+                'relative w-10 h-6 rounded-full transition-colors',
+                form.auto_renew ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+              )}
+            >
+              <span
                 className={cn(
-                  'relative w-10 h-6 rounded-full transition-colors',
-                  form.auto_renew ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+                  'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                  form.auto_renew && 'translate-x-4',
                 )}
-              >
-                <span
-                  className={cn(
-                    'absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                    form.auto_renew && 'translate-x-4',
-                  )}
-                />
-              </button>
-              <span className="text-sm font-medium">{t('items.autoRenew')}</span>
-            </label>
-          )}
+              />
+            </button>
+            <span className="text-sm font-medium">{t('items.autoRenew')}</span>
+          </label>
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <button

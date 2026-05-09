@@ -156,7 +156,7 @@ adminRoutes.post('/users/:uid/items', async (c) => {
   if (body.period_value !== undefined && (typeof body.period_value !== 'number' || body.period_value < 1)) {
     return c.json({ error: 'Period value must be >= 1' }, 400)
   }
-  if (body.period_unit && !['day', 'month', 'year'].includes(body.period_unit)) {
+  if (body.period_unit && !['day', 'week', 'month', 'year'].includes(body.period_unit)) {
     return c.json({ error: 'Invalid period unit' }, 400)
   }
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {
@@ -209,7 +209,7 @@ adminRoutes.put('/users/:uid/items/:iid', async (c) => {
   if (body.expiry_date && isNaN(Date.parse(body.expiry_date))) {
     return c.json({ error: 'Invalid expiry date' }, 400)
   }
-  if (body.period_unit && !['day', 'month', 'year'].includes(body.period_unit)) {
+  if (body.period_unit && !['day', 'week', 'month', 'year'].includes(body.period_unit)) {
     return c.json({ error: 'Invalid period unit' }, 400)
   }
   if (body.reminder_unit && !['day', 'hour'].includes(body.reminder_unit)) {
