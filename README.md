@@ -1,180 +1,130 @@
-# AppTemplate
+# eNotify
 
-基于 **React 19** + **Cloudflare Workers** (Hono.js) 的全栈应用模板，可直接作为新项目的起始点。
+[English](./README.en.md) | 中文
+
+智能通知管理系统，帮助您追踪各类到期事项/提醒事项与费用，并通过多种渠道发送提醒通知。
 
 ## 功能特性
 
-- **用户认证** — 邮箱/密码登录、注册（支持开关控制）、登出、密码重置
-- **双因素认证 (2FA)** — TOTP（验证器应用）、Passkey（WebAuthn 生物识别）、邮箱 OTP
-- **管理后台** — 用户管理（角色、启用/禁用、模拟登录）、系统设置、邮件配置、安全设置
-- **用户设置** — 语言切换（中/英）、明暗主题切换、时区设置、会话管理
-- **会话管理** — 多设备会话列表与会话撤销
-- **国际化 (i18n)** — 中文和英文，自动检测浏览器语言
-- **主题** — 亮色 / 暗色 / 跟随系统，通过 ThemeProvider 实现
-- **数据库** — Cloudflare D1 (SQLite)，支持可选的表名前缀实现共享数据库隔离
+- **多用户支持** — 注册/登录，首位用户自动成为管理员
+- **通知管理** — 添加、编辑、续费、停用，支持周期/重置两种模式，区分普通提醒与订阅提醒
+- **自动续费** — 过期订阅自动续期并记录支付历史
+- **支付历史** — 记录每笔支付，支持多币种与实时汇率转换
+- **仪表盘** — 月度/年度支出统计、到期预警、分类分析
+- **9 个通知渠道** — Telegram、Webhook、企业微信、邮件、Bark、Gotify、Server酱、PushPlus、NotifyX
+- **渠道管理** — 独立页面统一管理通知渠道的启用与配置
+- **按项选择渠道** — 每个通知项可单独指定使用哪些渠道，未指定则默认使用所有已启用渠道
+- **定时提醒** — 每小时自动检查并发送到期提醒，支持全局时段配置和每项独立覆盖
+- **通知历史** — 查看所有已发送通知的记录与状态
+- **两步验证** — TOTP（验证器应用）、邮箱验证码、Passkey
+- **密码重置** — 通过邮箱验证码重置密码
+- **管理员后台** — 用户管理、系统设置、模拟登录
+- **农历支持** — 农历日期显示与周期计算（1900-2100）
+- **主题切换** — 浅色/深色/跟随系统
+- **双语** — 中文/英文切换
+- **移动端适配** — 响应式设计，顶部栏 + 底部导航
 
 ## 技术栈
 
-- **前端**: React 19, Vite, Tailwind CSS v4, shadcn/ui, React Router v7, react-i18next
-- **后端**: Cloudflare Workers, Hono.js, D1 (SQLite), KV
-- **认证**: JWT (access + refresh token, HttpOnly Cookie), bcrypt, WebAuthn
+- **后端**: Cloudflare Workers + Hono.js (TypeScript)
+- **数据库**: Cloudflare D1 (SQLite)
+- **缓存**: Cloudflare KV
+- **前端**: React 19 + Vite + Tailwind CSS v4 + shadcn/ui
+- **部署**: GitHub Actions + Wrangler
 
-## 快速开始
+## 部署指南
 
-### 1. 克隆并重命名
+### 前置要求
+
+- Cloudflare 账户
+- GitHub 仓库
+- Node.js >= 22
+- pnpm
+
+### 1. 创建 Cloudflare 资源
 
 ```bash
-git clone <this-repo> my-app
-cd my-app
-# 将 "app-template" 和 "AppTemplate" 替换为你的应用名称
+# 创建 D1 数据库
+npx wrangler d1 create enotify-db
+
+# 创建 KV 命名空间
+npx wrangler kv namespace create ENOTIFY_KV
 ```
 
-### 2. 安装依赖
+### 2. 配置 GitHub Secrets
+
+在仓库的 Settings → Secrets and variables → Actions 中添加：
+
+| Secret | 说明 |
+|--------|------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 和 D1 权限） |
+| `D1_DATABASE_NAME` | D1 数据库名称 |
+| `D1_DATABASE_ID` | D1 数据库 ID |
+| `KV_NAMESPACE_ID` | KV 命名空间 ID |
+
+### 3. 配置 Worker Secrets
+
+在 Cloudflare 控制台中，进入 Workers → enotify → Settings → Variables → Secrets，添加：
+
+| Secret | 说明 |
+|--------|------|
+| `JWT_SECRET` | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
+| `SETUP_SECRET` | 任意随机字符串，例如 `openssl rand -hex 16` |
+
+也可以通过命令行配置：
 
 ```bash
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put SETUP_SECRET
+```
+
+### 4. 部署
+
+推送到 `main` 分支即可自动部署。
+
+### 5. 初始化数据库
+
+部署完成后，访问以下 URL 初始化数据库：
+
+```
+https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
+```
+
+### 6. 注册管理员
+
+访问应用首页注册账号，第一个注册的用户将自动成为管理员。
+
+## 本地开发
+
+```bash
+# 安装依赖
 pnpm install
-```
 
-### 3. 配置 Wrangler
-
-编辑 `worker/wrangler.toml`：
-- 设置你的 `account_id`
-- 创建 D1 数据库并设置 `database_id`
-- 创建 KV 命名空间并设置其 `id`
-- 设置 `JWT_SECRET`（随机 32 位以上字符串）
-- 设置 `SETUP_SECRET`（用于数据库初始化的随机字符串）
-- 设置 `TABLE_PREFIX`（可选，表名前缀，如 `myapp_`，留空则不加前缀）
-
-### 4. 初始化数据库
-
-```bash
-# 先部署，然后调用 setup 接口：
-
-# 方式一：GET（secret 在 URL 中，也可直接在浏览器访问）
-curl https://your-worker.workers.dev/api/setup/your-setup-secret
-
-# 方式二：POST（secret 在请求头中）
-curl -X POST https://your-worker.workers.dev/api/setup \
-  -H "X-Setup-Secret: your-setup-secret"
-```
-
-### 5. 启动开发
-
-```bash
+# 启动开发环境（前后端同时）
 pnpm dev
+
+# 仅启动前端
+pnpm dev:web
+
+# 仅启动后端
+pnpm dev:worker
 ```
-
-## 添加业务逻辑
-
-### 新增 API 路由（后端）
-
-1. 创建 `worker/src/routes/myfeature.ts`
-2. 在 `worker/src/index.ts` 中导入并注册：
-   ```ts
-   import { myFeatureRoutes } from './routes/myfeature'
-   app.route('/api/myfeature', myFeatureRoutes)
-   ```
-
-### 新增页面（前端）
-
-1. 创建 `web/src/pages/myfeature/MyFeaturePage.tsx`
-2. 在 `web/src/App.tsx` 中添加路由
-3. 在 `web/src/components/layout/AppLayout.tsx` 中添加导航项
-
-### 扩展数据库 Schema
-
-1. 在 `worker/src/db/schema.sql` 中添加新表
-2. 将相同的 CREATE TABLE 语句添加到 `worker/src/routes/setup.ts` 的 `getSchema()` 中
-3. 在 `worker/src/db/queries/` 中添加查询函数
 
 ## 环境变量
 
-| 变量 | 说明 |
-|------|------|
-| `JWT_SECRET` | JWT 签名密钥（随机 32 位以上字符串） |
-| `SETUP_SECRET` | 调用 setup 接口的密钥 |
-| `TABLE_PREFIX` | 可选，所有数据库表名的前缀（如 `myapp_`） |
+### Worker 环境变量（Cloudflare Dashboard 或 wrangler.toml）
 
-> 本地开发时直接在 `worker/wrangler.toml` 的 `[vars]` 中配置；CI/CD 部署时通过 GitHub Secrets/Variables 注入，无需在 Cloudflare 控制台额外配置。
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `TABLE_PREFIX` | `""` | 数据库表前缀（如 `hk_`） |
 
-## 部署
+### Worker Secrets（在 Cloudflare 控制台中配置）
 
-### 手动部署
+| Secret | 说明 |
+|--------|------|
+| `JWT_SECRET` | JWT 签名密钥 |
+| `SETUP_SECRET` | 数据库初始化路由密钥 |
 
-```bash
-pnpm deploy
-```
+## 许可证
 
-### CI/CD 自动部署
-
-项目包含 GitHub Actions 工作流：
-
-- **Deploy** — 推送到 `main` 分支时自动部署到 Cloudflare Workers
-- **Release** — 推送 `v*` 标签时自动创建 GitHub Release
-- **Tag** — 手动触发创建语义化版本标签（如 `v1.0.0`）
-
-需要在 GitHub 仓库中配置以下 Secrets 和 Variables：
-
-| 类型 | 名称 | 说明 | 必须 |
-|------|------|------|------|
-| Secret | `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌 | 是 |
-| Secret | `PAT_TOKEN` | 用于创建标签的 Personal Access Token | 否¹ |
-| Secret | `JWT_SECRET` | JWT 签名密钥 | 是 |
-| Secret | `SETUP_SECRET` | 数据库初始化密钥 | 是 |
-| Variable | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID | 是 |
-| Variable | `D1_DATABASE_NAME` | D1 数据库名称 | 是 |
-| Variable | `D1_DATABASE_ID` | D1 数据库 ID | 是 |
-| Variable | `KV_NAMESPACE_ID` | KV 命名空间 ID | 是 |
-| Variable | `TABLE_PREFIX` | 数据库表名前缀 | 否² |
-
-¹ `PAT_TOKEN` 仅在使用 Tag 工作流（手动创建版本标签触发 Release）时需要，不使用该功能则无需配置。
-² `TABLE_PREFIX` 通过添加表名前缀可以实现多个项目共用同一个 D1 数据库，不同项目的表互不干扰（如 `app1_users`、`app2_users`）。留空则不加前缀。
-
-> 所有配置均在 GitHub 仓库中完成，部署时自动通过 sed 注入 `wrangler.toml`，无需在 Cloudflare 控制台手动配置变量。
-
-## 项目结构
-
-```
-├── .github/
-│   ├── workflows/          # GitHub Actions 工作流
-│   │   ├── deploy.yml      # 自动部署到 Cloudflare Workers
-│   │   ├── release.yml     # 自动创建 GitHub Release
-│   │   └── tag.yml         # 手动触发版本标签
-│   └── renovate.json       # Renovate 自动依赖更新配置
-├── web/                    # 前端项目
-│   ├── public/             # 静态资源 (logo.svg, favicon.svg 等)
-│   ├── src/
-│   │   ├── components/     # 通用组件 (ThemeProvider, UI 组件)
-│   │   ├── hooks/          # 自定义 Hooks (useAuth)
-│   │   ├── layouts/        # 布局组件
-│   │   ├── locales/        # 国际化资源 (zh.json, en.json)
-│   │   ├── pages/          # 页面
-│   │   │   ├── admin/      # 管理后台页面
-│   │   │   ├── auth/       # 认证页面 (登录、注册、2FA 等)
-│   │   │   ├── home/       # 首页
-│   │   │   ├── settings/   # 用户设置页
-│   │   │   └── about/      # 关于页
-│   │   ├── lib/            # 工具函数 (API、i18n、utils)
-│   │   └── types/          # 类型定义
-│   ├── vite.config.ts      # Vite 构建配置
-│   ├── tsconfig.json       # TypeScript 配置
-│   └── package.json
-├── worker/                 # 后端项目
-│   ├── src/
-│   │   ├── routes/         # API 路由 (auth, admin, me, setup)
-│   │   ├── core/           # 核心逻辑 (认证、时间)
-│   │   ├── middleware/      # 中间件 (认证、管理员、限流)
-│   │   ├── db/
-│   │   │   ├── queries/    # 数据库查询函数
-│   │   │   └── schema.sql  # 数据库 Schema
-│   │   └── services/       # 服务层 (邮件、2FA)
-│   ├── wrangler.toml       # Cloudflare Workers 配置
-│   ├── tsconfig.json       # TypeScript 配置
-│   └── package.json
-├── README.md               # 项目说明 (中文)
-├── README.en.md            # 项目说明 (英文)
-├── package.json            # 根 monorepo 配置
-├── pnpm-lock.yaml          # pnpm 依赖锁定文件
-├── pnpm-workspace.yaml     # pnpm 工作区配置
-└── tsconfig.base.json      # TypeScript 基础配置
-```
+[MIT](LICENSE)

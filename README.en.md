@@ -1,180 +1,130 @@
-# AppTemplate
+# eNotify
 
-A full-stack application template built on **React 19** + **Cloudflare Workers** (Hono.js), ready to use as a starting point for new projects.
+[中文](./README.md) | English
+
+A smart notification management system that helps you track expiry dates and expenses, sending reminders through multiple channels.
 
 ## Features
 
-- **Authentication** — Email/password login, registration (with on/off switch), logout, password reset
-- **2FA** — TOTP (authenticator app), Passkey (WebAuthn biometrics), Email OTP
-- **Admin Panel** — User management (roles, activate/deactivate, impersonate), system settings, email configuration, security settings
-- **User Settings** — Language (zh/en), light/dark/system theme, timezone, session management
-- **Sessions** — Multi-device session listing and revocation
-- **i18n** — Chinese and English, auto-detected from browser
-- **Theme** — Light / Dark / System via ThemeProvider
-- **Database** — Cloudflare D1 (SQLite) with optional table prefix for shared DB isolation
+- **Multi-user** — Registration/login, first user becomes admin automatically
+- **Notification Management** — Add, edit, renew, deactivate, with cycle/reset modes, regular and subscription types
+- **Auto-renewal** — Expired subscriptions are automatically renewed with payment history recorded
+- **Payment History** — Record every payment, multi-currency with real-time exchange rates
+- **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
+- **9 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX
+- **Channel Management** — Dedicated page to enable and configure notification channels
+- **Per-Item Channel Selection** — Each notification item can specify which channels to use; defaults to all enabled channels if unset
+- **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override
+- **Notification History** — View all sent notifications with delivery status
+- **Two-Factor Auth** — TOTP (authenticator app), Email OTP, Passkey
+- **Password Reset** — Reset password via email verification code
+- **Admin Panel** — User management, system settings, user impersonation
+- **Lunar Calendar** — Lunar date display and period calculation (1900-2100)
+- **Theme Switching** — Light/Dark/System
+- **Bilingual** — Chinese/English
+- **Mobile-First** — Responsive design with top bar and bottom navigation
 
 ## Tech Stack
 
-- **Frontend**: React 19, Vite, Tailwind CSS v4, shadcn/ui, React Router v7, react-i18next
-- **Backend**: Cloudflare Workers, Hono.js, D1 (SQLite), KV
-- **Auth**: JWT (access + refresh tokens, HttpOnly cookies), bcrypt, WebAuthn
+- **Backend**: Cloudflare Workers + Hono.js (TypeScript)
+- **Database**: Cloudflare D1 (SQLite)
+- **Cache**: Cloudflare KV
+- **Frontend**: React 19 + Vite + Tailwind CSS v4 + shadcn/ui
+- **Deployment**: GitHub Actions + Wrangler
 
-## Quick Start
+## Deployment Guide
 
-### 1. Clone and rename
+### Prerequisites
+
+- Cloudflare account
+- GitHub repository
+- Node.js >= 22
+- pnpm
+
+### 1. Create Cloudflare Resources
 
 ```bash
-git clone <this-repo> my-app
-cd my-app
-# Replace "app-template" and "AppTemplate" with your app name
+# Create D1 database
+npx wrangler d1 create enotify-db
+
+# Create KV namespace
+npx wrangler kv namespace create ENOTIFY_KV
 ```
 
-### 2. Install dependencies
+### 2. Configure GitHub Secrets
+
+In your repository Settings → Secrets and variables → Actions, add:
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (needs Workers and D1 permissions) |
+| `D1_DATABASE_NAME` | D1 database name |
+| `D1_DATABASE_ID` | D1 database ID |
+| `KV_NAMESPACE_ID` | KV namespace ID |
+
+### 3. Configure Worker Secrets
+
+In the Cloudflare dashboard, go to Workers → enotify → Settings → Variables → Secrets, and add:
+
+| Secret | Description |
+|--------|-------------|
+| `JWT_SECRET` | Any random 64-char string — e.g. `openssl rand -hex 32` |
+| `SETUP_SECRET` | Any random string — e.g. `openssl rand -hex 16` |
+
+Or via CLI:
 
 ```bash
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put SETUP_SECRET
+```
+
+### 4. Deploy
+
+Push to `main` branch to trigger automatic deployment.
+
+### 5. Initialize Database
+
+After deployment, visit the following URL to initialize the database:
+
+```
+https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
+```
+
+### 6. Register Admin
+
+Visit the app homepage and register an account. The first registered user will automatically become the admin.
+
+## Local Development
+
+```bash
+# Install dependencies
 pnpm install
-```
 
-### 3. Configure Wrangler
-
-Edit `worker/wrangler.toml`:
-- Set your `account_id`
-- Create a D1 database and set `database_id`
-- Create a KV namespace and set its `id`
-- Set `JWT_SECRET` (random 32+ char string)
-- Set `SETUP_SECRET` (random string for DB init)
-- Set `TABLE_PREFIX` (optional, e.g. `myapp_`, leave empty for no prefix)
-
-### 4. Initialize the database
-
-```bash
-# Deploy first, then call setup:
-
-# Option 1: GET (secret in URL, also works directly in the browser)
-curl https://your-worker.workers.dev/api/setup/your-setup-secret
-
-# Option 2: POST (secret in request header)
-curl -X POST https://your-worker.workers.dev/api/setup \
-  -H "X-Setup-Secret: your-setup-secret"
-```
-
-### 5. Start development
-
-```bash
+# Start development (frontend + backend)
 pnpm dev
+
+# Frontend only
+pnpm dev:web
+
+# Backend only
+pnpm dev:worker
 ```
-
-## Adding Business Logic
-
-### New API route (backend)
-
-1. Create `worker/src/routes/myfeature.ts`
-2. Import and register in `worker/src/index.ts`:
-   ```ts
-   import { myFeatureRoutes } from './routes/myfeature'
-   app.route('/api/myfeature', myFeatureRoutes)
-   ```
-
-### New page (frontend)
-
-1. Create `web/src/pages/myfeature/MyFeaturePage.tsx`
-2. Add route in `web/src/App.tsx`
-3. Add nav item in `web/src/components/layout/AppLayout.tsx`
-
-### Extend the database schema
-
-1. Add tables to `worker/src/db/schema.sql`
-2. Add the same CREATE TABLE statements to `getSchema()` in `worker/src/routes/setup.ts`
-3. Add query functions in `worker/src/db/queries/`
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `JWT_SECRET` | Secret for signing JWTs (random 32+ char string) |
-| `SETUP_SECRET` | Secret for calling the setup endpoint |
-| `TABLE_PREFIX` | Optional prefix for all DB table names (e.g. `myapp_`) |
+### Worker Environment Variables (Cloudflare Dashboard or wrangler.toml)
 
-> For local development, configure these in `worker/wrangler.toml` `[vars]` section. For CI/CD deployment, they are injected via GitHub Secrets/Variables — no need to configure them in the Cloudflare console.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TABLE_PREFIX` | `""` | Database table prefix (e.g., `hk_`) |
 
-## Deployment
+### Worker Secrets (configured in Cloudflare dashboard)
 
-### Manual deploy
+| Secret | Description |
+|--------|-------------|
+| `JWT_SECRET` | JWT signing secret |
+| `SETUP_SECRET` | Database initialization route secret |
 
-```bash
-pnpm deploy
-```
+## License
 
-### CI/CD auto deployment
-
-The project includes GitHub Actions workflows:
-
-- **Deploy** — Auto-deploy to Cloudflare Workers on push to `main`
-- **Release** — Auto-create GitHub Release on `v*` tag push
-- **Tag** — Manually trigger a semantic version tag (e.g. `v1.0.0`)
-
-Configure the following Secrets and Variables in your GitHub repository:
-
-| Type | Name | Description | Required |
-|------|------|-------------|----------|
-| Secret | `CLOUDFLARE_API_TOKEN` | Cloudflare API token | Yes |
-| Secret | `PAT_TOKEN` | Personal Access Token for creating tags | No¹ |
-| Secret | `JWT_SECRET` | JWT signing secret | Yes |
-| Secret | `SETUP_SECRET` | Database initialization secret | Yes |
-| Variable | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID | Yes |
-| Variable | `D1_DATABASE_NAME` | D1 database name | Yes |
-| Variable | `D1_DATABASE_ID` | D1 database ID | Yes |
-| Variable | `KV_NAMESPACE_ID` | KV namespace ID | Yes |
-| Variable | `TABLE_PREFIX` | Database table name prefix | No² |
-
-¹ `PAT_TOKEN` is only needed if you use the Tag workflow (manually create version tags to trigger Releases). Not required if you don't use this feature.
-² `TABLE_PREFIX` allows multiple projects to share the same D1 database by adding a prefix to all table names, keeping each project's tables isolated (e.g. `app1_users`, `app2_users`). Leave empty for no prefix.
-
-> All configuration is managed in the GitHub repository settings and automatically injected into `wrangler.toml` via sed during deployment — no manual configuration needed in the Cloudflare console.
-
-## Project Structure
-
-```
-├── .github/
-│   ├── workflows/          # GitHub Actions workflows
-│   │   ├── deploy.yml      # Auto-deploy to Cloudflare Workers
-│   │   ├── release.yml     # Auto-create GitHub Release
-│   │   └── tag.yml         # Manual version tag trigger
-│   └── renovate.json       # Renovate auto dependency update config
-├── web/                    # Frontend project
-│   ├── public/             # Static assets (logo.svg, favicon.svg, etc.)
-│   ├── src/
-│   │   ├── components/     # Shared components (ThemeProvider, UI components)
-│   │   ├── hooks/          # Custom hooks (useAuth)
-│   │   ├── layouts/        # Layout components
-│   │   ├── locales/        # i18n resources (zh.json, en.json)
-│   │   ├── pages/          # Pages
-│   │   │   ├── admin/      # Admin panel pages
-│   │   │   ├── auth/       # Auth pages (login, register, 2FA, etc.)
-│   │   │   ├── home/       # Home page
-│   │   │   ├── settings/   # User settings page
-│   │   │   └── about/      # About page
-│   │   ├── lib/            # Utilities (API, i18n, utils)
-│   │   └── types/          # Type definitions
-│   ├── vite.config.ts      # Vite build config
-│   ├── tsconfig.json       # TypeScript config
-│   └── package.json
-├── worker/                 # Backend project
-│   ├── src/
-│   │   ├── routes/         # API routes (auth, admin, me, setup)
-│   │   ├── core/           # Core logic (auth, time)
-│   │   ├── middleware/      # Middleware (auth, admin, rate limit)
-│   │   ├── db/
-│   │   │   ├── queries/    # Database query functions
-│   │   │   └── schema.sql  # Database schema
-│   │   └── services/       # Services (email, 2FA)
-│   ├── wrangler.toml       # Cloudflare Workers config
-│   ├── tsconfig.json       # TypeScript config
-│   └── package.json
-├── README.md               # Project readme (Chinese)
-├── README.en.md            # Project readme (English)
-├── package.json            # Root monorepo config
-├── pnpm-lock.yaml          # pnpm dependency lock file
-├── pnpm-workspace.yaml     # pnpm workspace config
-└── tsconfig.base.json      # TypeScript base config
-```
+[MIT](LICENSE)
