@@ -350,7 +350,7 @@ export function ItemListPage() {
                       <td className="px-4 py-2 text-muted-foreground overflow-hidden truncate">{item.category || '—'}</td>
                       <td className="px-4 py-2 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
                       <td className="px-4 py-2 whitespace-nowrap overflow-hidden">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2">
                           <div>
                             <span>{item.expiry_date}</span>
                             <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
@@ -463,7 +463,7 @@ export function ItemListPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-2">
                       <div>
                         <span className="text-muted-foreground">{item.expiry_date}</span>
                         <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
