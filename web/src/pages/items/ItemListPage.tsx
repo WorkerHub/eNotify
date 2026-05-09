@@ -72,7 +72,7 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
       {pos && (
         <Portal>
           <div
-            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
+            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
             style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
           >
             {tooltip.split('\n').map((line, i) => (
@@ -306,10 +306,10 @@ export function ItemListPage() {
           <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm table-fixed">
               <colgroup>
-                <col className="w-[18%]" />
+                <col className="w-[16%]" />
                 <col className="w-[10%]" />
-                <col className="w-[8%]" />
-                <col className="w-[26%]" />
+                <col className="w-[10%]" />
+                <col className="w-[24%]" />
                 <col className="w-[8%]" />
                 <col className="w-[8%]" />
                 <col className="w-[22%]" />
@@ -348,7 +348,10 @@ export function ItemListPage() {
                         {item.notes && <div className="text-xs text-muted-foreground mt-0.5 truncate">{item.notes}</div>}
                       </td>
                       <td className="px-4 py-2 text-muted-foreground overflow-hidden truncate">{item.category || '—'}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        <div>{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</div>
+                        <div className="text-xs text-muted-foreground">{item.period_value}{t(`items.periodUnit.${item.period_unit}`)}</div>
+                      </td>
                       <td className="px-4 py-2 overflow-hidden">
                         <div className="flex items-center gap-2">
                           <span>{item.expiry_date}</span>

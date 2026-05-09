@@ -52,7 +52,7 @@ function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip
           {pos && (
             <Portal>
               <div
-                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-64 whitespace-normal"
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
                 style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
               >
                 {tooltip.split('\n').map((line, i) => (
