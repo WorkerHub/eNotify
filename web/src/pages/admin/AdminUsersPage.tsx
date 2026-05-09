@@ -86,7 +86,7 @@ export function AdminUsersPage() {
     }
   }
 
-  const handleAddUser = async (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setAdding(true)
     setError('')
@@ -111,7 +111,7 @@ export function AdminUsersPage() {
     setError('')
   }
 
-  const handleEditUser = async (e: React.FormEvent) => {
+  const handleEditUser = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!editUser) return
     setEditing(true)

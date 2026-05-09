@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type FormEvent } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
@@ -129,7 +129,7 @@ export function AdminSystemPage() {
   const setResendField = (key: keyof ResendConfig, val: string) =>
     setResend((prev) => ({ ...prev, [key]: val }))
 
-  const handleSave = async (e: FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSaving(true)
     setError('')

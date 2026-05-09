@@ -26,7 +26,7 @@ export function ForgotPasswordPage() {
     return () => clearTimeout(timer)
   }, [countdown])
 
-  const handleSendCode = async (e?: React.FormEvent) => {
+  const handleSendCode = async (e?: React.SyntheticEvent<HTMLFormElement>) => {
     if (e) e.preventDefault()
     setError('')
     setLoading(true)
@@ -46,7 +46,7 @@ export function ForgotPasswordPage() {
     }
   }
 
-  const handleReset = async (e: React.FormEvent) => {
+  const handleReset = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     if (newPassword !== confirmPassword) {

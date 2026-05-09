@@ -17,7 +17,7 @@ export function RegisterPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (password !== confirmPassword) {
       setError(t('auth.passwordMismatch'))

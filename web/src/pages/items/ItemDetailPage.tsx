@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, HelpCircle } from 'lucide-react'
@@ -8,6 +8,7 @@ import { Portal } from '@/components/Portal'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
+import { useAuth } from '@/hooks/useAuth'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
@@ -125,7 +126,8 @@ export function ItemDetailPage() {
   const [resetting, setResetting] = useState(false)
 
   // Show lunar (independent of use_lunar for cycle)
-  const [showLunar, setShowLunar] = useState(false)
+  const { user } = useAuth()
+  const [showLunar, setShowLunar] = useState(!!user?.show_lunar)
 
   // Confirm dialog
   const [confirm, setConfirm] = useState<{
@@ -170,7 +172,7 @@ export function ItemDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const handleSave = async (e: FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!item) return
     setSaving(true)
@@ -221,7 +223,7 @@ export function ItemDetailPage() {
     })
   }
 
-  const handleRenew = async (e: FormEvent) => {
+  const handleRenew = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setRenewing(true)
     try {

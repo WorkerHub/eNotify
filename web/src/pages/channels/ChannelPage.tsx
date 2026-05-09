@@ -195,7 +195,7 @@ function ChannelCard({
     }
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSaving(true)
     setFeedback(null)

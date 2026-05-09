@@ -46,7 +46,7 @@ function AccountTab() {
   const [pwSuccess, setPwSuccess] = useState(false)
   const [pwLoading, setPwLoading] = useState(false)
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setPwError('')
     setPwSuccess(false)
@@ -173,7 +173,7 @@ function SecurityTab() {
     }
   }
 
-  const confirmTotpSetup = async (e: React.FormEvent) => {
+  const confirmTotpSetup = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setTotpError('')
     setTotpLoading(true)
@@ -246,7 +246,7 @@ function SecurityTab() {
     }
   }
 
-  const confirmEmailOtpEnable = async (e: React.FormEvent) => {
+  const confirmEmailOtpEnable = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setEmailOtpError('')
     setEmailOtpLoading(true)
@@ -642,7 +642,7 @@ function PreferencesTab() {
     }
   }, [user])
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setSuccess(false)

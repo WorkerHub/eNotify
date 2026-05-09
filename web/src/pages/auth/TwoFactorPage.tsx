@@ -49,7 +49,7 @@ export function TwoFactorPage() {
     setCodeSent(false)
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
+  const handleVerify = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setLoading(true)
