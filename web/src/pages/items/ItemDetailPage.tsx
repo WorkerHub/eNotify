@@ -150,7 +150,6 @@ export function ItemDetailPage() {
         name: item.name,
         item_kind: item.item_kind,
         item_mode: item.item_mode,
-        type: item.type,
         category: item.category,
         start_date: item.start_date,
         expiry_date: item.expiry_date,
@@ -356,14 +355,6 @@ export function ItemDetailPage() {
                 <option value="cycle">{t('items.mode.cycle')}</option>
                 <option value="reset">{t('items.mode.reset')}</option>
               </select>
-            </FieldWithTooltip>
-
-            <FieldWithTooltip label={t('items.type')} tooltip={t('items.typeTooltip')}>
-              <TagCombobox
-                value={item.type}
-                onChange={(v) => setField('type', v)}
-                options={tags.types}
-              />
             </FieldWithTooltip>
 
             <FieldWithTooltip label={t('items.category')} tooltip={t('items.categoryTooltip')}>

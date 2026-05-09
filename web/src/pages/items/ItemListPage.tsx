@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Eye, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
@@ -60,6 +60,46 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
   )
 }
 
+function FilterIcon({ options, selected, onChange, allLabel }: { options: string[]; selected: string; onChange: (v: string) => void; allLabel: string }) {
+  const [open, setOpen] = useState(false)
+  if (options.length === 0) return null
+  return (
+    <span className="relative inline-flex">
+      <Filter
+        className={cn('w-3.5 h-3.5 cursor-pointer', selected ? 'text-primary' : 'text-muted-foreground opacity-40')}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+      />
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 bg-card border rounded-lg shadow-lg p-2 z-30 min-w-[140px]">
+            <label className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-accent rounded">
+              <input
+                type="radio"
+                checked={selected === ''}
+                onChange={() => { onChange(''); setOpen(false) }}
+                className="accent-primary"
+              />
+              {allLabel}
+            </label>
+            {options.map((opt) => (
+              <label key={opt} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-accent rounded">
+                <input
+                  type="radio"
+                  checked={selected === opt}
+                  onChange={() => { onChange(opt); setOpen(false) }}
+                  className="accent-primary"
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </span>
+  )
+}
+
 export function ItemListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -68,10 +108,10 @@ export function ItemListPage() {
   const [error, setError] = useState('')
   const [testingId, setTestingId] = useState<string | null>(null)
   const [resettingId, setResettingId] = useState<string | null>(null)
+  const [renewingId, setRenewingId] = useState<string | null>(null)
 
   // Sort & filter
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
-  const [filterType, setFilterType] = useState<string>('')
   const [filterCategory, setFilterCategory] = useState<string>('')
 
   const loadItems = useCallback(async () => {
@@ -133,13 +173,25 @@ export function ItemListPage() {
     }
   }
 
+  const handleRenew = async (item: Item) => {
+    setRenewingId(item.id)
+    try {
+      const res = await api.post<{ new_expiry_date: string }>(`/items/${item.id}/renew`, {
+        multiplier: 1,
+      })
+      setItems((prev) => prev.map((s) => s.id === item.id ? { ...s, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : s))
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setRenewingId(null)
+    }
+  }
+
   // Derived filter options
-  const typeOptions = [...new Set(items.map((i) => i.type).filter(Boolean))]
   const categoryOptions = [...new Set(items.map((i) => i.category).filter(Boolean))]
 
   // Filtered & sorted items
   const displayItems = items
-    .filter((i) => !filterType || i.type === filterType)
     .filter((i) => !filterCategory || i.category === filterCategory)
     .sort((a, b) => {
       if (!sortOrder) return 0
@@ -181,46 +233,27 @@ export function ItemListPage() {
         </div>
       ) : (
         <>
-          {/* Sort & Filter controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setSortOrder((prev) => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-accent transition-colors"
-            >
-              {sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : sortOrder === 'desc' ? <ArrowDown className="w-3.5 h-3.5" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
-              {t('items.expiryDate')}
-              {sortOrder === 'asc' ? ` (${t('items.sortAsc')})` : sortOrder === 'desc' ? ` (${t('items.sortDesc')})` : ''}
-            </button>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border text-xs bg-background cursor-pointer"
-            >
-              <option value="">{t('items.type')} — {t('items.filterAll')}</option>
-              {typeOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border text-xs bg-background cursor-pointer"
-            >
-              <option value="">{t('items.category')} — {t('items.filterAll')}</option>
-              {categoryOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.name')}</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.type')}</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.category')}</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap relative">
+                    <span className="inline-flex items-center gap-1">
+                      {t('items.category')}
+                      <FilterIcon options={categoryOptions} selected={filterCategory} onChange={setFilterCategory} allLabel={t('items.filterAll')} />
+                    </span>
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     {t('items.mode.label')} <HelpIcon tooltip={t('items.mode.tooltip')} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.expiryDate')}</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 cursor-pointer select-none" onClick={() => setSortOrder((prev) => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}>
+                      {t('items.expiryDate')}
+                      {sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : sortOrder === 'desc' ? <ArrowDown className="w-3.5 h-3.5" /> : <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />}
+                    </span>
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('common.status')}</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('items.reminder')}</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{t('common.actions')}</th>
@@ -236,7 +269,6 @@ export function ItemListPage() {
                         <div className="font-medium">{item.name}</div>
                         {item.notes && <div className="text-xs text-muted-foreground mt-0.5 max-w-[200px] truncate">{item.notes}</div>}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.type || '—'}</td>
                       <td className="px-4 py-3 text-muted-foreground">{item.category || '—'}</td>
                       <td className="px-4 py-3 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -291,7 +323,7 @@ export function ItemListPage() {
                           >
                             <Bell className="w-4 h-4" />
                           </button>
-                          {item.item_mode === 'reset' && (
+                          {item.item_mode === 'reset' ? (
                             <button
                               onClick={() => handleReset(item)}
                               disabled={resettingId === item.id}
@@ -300,6 +332,16 @@ export function ItemListPage() {
                               aria-label={t('items.resetCycle')}
                             >
                               <RotateCcw className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRenew(item)}
+                              disabled={renewingId === item.id}
+                              className="p-1.5 rounded hover:bg-accent transition-colors disabled:opacity-50"
+                              title={t('items.renew')}
+                              aria-label={t('items.renew')}
+                            >
+                              <RefreshCw className="w-4 h-4" />
                             </button>
                           )}
                           <button
@@ -334,7 +376,6 @@ export function ItemListPage() {
                         <span className="text-xs px-1.5 py-0.5 rounded bg-muted">
                           {item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}
                         </span>
-                        {item.type && <span className="text-xs text-muted-foreground">{item.type}</span>}
                         {item.category && <span className="text-xs text-muted-foreground">{item.category}</span>}
                       </div>
                     </div>
@@ -385,7 +426,7 @@ export function ItemListPage() {
                       <Bell className="w-3 h-3" />
                       {t('items.testNotify')}
                     </button>
-                    {item.item_mode === 'reset' && (
+                    {item.item_mode === 'reset' ? (
                       <button
                         onClick={() => handleReset(item)}
                         disabled={resettingId === item.id}
@@ -393,6 +434,15 @@ export function ItemListPage() {
                       >
                         <RotateCcw className="w-3 h-3" />
                         {t('items.resetCycle')}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRenew(item)}
+                        disabled={renewingId === item.id}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        {t('items.renew')}
                       </button>
                     )}
                     <button

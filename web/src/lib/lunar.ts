@@ -27,6 +27,16 @@ const lunarInfo: readonly number[] = [
   0x0d250,
 ]
 
+const HEAVENLY = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const
+const EARTHLY = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const
+const ZODIAC = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'] as const
+
+function lunarYearName(year: number): string {
+  const h = (year - 4) % 10
+  const e = (year - 4) % 12
+  return HEAVENLY[h < 0 ? h + 10 : h] + EARTHLY[e < 0 ? e + 12 : e]
+}
+
 const MONTHS = ['正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '冬', '腊'] as const
 const DAYS = [
   '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
@@ -43,7 +53,7 @@ function lunarYearDays(year: number): number {
   return sum + leapDays(year)
 }
 
-export function solarToLunar(year: number, month: number, day: number): { monthStr: string; dayStr: string; isLeap: boolean } | null {
+export function solarToLunar(year: number, month: number, day: number): { lunarYear: number; monthStr: string; dayStr: string; isLeap: boolean } | null {
   if (year < 1900 || year > 2100) return null
   const baseMs = Date.UTC(1900, 0, 31)
   const dateMs = Date.UTC(year, month - 1, day)
@@ -69,6 +79,7 @@ export function solarToLunar(year: number, month: number, day: number): { monthS
   if (offset < 0) { offset += temp; --lunarMonth }
 
   return {
+    lunarYear,
     monthStr: (isLeap ? '闰' : '') + MONTHS[lunarMonth - 1] + '月',
     dayStr: DAYS[offset],
     isLeap,
@@ -86,5 +97,5 @@ export function formatLunarDate(solarDateStr: string): string | null {
   const [y, m, d] = parts
   const lunar = solarToLunar(y, m, d)
   if (!lunar) return null
-  return `农历 ${lunar.monthStr}${lunar.dayStr}`
+  return `${lunarYearName(lunar.lunarYear)}年${lunar.monthStr}${lunar.dayStr}`
 }

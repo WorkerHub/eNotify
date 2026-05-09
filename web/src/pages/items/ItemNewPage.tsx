@@ -16,7 +16,6 @@ interface FormData {
   name: string
   item_kind: 'regular' | 'subscription'
   item_mode: 'cycle' | 'reset'
-  type: string
   category: string
   start_date: string
   expiry_date: string
@@ -37,7 +36,6 @@ const DEFAULT: FormData = {
   name: '',
   item_kind: 'regular',
   item_mode: 'cycle',
-  type: '',
   category: '',
   start_date: '',
   expiry_date: '',
@@ -80,7 +78,7 @@ export function ItemNewPage() {
   const [tags, setTags] = useState<{ types: string[]; categories: string[] }>({ types: [], categories: [] })
 
   useEffect(() => {
-    api.get<{ types: string[]; categories: string[] }>('/items/tags').then(setTags).catch(() => {})
+    api.get<{ types: string[]; categories: string[] }>('/items/tags').then((r) => setTags(r)).catch(() => {})
   }, [])
 
   const set = <K extends keyof FormData>(key: K, val: FormData[K]) =>
@@ -176,14 +174,6 @@ export function ItemNewPage() {
               <option value="cycle">{t('items.mode.cycle')}</option>
               <option value="reset">{t('items.mode.reset')}</option>
             </select>
-          </Field>
-
-          <Field label={t('items.type')}>
-            <TagCombobox
-              value={form.type}
-              onChange={(v) => set('type', v)}
-              options={tags.types}
-            />
           </Field>
 
           <Field label={t('items.category')}>
