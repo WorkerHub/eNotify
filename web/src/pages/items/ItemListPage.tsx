@@ -306,13 +306,13 @@ export function ItemListPage() {
           <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm table-fixed">
               <colgroup>
-                <col className="w-[20%]" />
-                <col className="w-[12%]" />
+                <col className="w-[18%]" />
                 <col className="w-[10%]" />
-                <col className="w-[24%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
-                <col className="w-[14%]" />
+                <col className="w-[8%]" />
+                <col className="w-[26%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+                <col className="w-[22%]" />
               </colgroup>
               <thead className="bg-muted/50">
                 <tr>
@@ -342,24 +342,22 @@ export function ItemListPage() {
                   const status = getStatus(item)
                   const days = getDaysRemaining(item.expiry_date)
                   return (
-                    <tr key={item.id} className="hover:bg-muted/30 transition-colors h-[68px]">
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-2 overflow-hidden">
                         <div className="font-medium truncate">{item.name}</div>
                         {item.notes && <div className="text-xs text-muted-foreground mt-0.5 truncate">{item.notes}</div>}
                       </td>
                       <td className="px-4 py-2 text-muted-foreground overflow-hidden truncate">{item.category || '—'}</td>
                       <td className="px-4 py-2 text-muted-foreground">{item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}</td>
-                      <td className="px-4 py-2 whitespace-nowrap overflow-hidden">
-                        <div className="flex items-start gap-2">
-                          <div>
-                            <span>{item.expiry_date}</span>
-                            <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
-                            {item.start_date && (
-                              <span className="text-xs text-muted-foreground block">{t('items.startDate')}：{item.start_date}</span>
-                            )}
-                          </div>
+                      <td className="px-4 py-2 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <span>{item.expiry_date}</span>
                           <DaysBadge days={days} />
                         </div>
+                        <span className="text-xs text-muted-foreground block truncate">{formatLunarDate(item.expiry_date)}</span>
+                        {item.start_date && (
+                          <span className="text-xs text-muted-foreground block truncate">{t('items.startDate')}：{item.start_date}</span>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', STATUS_STYLES[status])}>
@@ -372,7 +370,7 @@ export function ItemListPage() {
                           : t('items.reminderDays', { value: item.reminder_value })}
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center flex-wrap gap-1">
                           <button
                             onClick={() => navigate(`/items/${item.id}`)}
                             className="p-1.5 rounded hover:bg-accent transition-colors"
