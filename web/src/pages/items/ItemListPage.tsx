@@ -492,55 +492,55 @@ export function ItemListPage() {
                   <div className="flex items-end justify-between pt-1 border-t">
                     <button
                       onClick={() => navigate(`/items/${item.id}`)}
-                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors flex-1 min-w-0"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                      <span>{t('common.edit')}</span>
+                      <span className="truncate w-full text-center">{t('common.edit')}</span>
                     </button>
                     <button
                       onClick={() => handleToggle(item)}
-                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors flex-1 min-w-0"
                     >
                       {item.is_active ? (
                         <ToggleRight className="w-3.5 h-3.5 text-green-500" />
                       ) : (
                         <ToggleLeft className="w-3.5 h-3.5" />
                       )}
-                      <span>{item.is_active ? t('admin.deactivate') : t('admin.activate')}</span>
+                      <span className="truncate w-full text-center">{item.is_active ? t('admin.deactivate') : t('admin.activate')}</span>
                     </button>
                     <button
                       onClick={() => handleTestNotify(item)}
                       disabled={testingId === item.id}
-                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
                     >
                       <Bell className="w-3.5 h-3.5" />
-                      <span>{t('items.testNotify')}</span>
+                      <span className="truncate w-full text-center">{t('items.testNotify')}</span>
                     </button>
                     {item.item_mode === 'reset' ? (
                       <button
                         onClick={() => handleReset(item)}
                         disabled={resettingId === item.id}
-                        className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                        className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        <span>{t('items.resetCycle')}</span>
+                        <span className="truncate w-full text-center">{t('items.resetCycle')}</span>
                       </button>
                     ) : (
                       <button
                         onClick={() => handleRenew(item)}
                         disabled={renewingId === item.id}
-                        className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                        className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
-                        <span>{t('items.renew')}</span>
+                        <span className="truncate w-full text-center">{t('items.renew')}</span>
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(item)}
-                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex-1 min-w-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>{t('common.delete')}</span>
+                      <span className="truncate w-full text-center">{t('common.delete')}</span>
                     </button>
                   </div>
                 </div>
