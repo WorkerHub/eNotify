@@ -133,6 +133,7 @@
     "renew": "续费",
     "renewMultiplier": "续费倍数",
     "paymentHistory": "支付历史",
+    "renewHistory": "续期历史",
     "testNotify": "测试",
     "resetCycle": "重置",
     "resetConfirm": "确定要重置周期吗？新的到期日将从今天起算。",
@@ -158,6 +159,7 @@
       "manual": "手动",
       "auto": "自动"
     },
+    "kind": "提醒类型",
     "kind": "提醒类型",
     "kindRegular": "普通提醒",
     "kindSubscription": "订阅提醒",

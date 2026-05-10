@@ -395,32 +395,12 @@ export function ItemDetailPage() {
       <section className="bg-card rounded-xl border p-5 space-y-5">
         <h2 className="font-semibold text-base">{t('common.edit')}</h2>
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Kind selector */}
-          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
-            <button
-              type="button"
-              onClick={() => setField('item_kind', 'regular')}
-              className={cn(
-                'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-                item.item_kind === 'regular'
-                  ? 'bg-background shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('items.kindRegular')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setField('item_kind', 'subscription')}
-              className={cn(
-                'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-                item.item_kind === 'subscription'
-                  ? 'bg-background shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('items.kindSubscription')}
-            </button>
+          {/* Kind (read-only) */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">{t('items.kind')}：</span>
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-foreground">
+              {item.item_kind === 'subscription' ? t('items.kindSubscription') : t('items.kindRegular')}
+            </span>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
@@ -590,26 +570,62 @@ export function ItemDetailPage() {
             )}
           </div>
 
-          {/* Calendar mode selector */}
-          <Field label={t('items.calendarMode')}>
-            <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
-              {(['solar', 'lunar', 'both'] as const).map((mode) => (
+          {/* Calendar mode selector + action buttons */}
+          <div className="grid sm:grid-cols-2 gap-4 items-end">
+            <Field label={t('items.calendarMode')}>
+              <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                {(['solar', 'lunar', 'both'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setField('calendar_mode', mode)}
+                    className={cn(
+                      'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                      item.calendar_mode === mode
+                        ? 'bg-background shadow text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <div className="flex flex-wrap gap-3">
+              {item.item_mode === 'cycle' && (
                 <button
-                  key={mode}
                   type="button"
-                  onClick={() => setField('calendar_mode', mode)}
-                  className={cn(
-                    'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-                    item.calendar_mode === mode
-                      ? 'bg-background shadow text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
+                  onClick={handleQuickRenew}
+                  disabled={renewing}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
                 >
-                  {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                  <RefreshCw className="w-4 h-4" />
+                  {renewing ? t('common.loading') : t('items.renew')}
                 </button>
-              ))}
+              )}
+              {item.item_mode === 'reset' && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={resetting}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  {resetting ? t('common.loading') : t('items.resetCycle')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleTestNotify}
+                disabled={notifying}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {t('items.testNotify')}
+              </button>
+              {notifyMsg && <span className={cn('text-sm self-center', notifyError ? 'text-destructive' : 'text-green-600')}>{notifyMsg}</span>}
             </div>
-          </Field>
+          </div>
 
           <Field label={t('items.notes')}>
             <textarea
@@ -644,40 +660,11 @@ export function ItemDetailPage() {
         </form>
       </section>
 
-      {/* Actions: Renew/Reset + Test notify + Delete */}
-      <section className="flex flex-wrap gap-3">
-        {item.item_mode === 'cycle' && (
-          <button
-            onClick={handleQuickRenew}
-            disabled={renewing}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            {renewing ? t('common.loading') : t('items.renew')}
-          </button>
-        )}
-        {item.item_mode === 'reset' && (
-          <button
-            onClick={handleReset}
-            disabled={resetting}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            {resetting ? t('common.loading') : t('items.resetCycle')}
-          </button>
-        )}
-        <button
-          onClick={handleTestNotify}
-          disabled={notifying}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-        >
-          <Bell className="w-4 h-4" />
-          {t('items.testNotify')}
-        </button>
-        {notifyMsg && <span className={cn('text-sm self-center', notifyError ? 'text-destructive' : 'text-green-600')}>{notifyMsg}</span>}
+      {/* Delete */}
+      <section className="flex">
         <button
           onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors ml-auto"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
           {t('common.delete')}
@@ -734,9 +721,11 @@ export function ItemDetailPage() {
         </form>
       </section>}
 
-      {/* Payment history */}
-      {item.item_kind === 'subscription' && <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t('items.paymentHistory')}</h2>
+      {/* Payment / Renewal history */}
+      <section className="bg-card rounded-xl border p-5 space-y-4">
+        <h2 className="font-semibold text-base">
+          {item.item_kind === 'subscription' ? t('items.paymentHistory') : t('items.renewHistory')}
+        </h2>
 
         {payments.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('dashboard.noData')}</p>
@@ -887,7 +876,7 @@ export function ItemDetailPage() {
             </div>
           </>
         )}
-      </section>}
+      </section>
 
       <ConfirmDialog
         open={!!confirm}

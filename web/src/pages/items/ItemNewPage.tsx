@@ -1,14 +1,16 @@
 import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import type { Item } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { formatLunarDate, solarToLunar, lunarToSolar } from '@/lib/lunar'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -122,6 +124,7 @@ export function ItemNewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [tags, setTags] = useState<string[]>([])
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   useEffect(() => {
     api.get<{ categories: string[] }>('/items/tags').then((r) => setTags(r.categories || [])).catch(() => {})
@@ -133,22 +136,57 @@ export function ItemNewPage() {
   const derivedExpiry = useMemo(() => {
     if (!form.start_date) return null
     const pv = Number(form.period_value) || 1
+    const today = getTodayStr()
 
     if (form.calendar_mode === 'both') {
-      const solarDate = addPeriod(form.start_date, pv, form.period_unit)
-      const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
+      let solarDate = addPeriod(form.start_date, pv, form.period_unit)
+      let lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
+      let iter = 0
+      while (iter < 1000) {
+        const minDate = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
+        if (minDate >= today) break
+        solarDate = addPeriod(solarDate, pv, form.period_unit)
+        lunarDate = lunarDate
+          ? (addLunarPeriod(lunarDate, pv, form.period_unit) ?? addPeriod(lunarDate, pv, form.period_unit))
+          : null
+        iter++
+      }
       const stored = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
       return { solar: solarDate, lunarDate, stored }
     }
 
     if (form.calendar_mode === 'lunar') {
-      const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit) ?? addPeriod(form.start_date, pv, form.period_unit)
+      let lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit) ?? addPeriod(form.start_date, pv, form.period_unit)
+      let iter = 0
+      while (lunarDate < today && iter < 1000) {
+        lunarDate = addLunarPeriod(lunarDate, pv, form.period_unit) ?? addPeriod(lunarDate, pv, form.period_unit)
+        iter++
+      }
       return { solar: lunarDate, lunarDate: null as string | null, stored: lunarDate }
     }
 
-    const solarDate = addPeriod(form.start_date, pv, form.period_unit)
+    let solarDate = addPeriod(form.start_date, pv, form.period_unit)
+    let iter = 0
+    while (solarDate < today && iter < 1000) {
+      solarDate = addPeriod(solarDate, pv, form.period_unit)
+      iter++
+    }
     return { solar: solarDate, lunarDate: null as string | null, stored: solarDate }
   }, [form.start_date, form.period_value, form.period_unit, form.calendar_mode])
+
+  const buildPayload = () => ({
+    ...form,
+    expiry_date: derivedExpiry!.stored,
+    lunar_expiry_date: form.calendar_mode === 'both' ? derivedExpiry!.lunarDate : null,
+    period_value: Number(form.period_value) || 1,
+    reminder_value: Number(form.reminder_value) || 7,
+    amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
+    start_date: form.start_date || null,
+    auto_renew: form.auto_renew ? 1 : 0,
+    calendar_mode: form.calendar_mode,
+    channels: form.channels,
+    notification_hours: form.notification_hours,
+  })
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -159,25 +197,34 @@ export function ItemNewPage() {
     setSubmitting(true)
     setError('')
     try {
-      await api.post('/items', {
-        ...form,
-        expiry_date: derivedExpiry.stored,
-        lunar_expiry_date: form.calendar_mode === 'both' ? derivedExpiry.lunarDate : null,
-        period_value: Number(form.period_value) || 1,
-        reminder_value: Number(form.reminder_value) || 7,
-        amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
-        start_date: form.start_date || null,
-        auto_renew: form.auto_renew ? 1 : 0,
-        calendar_mode: form.calendar_mode,
-        channels: form.channels,
-        notification_hours: form.notification_hours,
-      })
+      await api.post('/items', buildPayload())
       navigate('/items')
     } catch (e: any) {
       setError(e.message)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleSaveAndTest = () => {
+    if (!form.name.trim() || !form.start_date || !derivedExpiry) return
+    setConfirm({
+      message: t('items.testNotifyConfirm'),
+      onConfirm: async () => {
+        setConfirm(null)
+        setSubmitting(true)
+        setError('')
+        try {
+          const created = await api.post<Item>('/items', buildPayload())
+          await api.post(`/items/${created.id}/test-notify`)
+          navigate(`/items/${created.id}`)
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setSubmitting(false)
+        }
+      },
+    })
   }
 
   return (
@@ -391,26 +438,39 @@ export function ItemNewPage() {
 
         </div>
 
-        {/* Calendar mode selector */}
-        <Field label={t('items.calendarMode')}>
-          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
-            {(['solar', 'lunar', 'both'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => set('calendar_mode', mode)}
-                className={cn(
-                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-                  form.calendar_mode === mode
-                    ? 'bg-background shadow text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
-              </button>
-            ))}
+        {/* Calendar mode selector + test button */}
+        <div className="grid sm:grid-cols-2 gap-4 items-end">
+          <Field label={t('items.calendarMode')}>
+            <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+              {(['solar', 'lunar', 'both'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => set('calendar_mode', mode)}
+                  className={cn(
+                    'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    form.calendar_mode === mode
+                      ? 'bg-background shadow text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t(`items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <div>
+            <button
+              type="button"
+              onClick={handleSaveAndTest}
+              disabled={submitting || !form.name.trim() || !form.start_date || !derivedExpiry}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              {submitting ? t('common.loading') : t('items.testNotify')}
+            </button>
           </div>
-        </Field>
+        </div>
 
         {/* Notes */}
         <Field label={t('items.notes')}>
@@ -451,6 +511,16 @@ export function ItemNewPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={!!confirm}
+        message={confirm?.message || ''}
+        variant="primary"
+        confirmLabel={t('common.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirm?.onConfirm || (() => {})}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }
