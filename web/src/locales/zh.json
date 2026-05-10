@@ -128,7 +128,6 @@
     "calendarSolar": "阳历",
     "calendarLunar": "农历",
     "calendarBoth": "阳历+农历",
-    "expiryBothNote": "存入较近日期，到期后自动更新",
     "enableItem": "启用通知",
     "notes": "备注",
     "renew": "续费",

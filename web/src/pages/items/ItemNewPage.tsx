@@ -287,60 +287,60 @@ export function ItemNewPage() {
             </div>
           </Field>
 
-          <Field label={t('items.expiryDate')} required>
-            {derivedExpiry ? (
-              form.calendar_mode === 'both' ? (
-                <div className="space-y-2">
+          <div className={cn(form.calendar_mode === 'both' && 'sm:row-span-2')}>
+            <Field label={t('items.expiryDate')} required>
+              {derivedExpiry ? (
+                form.calendar_mode === 'both' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarSolar')}</span>
+                      <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
+                        {derivedExpiry.solar}
+                      </span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarLunar')}</span>
+                      <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
+                        {derivedExpiry.lunarDate ?? '—'}
+                      </span>
+                      {derivedExpiry.lunarDate && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.lunarDate)}</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarSolar')}</span>
                     <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
                       {derivedExpiry.solar}
                     </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarLunar')}</span>
-                    <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
-                      {derivedExpiry.lunarDate ?? '—'}
-                    </span>
-                    {derivedExpiry.lunarDate && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.lunarDate)}</span>
+                    {form.calendar_mode === 'lunar' && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{t('items.expiryBothNote')}</p>
-                </div>
+                )
               ) : (
-                <div className="flex items-center gap-2">
-                  <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
-                    {derivedExpiry.solar}
-                  </span>
-                  {form.calendar_mode === 'lunar' && (
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
-                  )}
-                </div>
-              )
-            ) : (
-              <div className={cn(INPUT, 'bg-muted/50 text-muted-foreground')}>—</div>
-            )}
+                <div className={cn(INPUT, 'bg-muted/50 text-muted-foreground')}>—</div>
+              )}
+            </Field>
+          </div>
+
+          <Field label={t('items.reminderBefore')}>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                className={cn(INPUT, 'w-24')}
+                value={form.reminder_value}
+                onChange={(e) => set('reminder_value', e.target.value)}
+              />
+              <select className={SELECT} value={form.reminder_unit} onChange={(e) => set('reminder_unit', e.target.value as FormData['reminder_unit'])}>
+                <option value="day">{t('items.periodUnit.day')}</option>
+                <option value="hour">{t('items.periodUnit.hour')}</option>
+              </select>
+            </div>
           </Field>
         </div>
-
-        {/* Reminder */}
-        <Field label={t('items.reminderBefore')}>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={0}
-              className={cn(INPUT, 'w-24')}
-              value={form.reminder_value}
-              onChange={(e) => set('reminder_value', e.target.value)}
-            />
-            <select className={SELECT} value={form.reminder_unit} onChange={(e) => set('reminder_unit', e.target.value as FormData['reminder_unit'])}>
-              <option value="day">{t('items.periodUnit.day')}</option>
-              <option value="hour">{t('items.periodUnit.hour')}</option>
-            </select>
-          </div>
-        </Field>
 
         {/* Amount + currency */}
         {form.item_kind === 'subscription' && (

@@ -128,7 +128,6 @@
     "calendarSolar": "Solar",
     "calendarLunar": "Lunar",
     "calendarBoth": "Solar + Lunar",
-    "expiryBothNote": "Earlier date stored; updates when it expires",
     "enableItem": "Enable Notification",
     "notes": "Notes",
     "renew": "Renew",
