@@ -456,8 +456,12 @@ export function ItemListPage() {
                       <p className="font-semibold">{item.name}</p>
                       {item.notes && <p className="text-xs text-muted-foreground mt-0.5">{item.notes}</p>}
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted">
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted flex items-center gap-1">
                           {item.item_mode === 'reset' ? t('items.mode.reset') : t('items.mode.cycle')}
+                        </span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                          {item.item_mode === 'reset' ? <RotateCcw className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                          {item.period_value}{t(`items.periodUnit.${item.period_unit}`)}
                         </span>
                         {item.category && <span className="text-xs text-muted-foreground">{item.category}</span>}
                       </div>
@@ -469,13 +473,15 @@ export function ItemListPage() {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-start gap-2">
                       <div>
-                        <span className="text-muted-foreground">{item.expiry_date}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{item.expiry_date}</span>
+                          <DaysBadge days={days} />
+                        </div>
                         <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
                         {item.start_date && (
                           <span className="text-xs text-muted-foreground block">{t('items.startDate')}：{item.start_date}</span>
                         )}
                       </div>
-                      <DaysBadge days={days} />
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {item.reminder_unit === 'hour'
@@ -483,58 +489,58 @@ export function ItemListPage() {
                         : t('items.reminderDays', { value: item.reminder_value })}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 pt-1 border-t">
+                  <div className="flex items-end gap-3 pt-1 border-t">
                     <button
                       onClick={() => navigate(`/items/${item.id}`)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
-                      <Pencil className="w-3 h-3" />
-                      {t('common.edit')}
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>{t('common.edit')}</span>
                     </button>
                     <button
                       onClick={() => handleToggle(item)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
                     >
                       {item.is_active ? (
-                        <ToggleRight className="w-3 h-3 text-green-500" />
+                        <ToggleRight className="w-3.5 h-3.5 text-green-500" />
                       ) : (
-                        <ToggleLeft className="w-3 h-3" />
+                        <ToggleLeft className="w-3.5 h-3.5" />
                       )}
-                      {item.is_active ? t('admin.deactivate') : t('admin.activate')}
+                      <span>{item.is_active ? t('admin.deactivate') : t('admin.activate')}</span>
                     </button>
                     <button
                       onClick={() => handleTestNotify(item)}
                       disabled={testingId === item.id}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
                     >
-                      <Bell className="w-3 h-3" />
-                      {t('items.testNotify')}
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>{t('items.testNotify')}</span>
                     </button>
                     {item.item_mode === 'reset' ? (
                       <button
                         onClick={() => handleReset(item)}
                         disabled={resettingId === item.id}
-                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                        className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
                       >
-                        <RotateCcw className="w-3 h-3" />
-                        {t('items.resetCycle')}
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>{t('items.resetCycle')}</span>
                       </button>
                     ) : (
                       <button
                         onClick={() => handleRenew(item)}
                         disabled={renewingId === item.id}
-                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
+                        className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors"
                       >
-                        <RefreshCw className="w-3 h-3" />
-                        {t('items.renew')}
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>{t('items.renew')}</span>
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(item)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors ml-auto"
+                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors ml-auto"
                     >
-                      <Trash2 className="w-3 h-3" />
-                      {t('common.delete')}
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t('common.delete')}</span>
                     </button>
                   </div>
                 </div>
