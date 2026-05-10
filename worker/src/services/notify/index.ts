@@ -63,6 +63,17 @@ export async function sendNotifications(
     const sender = CHANNEL_SENDERS[channel]
     if (!sender) {
       results.push({ channel, success: false, error: 'Unknown channel' })
+      if (context) {
+        insertNotificationHistory(context.db, context.prefix, {
+          id: generateId(),
+          user_id: context.userId,
+          item_id: context.itemId,
+          channel,
+          title: message.title,
+          success: false,
+          error: 'Unknown channel',
+        }).catch(() => {})
+      }
       continue
     }
 
