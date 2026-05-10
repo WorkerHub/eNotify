@@ -629,7 +629,6 @@ function PreferencesTab() {
 
   const [timezone, setTimezone] = useState(user?.timezone ?? 'UTC')
   const [baseCurrency, setBaseCurrency] = useState(user?.base_currency ?? 'USD')
-  const [showLunar, setShowLunar] = useState(user?.show_lunar ?? false)
   const [language, setLanguage] = useState(user?.language ?? 'en')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -639,7 +638,6 @@ function PreferencesTab() {
     if (user) {
       setTimezone(user.timezone ?? 'UTC')
       setBaseCurrency(user.base_currency ?? 'USD')
-      setShowLunar(user.show_lunar ?? false)
       setLanguage(user.language ?? 'en')
     }
   }, [user])
@@ -655,7 +653,6 @@ function PreferencesTab() {
         base_currency: baseCurrency,
         language,
         theme,
-        show_lunar: showLunar,
       })
       await refreshUser()
       if (i18n.language !== language) {
@@ -748,30 +745,6 @@ function PreferencesTab() {
             </option>
           ))}
         </select>
-      </div>
-
-      {/* Show lunar */}
-      <div className="bg-card border rounded-lg p-5">
-        <label className="flex items-center justify-between cursor-pointer">
-          <h3 className="text-sm font-semibold text-foreground">{t('settings.showLunar')}</h3>
-          <button
-            type="button"
-            onClick={() => setShowLunar((p) => !p)}
-            className={cn(
-              'relative shrink-0 w-10 h-6 cursor-pointer rounded-full transition-colors',
-              showLunar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-            )}
-            role="switch"
-            aria-checked={showLunar}
-          >
-            <span
-              className={cn(
-                'pointer-events-none absolute top-1/2 -translate-y-1/2 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                showLunar ? 'translate-x-4' : 'translate-x-0'
-              )}
-            />
-          </button>
-        </label>
       </div>
 
       {error && (
