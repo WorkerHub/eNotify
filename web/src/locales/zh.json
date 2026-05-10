@@ -168,6 +168,8 @@
     "categoryTooltip": "描述性质，比如：个人 / 工作 / 生活 / 娱乐",
     "reminderDays": "提前 {{value}} 天",
     "reminderHours": "提前 {{value}} 小时",
+    "nextReminderIn": "下次提醒：{{value}} 天后",
+    "nextReminderActive": "下次提醒：即将触发",
     "sortAsc": "升序",
     "sortDesc": "降序",
     "filter": "筛选",

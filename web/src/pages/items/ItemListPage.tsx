@@ -371,9 +371,18 @@ export function ItemListPage() {
                         </span>
                       </td>
                       <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
-                        {item.reminder_unit === 'hour'
-                          ? t('items.reminderHours', { value: item.reminder_value })
-                          : t('items.reminderDays', { value: item.reminder_value })}
+                        <div>
+                          {item.reminder_unit === 'hour'
+                            ? t('items.reminderHours', { value: item.reminder_value })
+                            : t('items.reminderDays', { value: item.reminder_value })}
+                        </div>
+                        {days > 0 && item.reminder_unit !== 'hour' && (
+                          <div className="text-xs mt-0.5">
+                            {days > item.reminder_value
+                              ? t('items.nextReminderIn', { value: days - item.reminder_value })
+                              : t('items.nextReminderActive')}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center flex-wrap gap-1">
@@ -483,11 +492,20 @@ export function ItemListPage() {
                         )}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {item.reminder_unit === 'hour'
-                        ? t('items.reminderHours', { value: item.reminder_value })
-                        : t('items.reminderDays', { value: item.reminder_value })}
-                    </span>
+                    <div className="text-xs text-muted-foreground">
+                      <div>
+                        {item.reminder_unit === 'hour'
+                          ? t('items.reminderHours', { value: item.reminder_value })
+                          : t('items.reminderDays', { value: item.reminder_value })}
+                      </div>
+                      {days > 0 && item.reminder_unit !== 'hour' && (
+                        <div>
+                          {days > item.reminder_value
+                            ? t('items.nextReminderIn', { value: days - item.reminder_value })
+                            : t('items.nextReminderActive')}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-end justify-between pt-1 border-t gap-1.5">
                     <button

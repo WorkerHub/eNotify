@@ -168,6 +168,8 @@
     "categoryTooltip": "Describe the nature, e.g.: Personal / Work / Life / Entertainment",
     "reminderDays": "{{value}} days before",
     "reminderHours": "{{value}} hours before",
+    "nextReminderIn": "Next: in {{value}} days",
+    "nextReminderActive": "Next: active",
     "sortAsc": "Ascending",
     "sortDesc": "Descending",
     "filter": "Filter",
