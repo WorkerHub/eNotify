@@ -268,6 +268,25 @@ export function ItemNewPage() {
             </div>
           </Field>
 
+          <Field label={t('items.period')} required>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                className={cn(INPUT, 'w-24')}
+                value={form.period_value}
+                onChange={(e) => set('period_value', e.target.value)}
+                required
+              />
+              <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
+                <option value="day">{t('items.periodUnit.day')}</option>
+                <option value="week">{t('items.periodUnit.week')}</option>
+                <option value="month">{t('items.periodUnit.month')}</option>
+                <option value="year">{t('items.periodUnit.year')}</option>
+              </select>
+            </div>
+          </Field>
+
           <Field label={t('items.expiryDate')} required>
             {derivedExpiry ? (
               form.calendar_mode === 'both' ? (
@@ -305,26 +324,6 @@ export function ItemNewPage() {
             )}
           </Field>
         </div>
-
-        {/* Period */}
-        <Field label={t('items.period')} required>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={1}
-              className={cn(INPUT, 'w-24')}
-              value={form.period_value}
-              onChange={(e) => set('period_value', e.target.value)}
-              required
-            />
-            <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
-              <option value="day">{t('items.periodUnit.day')}</option>
-              <option value="week">{t('items.periodUnit.week')}</option>
-              <option value="month">{t('items.periodUnit.month')}</option>
-              <option value="year">{t('items.periodUnit.year')}</option>
-            </select>
-          </div>
-        </Field>
 
         {/* Reminder */}
         <Field label={t('items.reminderBefore')}>
