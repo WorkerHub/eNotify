@@ -296,7 +296,7 @@ itemRoutes.post('/:id/renew', async (c) => {
           ? addLunarYears(newLunarExpiry, item.period_value)
           : addPeriod(newLunarExpiry, item.period_value, item.period_unit)
       newLunarExpiry = nextLunar
-      newExpiry = nextSolar <= nextLunar ? nextSolar : nextLunar
+      newExpiry = nextSolar
     } else {
       newExpiry = addPeriod(newExpiry, item.period_value, item.period_unit)
     }
@@ -352,7 +352,7 @@ itemRoutes.post('/:id/reset', async (c) => {
       : item.period_unit === 'year'
         ? addLunarYears(today, item.period_value)
         : addPeriod(today, item.period_value, item.period_unit)
-    newExpiry = solarExpiry <= newLunarExpiry ? solarExpiry : newLunarExpiry
+    newExpiry = solarExpiry
   } else if (item.calendar_mode === 'lunar' && item.period_unit === 'month') {
     newExpiry = addLunarMonths(today, item.period_value)
   } else if (item.calendar_mode === 'lunar' && item.period_unit === 'year') {

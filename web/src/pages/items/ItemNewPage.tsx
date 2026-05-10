@@ -176,7 +176,7 @@ export function ItemNewPage() {
 
   const buildPayload = () => ({
     ...form,
-    expiry_date: derivedExpiry!.stored,
+    expiry_date: derivedExpiry!.solar,
     lunar_expiry_date: form.calendar_mode === 'both' ? derivedExpiry!.lunarDate : null,
     period_value: Number(form.period_value) || 1,
     reminder_value: Number(form.reminder_value) || 7,
