@@ -9,8 +9,8 @@ export async function createUser(
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO ${table} (id, email, password_hash, role, is_active, email_verified, base_currency, timezone, language, theme, show_lunar, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 1, 0, 'CNY', 'UTC', 'zh', 'system', 0, ?, ?)`
+      `INSERT INTO ${table} (id, email, password_hash, role, is_active, email_verified, base_currency, timezone, language, theme, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 1, 0, 'CNY', 'UTC', 'zh', 'system', ?, ?)`
     )
     .bind(data.id, data.email, data.password_hash, data.role, now, now)
     .run();
@@ -44,11 +44,11 @@ export async function updateUser(
   db: D1Database,
   prefix: string,
   id: string,
-  data: Partial<Pick<User, 'email' | 'password_hash' | 'is_active' | 'email_verified' | 'base_currency' | 'timezone' | 'language' | 'theme' | 'role' | 'show_lunar'>>
+  data: Partial<Pick<User, 'email' | 'password_hash' | 'is_active' | 'email_verified' | 'base_currency' | 'timezone' | 'language' | 'theme' | 'role'>>
 ): Promise<void> {
   const table = `${prefix}users`;
   const now = new Date().toISOString();
-  const allowedCols = new Set(['email', 'password_hash', 'is_active', 'email_verified', 'base_currency', 'timezone', 'language', 'theme', 'role', 'show_lunar']);
+  const allowedCols = new Set(['email', 'password_hash', 'is_active', 'email_verified', 'base_currency', 'timezone', 'language', 'theme', 'role']);
   const entries = (Object.entries(data) as [string, unknown][]).filter(([col]) => allowedCols.has(col));
   if (entries.length === 0) return;
 

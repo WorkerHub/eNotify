@@ -154,7 +154,6 @@ function getSchema(): string {
   timezone      TEXT NOT NULL DEFAULT 'UTC',
   language      TEXT NOT NULL DEFAULT 'zh',
   theme         TEXT NOT NULL DEFAULT 'system',
-  show_lunar    INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );

@@ -35,7 +35,6 @@ meRoutes.get('/', async (c) => {
     timezone: user.timezone,
     language: user.language,
     theme: user.theme,
-    show_lunar: !!user.show_lunar,
     created_at: user.created_at,
     twofa: {
       totp_enabled: !!twoFA?.totp_enabled,
@@ -49,15 +48,13 @@ meRoutes.get('/', async (c) => {
 meRoutes.put('/', async (c) => {
   const userId = getEffectiveUserId(c)
   const prefix = getTablePrefix(c.env)
-  const body = await c.req.json<{ base_currency?: string; timezone?: string; language?: string; theme?: string; show_lunar?: boolean }>()
+  const body = await c.req.json<{ base_currency?: string; timezone?: string; language?: string; theme?: string }>()
 
   const updates: Record<string, any> = {}
   if (body.base_currency) updates.base_currency = body.base_currency
   if (body.timezone) updates.timezone = body.timezone
   if (body.language) updates.language = body.language
   if (body.theme && ['light', 'dark', 'system'].includes(body.theme)) updates.theme = body.theme
-  if (body.show_lunar !== undefined) updates.show_lunar = body.show_lunar ? 1 : 0
-
   if (Object.keys(updates).length === 0) {
     return c.json({ error: 'No valid fields to update' }, 400)
   }

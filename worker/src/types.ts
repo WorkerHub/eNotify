@@ -18,7 +18,6 @@ export interface User {
   timezone: string
   language: string
   theme: 'light' | 'dark' | 'system'
-  show_lunar: number
   created_at: string
   updated_at: string
 }

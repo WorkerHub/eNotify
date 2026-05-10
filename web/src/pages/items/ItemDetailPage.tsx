@@ -8,7 +8,6 @@ import { Portal } from '@/components/Portal'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
 import { formatLunarDate } from '@/lib/lunar'
-import { useAuth } from '@/hooks/useAuth'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
@@ -126,10 +125,6 @@ export function ItemDetailPage() {
 
   // Reset cycle
   const [resetting, setResetting] = useState(false)
-
-  // Show lunar (independent of calendar_mode for display)
-  const { user } = useAuth()
-  const [showLunar, setShowLunar] = useState(!!user?.show_lunar)
 
   // Confirm dialog
   const [confirm, setConfirm] = useState<{
@@ -435,7 +430,7 @@ export function ItemDetailPage() {
                   value={item.start_date ?? ''}
                   onChange={(e) => setField('start_date', e.target.value || null)}
                 />
-                {(item.calendar_mode !== 'solar' || showLunar) && item.start_date && (
+                {item.calendar_mode !== 'solar' && item.start_date && (
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.start_date)}</span>
                 )}
               </div>
@@ -500,7 +495,7 @@ export function ItemDetailPage() {
                       onChange={(e) => setField('expiry_date', e.target.value)}
                       required
                     />
-                    {(item.calendar_mode !== 'solar' || showLunar) && item.expiry_date && (
+                    {item.calendar_mode !== 'solar' && item.expiry_date && (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
                     )}
                   </div>
@@ -561,13 +556,6 @@ export function ItemDetailPage() {
               onChange={(v) => setField('auto_renew', v ? 1 : 0)}
               label={t('items.autoRenew')}
             />
-            {item.calendar_mode === 'solar' && (
-              <Toggle
-                checked={showLunar}
-                onChange={setShowLunar}
-                label={t('items.showLunar')}
-              />
-            )}
           </div>
 
           {/* Calendar mode selector + action buttons */}
