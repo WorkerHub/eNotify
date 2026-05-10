@@ -238,14 +238,18 @@ meRoutes.post('/notifications/test', async (c) => {
 
   const result = await sendToChannel(channel, channelConfig, message, c.env)
 
-  insertNotificationHistory(c.env.DB, prefix, {
-    id: generateJti(),
-    user_id: userId,
-    channel,
-    title: message.title,
-    success: result.success,
-    error: result.error,
-  }).catch(() => {})
+  try {
+    await insertNotificationHistory(c.env.DB, prefix, {
+      id: generateJti(),
+      user_id: userId,
+      channel,
+      title: message.title,
+      success: result.success,
+      error: result.error,
+    })
+  } catch (err) {
+    console.error('Failed to insert notification history:', err)
+  }
 
   return c.json(result)
 })

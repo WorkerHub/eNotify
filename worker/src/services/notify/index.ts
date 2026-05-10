@@ -43,6 +43,22 @@ const CHANNEL_SENDERS: Record<string, (config: string, message: NotifyMessage, e
   notifyx: sendNotifyX,
 }
 
+async function recordHistory(context: NotifyContext, channel: string, title: string, success: boolean, error?: string | null): Promise<void> {
+  try {
+    await insertNotificationHistory(context.db, context.prefix, {
+      id: generateId(),
+      user_id: context.userId,
+      item_id: context.itemId,
+      channel,
+      title,
+      success,
+      error,
+    })
+  } catch (err) {
+    console.error('Failed to insert notification history:', err)
+  }
+}
+
 export async function sendNotifications(
   config: NotificationConfig,
   message: NotifyMessage,
@@ -64,15 +80,7 @@ export async function sendNotifications(
     if (!sender) {
       results.push({ channel, success: false, error: 'Unknown channel' })
       if (context) {
-        insertNotificationHistory(context.db, context.prefix, {
-          id: generateId(),
-          user_id: context.userId,
-          item_id: context.itemId,
-          channel,
-          title: message.title,
-          success: false,
-          error: 'Unknown channel',
-        }).catch(() => {})
+        await recordHistory(context, channel, message.title, false, 'Unknown channel')
       }
       continue
     }
@@ -90,15 +98,7 @@ export async function sendNotifications(
     results.push({ channel, ...result })
 
     if (context) {
-      insertNotificationHistory(context.db, context.prefix, {
-        id: generateId(),
-        user_id: context.userId,
-        item_id: context.itemId,
-        channel,
-        title: message.title,
-        success: result.success,
-        error: result.error,
-      }).catch(() => {})
+      await recordHistory(context, channel, message.title, result.success, result.error)
     }
   }
 
