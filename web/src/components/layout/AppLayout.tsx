@@ -1,8 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/ThemeProvider'
-import { LayoutDashboard, CreditCard, Shield, LogOut, Sun, Moon, Monitor, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Shield, LogOut, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 
@@ -146,7 +145,6 @@ function MobileAvatarDropdown({ user, onLogout, onNavigate }: {
 export function AppLayout() {
   const { t } = useTranslation()
   const { user, logout, refreshUser } = useAuth()
-  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
   const [appName, setAppName] = useState('eNotify')
@@ -189,12 +187,6 @@ export function AppLayout() {
     navigate(path)
   }
 
-  const cycleTheme = () => {
-    const order: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
-    const idx = order.indexOf(theme)
-    setTheme(order[(idx + 1) % 3])
-  }
-
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/items', icon: CreditCard, label: t('nav.items') },
@@ -232,9 +224,6 @@ export function AppLayout() {
       <main className="flex-1 pt-11 pb-16 md:pt-0 md:pb-0">
         {/* Desktop top bar */}
         <div className="hidden md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card">
-          <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
-            {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-          </button>
           <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
 
@@ -256,9 +245,6 @@ export function AppLayout() {
       <header className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center justify-between px-4 h-11 z-50">
         <span className="text-base font-bold text-primary">{appName}</span>
         <div className="flex items-center gap-1">
-          <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
-            {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-          </button>
           <MobileAvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
       </header>

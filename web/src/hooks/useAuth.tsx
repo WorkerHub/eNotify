@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '@/lib/api'
 import i18n from '@/lib/i18n'
+import { useTheme } from '@/components/ThemeProvider'
 import type { User } from '@/types'
 
 interface LoginResponse {
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const { setTheme } = useTheme()
 
   const refreshUser = useCallback(async () => {
     try {
@@ -39,12 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.language && i18n.language !== data.language) {
         i18n.changeLanguage(data.language)
       }
+      if (data.theme) {
+        setTheme(data.theme)
+      }
     } catch {
       setUser(null)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [setTheme])
 
   useEffect(() => {
     refreshUser()
