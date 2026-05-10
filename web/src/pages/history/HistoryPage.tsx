@@ -4,6 +4,42 @@ import { CheckCircle, XCircle, History } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { NotificationHistory } from '@/types'
 
+interface GroupedHistory {
+  id: string
+  title: string
+  item_name?: string
+  channels: { channel: string; success: boolean; error: string | null }[]
+  created_at: string
+  allSuccess: boolean
+}
+
+function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
+  const groups: GroupedHistory[] = []
+  for (const r of records) {
+    const last = groups[groups.length - 1]
+    // Merge if same item + title + within 2 minutes
+    if (
+      last &&
+      last.item_name === r.item_name &&
+      last.title === r.title &&
+      Math.abs(new Date(r.created_at).getTime() - new Date(last.created_at).getTime()) < 120_000
+    ) {
+      last.channels.push({ channel: r.channel, success: !!r.success, error: r.error })
+      if (!r.success) last.allSuccess = false
+    } else {
+      groups.push({
+        id: r.id,
+        title: r.title,
+        item_name: r.item_name,
+        channels: [{ channel: r.channel, success: !!r.success, error: r.error }],
+        created_at: r.created_at,
+        allSuccess: !!r.success,
+      })
+    }
+  }
+  return groups
+}
+
 export function HistoryPage() {
   const { t } = useTranslation()
   const [history, setHistory] = useState<NotificationHistory[]>([])
@@ -25,6 +61,8 @@ export function HistoryPage() {
     fetchHistory()
   }, [fetchHistory])
 
+  const grouped = groupHistory(history)
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('history.title')}</h1>
@@ -39,7 +77,7 @@ export function HistoryPage() {
             <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : history.length === 0 ? (
+      ) : grouped.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>{t('history.noData')}</p>
@@ -64,22 +102,30 @@ export function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {history.map((h) => (
-                  <tr key={h.id} className="hover:bg-muted/30 transition-colors">
+                {grouped.map((g) => (
+                  <tr key={g.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium truncate max-w-xs">{h.title}</p>
-                      {h.item_name && (
-                        <p className="text-xs text-muted-foreground">{h.item_name}</p>
+                      <p className="font-medium truncate max-w-xs">{g.title}</p>
+                      {g.item_name && (
+                        <p className="text-xs text-muted-foreground">{g.item_name}</p>
                       )}
-                      {h.error && (
-                        <p className="text-xs text-destructive truncate max-w-xs">{h.error}</p>
+                      {g.channels.some(c => c.error) && (
+                        <p className="text-xs text-destructive truncate max-w-xs">
+                          {g.channels.filter(c => c.error).map(c => `${c.channel}: ${c.error}`).join('; ')}
+                        </p>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="uppercase text-muted-foreground">{h.channel}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {g.channels.map((c, i) => (
+                          <span key={i} className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? 'text-muted-foreground bg-muted' : 'text-destructive bg-destructive/10'}`}>
+                            {c.channel}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
-                      {h.success ? (
+                      {g.allSuccess ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
                           <CheckCircle className="w-3 h-3" />
                           {t('history.success')}
@@ -92,7 +138,7 @@ export function HistoryPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {new Date(h.created_at).toLocaleString()}
+                      {new Date(g.created_at).toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -102,16 +148,16 @@ export function HistoryPage() {
 
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
-            {history.map((h) => (
-              <div key={h.id} className="bg-card rounded-xl border p-4 space-y-2">
+            {grouped.map((g) => (
+              <div key={g.id} className="bg-card rounded-xl border p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{h.title}</p>
-                    {h.item_name && (
-                      <p className="text-xs text-muted-foreground">{h.item_name}</p>
+                    <p className="text-sm font-medium truncate">{g.title}</p>
+                    {g.item_name && (
+                      <p className="text-xs text-muted-foreground">{g.item_name}</p>
                     )}
                   </div>
-                  {h.success ? (
+                  {g.allSuccess ? (
                     <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full shrink-0">
                       <CheckCircle className="w-3 h-3" />
                       {t('history.success')}
@@ -123,12 +169,20 @@ export function HistoryPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="uppercase">{h.channel}</span>
-                  <span>{new Date(h.created_at).toLocaleString()}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {g.channels.map((c, i) => (
+                      <span key={i} className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? 'text-muted-foreground bg-muted' : 'text-destructive bg-destructive/10'}`}>
+                        {c.channel}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(g.created_at).toLocaleString()}</span>
                 </div>
-                {h.error && (
-                  <p className="text-xs text-destructive truncate">{h.error}</p>
+                {g.channels.some(c => c.error) && (
+                  <p className="text-xs text-destructive truncate">
+                    {g.channels.filter(c => c.error).map(c => `${c.channel}: ${c.error}`).join('; ')}
+                  </p>
                 )}
               </div>
             ))}
