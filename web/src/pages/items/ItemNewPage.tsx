@@ -133,13 +133,21 @@ export function ItemNewPage() {
   const derivedExpiry = useMemo(() => {
     if (!form.start_date) return null
     const pv = Number(form.period_value) || 1
-    const solarDate = addPeriod(form.start_date, pv, form.period_unit)
-    if (form.calendar_mode !== 'both') {
-      return { solar: solarDate, lunarDate: null as string | null, stored: solarDate }
+
+    if (form.calendar_mode === 'both') {
+      const solarDate = addPeriod(form.start_date, pv, form.period_unit)
+      const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
+      const stored = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
+      return { solar: solarDate, lunarDate, stored }
     }
-    const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
-    const stored = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
-    return { solar: solarDate, lunarDate, stored }
+
+    if (form.calendar_mode === 'lunar') {
+      const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit) ?? addPeriod(form.start_date, pv, form.period_unit)
+      return { solar: lunarDate, lunarDate: null as string | null, stored: lunarDate }
+    }
+
+    const solarDate = addPeriod(form.start_date, pv, form.period_unit)
+    return { solar: solarDate, lunarDate: null as string | null, stored: solarDate }
   }, [form.start_date, form.period_value, form.period_unit, form.calendar_mode])
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
