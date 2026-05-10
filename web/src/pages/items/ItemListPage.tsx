@@ -489,7 +489,7 @@ export function ItemListPage() {
                         : t('items.reminderDays', { value: item.reminder_value })}
                     </span>
                   </div>
-                  <div className="flex items-end gap-3 pt-1 border-t">
+                  <div className="flex items-end justify-between pt-1 border-t">
                     <button
                       onClick={() => navigate(`/items/${item.id}`)}
                       className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors"
@@ -537,7 +537,7 @@ export function ItemListPage() {
                     )}
                     <button
                       onClick={() => handleDelete(item)}
-                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors ml-auto"
+                      className="flex flex-col items-center gap-0.5 text-xs px-2 py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>{t('common.delete')}</span>

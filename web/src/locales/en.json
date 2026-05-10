@@ -133,7 +133,7 @@
     "renew": "Renew",
     "renewMultiplier": "Renewal multiplier",
     "paymentHistory": "Payment History",
-    "testNotify": "Test Notification",
+    "testNotify": "Test",
     "resetCycle": "Reset Cycle",
     "resetConfirm": "Are you sure you want to reset the cycle? The new expiry date will be calculated from today.",
     "renewConfirm": "Are you sure you want to renew? The new expiry date will be one period after the current expiry date.",

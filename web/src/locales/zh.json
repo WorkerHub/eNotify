@@ -133,7 +133,7 @@
     "renew": "续费",
     "renewMultiplier": "续费倍数",
     "paymentHistory": "支付历史",
-    "testNotify": "测试通知",
+    "testNotify": "测试",
     "resetCycle": "重置周期",
     "resetConfirm": "确定要重置周期吗？新的到期日将从今天起算。",
     "renewConfirm": "确定要续期吗？新的到期日将从当前到期日往后推移一个周期。",
