@@ -189,15 +189,22 @@ export function ItemListPage() {
     }
   }
 
-  const handleTestNotify = async (item: Item) => {
-    setTestingId(item.id)
-    try {
-      await api.post(`/items/${item.id}/test-notify`)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setTestingId(null)
-    }
+  const handleTestNotify = (item: Item) => {
+    setConfirm({
+      message: t('items.testNotifyConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setTestingId(item.id)
+        try {
+          await api.post(`/items/${item.id}/test-notify`)
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setTestingId(null)
+        }
+      },
+    })
   }
 
   const handleDelete = (item: Item) => {

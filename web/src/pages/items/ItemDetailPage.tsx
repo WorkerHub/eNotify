@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, HelpCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, RefreshCw, HelpCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Portal } from '@/components/Portal'
@@ -248,20 +248,50 @@ export function ItemDetailPage() {
     }
   }
 
-  const handleTestNotify = async () => {
-    setNotifying(true)
-    setNotifyMsg('')
-    setNotifyError(false)
-    try {
-      await api.post(`/items/${id}/test-notify`)
-      setNotifyMsg(t('common.notificationSent'))
-      setTimeout(() => setNotifyMsg(''), 3000)
-    } catch (e: any) {
-      setNotifyMsg(e.message)
-      setNotifyError(true)
-    } finally {
-      setNotifying(false)
-    }
+  const handleTestNotify = () => {
+    setConfirm({
+      message: t('items.testNotifyConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setNotifying(true)
+        setNotifyMsg('')
+        setNotifyError(false)
+        try {
+          await api.post(`/items/${id}/test-notify`)
+          setNotifyMsg(t('common.notificationSent'))
+          setTimeout(() => setNotifyMsg(''), 3000)
+        } catch (e: any) {
+          setNotifyMsg(e.message)
+          setNotifyError(true)
+        } finally {
+          setNotifying(false)
+        }
+      },
+    })
+  }
+
+  const handleQuickRenew = () => {
+    setConfirm({
+      message: t('items.renewConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setRenewing(true)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/renew`, { multiplier: 1 })
+          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
+          if (item?.item_kind === 'subscription') {
+            const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+            setPayments(updated)
+          }
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setRenewing(false)
+        }
+      },
+    })
   }
 
   const handleReset = () => {
@@ -584,8 +614,18 @@ export function ItemDetailPage() {
         </form>
       </section>
 
-      {/* Actions: Reset + Test notify + Delete */}
+      {/* Actions: Renew/Reset + Test notify + Delete */}
       <section className="flex flex-wrap gap-3">
+        {item.item_mode === 'cycle' && (
+          <button
+            onClick={handleQuickRenew}
+            disabled={renewing}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {renewing ? t('common.loading') : t('items.renew')}
+          </button>
+        )}
         {item.item_mode === 'reset' && (
           <button
             onClick={handleReset}
