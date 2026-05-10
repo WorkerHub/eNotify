@@ -489,7 +489,7 @@ export function ItemListPage() {
                         : t('items.reminderDays', { value: item.reminder_value })}
                     </span>
                   </div>
-                  <div className="flex items-end justify-between pt-1 border-t">
+                  <div className="flex items-end justify-between pt-1 border-t gap-1.5">
                     <button
                       onClick={() => navigate(`/items/${item.id}`)}
                       className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors flex-1 min-w-0"
