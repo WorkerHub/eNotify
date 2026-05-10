@@ -309,8 +309,8 @@ export function ItemListPage() {
                 <col className="w-[16%]" />
                 <col className="w-[10%]" />
                 <col className="w-[10%]" />
-                <col className="w-[24%]" />
-                <col className="w-[8%]" />
+                <col className="w-[22%]" />
+                <col className="w-[10%]" />
                 <col className="w-[8%]" />
                 <col className="w-[22%]" />
               </colgroup>
@@ -365,7 +365,7 @@ export function ItemListPage() {
                           <span className="text-xs text-muted-foreground block truncate">{t('items.startDate')}：{item.start_date}</span>
                         )}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', STATUS_STYLES[status])}>
                           {t(`items.status.${status}`)}
                         </span>
