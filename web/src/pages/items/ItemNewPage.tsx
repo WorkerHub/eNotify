@@ -1,16 +1,64 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { formatLunarDate } from '@/lib/lunar'
+import { formatLunarDate, solarToLunar, lunarToSolar } from '@/lib/lunar'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
+
+function getTodayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addPeriod(date: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string {
+  const d = new Date(date + 'T00:00:00Z')
+  if (unit === 'day') {
+    d.setUTCDate(d.getUTCDate() + value)
+  } else if (unit === 'week') {
+    d.setUTCDate(d.getUTCDate() + value * 7)
+  } else if (unit === 'month') {
+    const origDay = d.getUTCDate()
+    d.setUTCMonth(d.getUTCMonth() + value)
+    if (d.getUTCDate() !== origDay) d.setUTCDate(0)
+  } else {
+    const origDay = d.getUTCDate()
+    d.setUTCFullYear(d.getUTCFullYear() + value)
+    if (d.getUTCDate() !== origDay) d.setUTCDate(0)
+  }
+  return d.toISOString().slice(0, 10)
+}
+
+function addLunarPeriod(solarDate: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string | null {
+  if (unit === 'day' || unit === 'week') return addPeriod(solarDate, value, unit)
+  const [y, m, d] = solarDate.split('-').map(Number)
+  const lunar = solarToLunar(y, m, d)
+  if (!lunar) return null
+  let newYear = lunar.lunarYear
+  let newMonth = lunar.month
+  if (unit === 'month') {
+    newMonth += value
+    while (newMonth > 12) { newMonth -= 12; newYear++ }
+  } else {
+    newYear += value
+  }
+  // Try with original isLeap flag first, then fall back to non-leap
+  let solar = lunarToSolar(newYear, newMonth, lunar.day, lunar.isLeap)
+  if (!solar) solar = lunarToSolar(newYear, newMonth, lunar.day, false)
+  // If target month only has 29 days (day 30 doesn't exist), fall back to day 29
+  if (!solar && lunar.day === 30) {
+    solar = lunarToSolar(newYear, newMonth, 29, lunar.isLeap)
+    if (!solar) solar = lunarToSolar(newYear, newMonth, 29, false)
+  }
+  if (!solar) return null
+  return `${solar.year}-${String(solar.month).padStart(2, '0')}-${String(solar.day).padStart(2, '0')}`
+}
 
 interface FormData {
   name: string
@@ -18,7 +66,6 @@ interface FormData {
   item_mode: 'cycle' | 'reset'
   category: string
   start_date: string
-  expiry_date: string
   period_value: string
   period_unit: 'day' | 'week' | 'month' | 'year'
   reminder_value: string
@@ -37,8 +84,7 @@ const DEFAULT: FormData = {
   item_kind: 'regular',
   item_mode: 'cycle',
   category: '',
-  start_date: '',
-  expiry_date: '',
+  start_date: getTodayStr(),
   period_value: '1',
   period_unit: 'month',
   reminder_value: '7',
@@ -84,16 +130,31 @@ export function ItemNewPage() {
   const set = <K extends keyof FormData>(key: K, val: FormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: val }))
 
+  const derivedExpiry = useMemo(() => {
+    if (!form.start_date) return null
+    const pv = Number(form.period_value) || 1
+    const solarDate = addPeriod(form.start_date, pv, form.period_unit)
+    if (form.calendar_mode !== 'both') {
+      return { solar: solarDate, lunarDate: null as string | null, stored: solarDate }
+    }
+    const lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
+    const stored = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
+    return { solar: solarDate, lunarDate, stored }
+  }, [form.start_date, form.period_value, form.period_unit, form.calendar_mode])
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!form.name.trim()) return
-    if (!form.expiry_date) return
+    if (!form.start_date) return
+    if (!derivedExpiry) return
 
     setSubmitting(true)
     setError('')
     try {
       await api.post('/items', {
         ...form,
+        expiry_date: derivedExpiry.stored,
+        lunar_expiry_date: form.calendar_mode === 'both' ? derivedExpiry.lunarDate : null,
         period_value: Number(form.period_value) || 1,
         reminder_value: Number(form.reminder_value) || 7,
         amount: form.item_kind === 'subscription' && form.amount ? Number(form.amount) : null,
@@ -184,13 +245,14 @@ export function ItemNewPage() {
             />
           </Field>
 
-          <Field label={t('items.startDate')}>
+          <Field label={t('items.startDate')} required>
             <div className="flex items-center gap-2">
               <input
                 type="date"
                 className={cn(INPUT, 'flex-1')}
                 value={form.start_date}
                 onChange={(e) => set('start_date', e.target.value)}
+                required
               />
               {form.calendar_mode !== 'solar' && form.start_date && (
                 <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.start_date)}</span>
@@ -199,23 +261,45 @@ export function ItemNewPage() {
           </Field>
 
           <Field label={t('items.expiryDate')} required>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                className={cn(INPUT, 'flex-1')}
-                value={form.expiry_date}
-                onChange={(e) => set('expiry_date', e.target.value)}
-                required
-              />
-              {form.calendar_mode !== 'solar' && form.expiry_date && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(form.expiry_date)}</span>
-              )}
-            </div>
+            {derivedExpiry ? (
+              form.calendar_mode === 'both' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarSolar')}</span>
+                    <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
+                      {derivedExpiry.solar}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarLunar')}</span>
+                    <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
+                      {derivedExpiry.lunarDate ?? '—'}
+                    </span>
+                    {derivedExpiry.lunarDate && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.lunarDate)}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('items.expiryBothNote')}</p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className={cn(INPUT, 'flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none')}>
+                    {derivedExpiry.solar}
+                  </span>
+                  {form.calendar_mode === 'lunar' && (
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(derivedExpiry.solar)}</span>
+                  )}
+                </div>
+              )
+            ) : (
+              <div className={cn(INPUT, 'bg-muted/50 text-muted-foreground')}>—</div>
+            )}
           </Field>
         </div>
 
         {/* Period */}
-        <Field label={t('items.period')}>
+        <Field label={t('items.period')} required>
           <div className="flex gap-2">
             <input
               type="number"
@@ -223,6 +307,7 @@ export function ItemNewPage() {
               className={cn(INPUT, 'w-24')}
               value={form.period_value}
               onChange={(e) => set('period_value', e.target.value)}
+              required
             />
             <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
               <option value="day">{t('items.periodUnit.day')}</option>

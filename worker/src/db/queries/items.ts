@@ -12,8 +12,8 @@ export async function createItem(
       `INSERT INTO ${table}
          (id, user_id, name, item_mode, category, start_date, expiry_date,
           period_value, period_unit, reminder_unit, reminder_value, notes, amount, currency,
-          last_payment_date, is_active, auto_renew, calendar_mode, channels, notification_hours, item_kind, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          last_payment_date, is_active, auto_renew, calendar_mode, lunar_expiry_date, channels, notification_hours, item_kind, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       data.id,
@@ -34,6 +34,7 @@ export async function createItem(
       data.is_active,
       data.auto_renew,
       data.calendar_mode,
+      data.lunar_expiry_date,
       data.channels,
       data.notification_hours,
       data.item_kind,
@@ -76,7 +77,7 @@ export async function updateItem(
 ): Promise<void> {
   const table = `${prefix}items`;
   const now = new Date().toISOString();
-  const allowedCols = new Set(['name', 'item_mode', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'calendar_mode', 'channels', 'notification_hours', 'item_kind']);
+  const allowedCols = new Set(['name', 'item_mode', 'category', 'start_date', 'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency', 'last_payment_date', 'is_active', 'auto_renew', 'calendar_mode', 'lunar_expiry_date', 'channels', 'notification_hours', 'item_kind']);
   const entries = (Object.entries(data) as [string, unknown][]).filter(
     ([col]) => allowedCols.has(col)
   );

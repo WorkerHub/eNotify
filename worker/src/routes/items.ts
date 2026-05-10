@@ -41,6 +41,9 @@ itemRoutes.post('/', async (c) => {
   if (body.start_date && isNaN(Date.parse(body.start_date))) {
     return c.json({ error: 'Invalid start date' }, 400)
   }
+  if (body.lunar_expiry_date && isNaN(Date.parse(body.lunar_expiry_date))) {
+    return c.json({ error: 'Invalid lunar expiry date' }, 400)
+  }
   if (body.period_value !== undefined && (typeof body.period_value !== 'number' || body.period_value < 1)) {
     return c.json({ error: 'Period value must be >= 1' }, 400)
   }
@@ -97,6 +100,7 @@ itemRoutes.post('/', async (c) => {
     is_active: body.is_active ?? 1,
     auto_renew: body.auto_renew ?? 1,
     calendar_mode: body.calendar_mode || 'solar',
+    lunar_expiry_date: body.lunar_expiry_date || null,
     channels: JSON.stringify(body.channels || []),
     notification_hours: JSON.stringify(body.notification_hours || []),
     item_kind: body.item_kind || 'regular',
@@ -218,7 +222,7 @@ itemRoutes.put('/:id', async (c) => {
   const updates: Record<string, any> = {}
   const allowedFields = [
     'name', 'item_mode', 'category', 'start_date',
-    'expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
+    'expiry_date', 'lunar_expiry_date', 'period_value', 'period_unit', 'reminder_unit', 'reminder_value',
     'notes', 'amount', 'currency', 'is_active', 'auto_renew', 'calendar_mode', 'item_kind',
   ]
   for (const key of allowedFields) {
@@ -280,9 +284,21 @@ itemRoutes.post('/:id/renew', async (c) => {
   const body = await c.req.json<{ amount?: number; date?: string; multiplier?: number; note?: string }>()
   const multiplier = Math.min(Math.max(body.multiplier || 1, 1), 120)
   let newExpiry = item.expiry_date
+  let newLunarExpiry = item.lunar_expiry_date
 
   for (let i = 0; i < multiplier; i++) {
-    newExpiry = addPeriod(newExpiry, item.period_value, item.period_unit)
+    if (item.calendar_mode === 'both' && newLunarExpiry) {
+      const nextSolar = addPeriod(newExpiry, item.period_value, item.period_unit)
+      const nextLunar = item.period_unit === 'month'
+        ? addLunarMonths(newLunarExpiry, item.period_value)
+        : item.period_unit === 'year'
+          ? addLunarYears(newLunarExpiry, item.period_value)
+          : addPeriod(newLunarExpiry, item.period_value, item.period_unit)
+      newLunarExpiry = nextLunar
+      newExpiry = nextSolar <= nextLunar ? nextSolar : nextLunar
+    } else {
+      newExpiry = addPeriod(newExpiry, item.period_value, item.period_unit)
+    }
   }
 
   const paymentDate = body.date || nowISO()
@@ -290,6 +306,7 @@ itemRoutes.post('/:id/renew', async (c) => {
 
   await updateItem(c.env.DB, prefix, id, {
     expiry_date: newExpiry,
+    ...(item.calendar_mode === 'both' ? { lunar_expiry_date: newLunarExpiry } : {}),
     last_payment_date: paymentDate,
   })
 
@@ -326,9 +343,18 @@ itemRoutes.post('/:id/reset', async (c) => {
   const today = now.split('T')[0]
   let newExpiry: string
 
-  if ((item.calendar_mode === 'lunar' || item.calendar_mode === 'both') && item.period_unit === 'month') {
+  let newLunarExpiry: string | null = null
+  if (item.calendar_mode === 'both') {
+    const solarExpiry = addPeriod(today, item.period_value, item.period_unit)
+    newLunarExpiry = item.period_unit === 'month'
+      ? addLunarMonths(today, item.period_value)
+      : item.period_unit === 'year'
+        ? addLunarYears(today, item.period_value)
+        : addPeriod(today, item.period_value, item.period_unit)
+    newExpiry = solarExpiry <= newLunarExpiry ? solarExpiry : newLunarExpiry
+  } else if (item.calendar_mode === 'lunar' && item.period_unit === 'month') {
     newExpiry = addLunarMonths(today, item.period_value)
-  } else if ((item.calendar_mode === 'lunar' || item.calendar_mode === 'both') && item.period_unit === 'year') {
+  } else if (item.calendar_mode === 'lunar' && item.period_unit === 'year') {
     newExpiry = addLunarYears(today, item.period_value)
   } else {
     newExpiry = addPeriod(today, item.period_value, item.period_unit)
@@ -336,6 +362,7 @@ itemRoutes.post('/:id/reset', async (c) => {
 
   await updateItem(c.env.DB, prefix, id, {
     expiry_date: newExpiry,
+    ...(item.calendar_mode === 'both' ? { lunar_expiry_date: newLunarExpiry } : {}),
     last_payment_date: now,
   })
 

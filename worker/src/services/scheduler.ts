@@ -6,7 +6,7 @@ import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
 import { sendNotifications, type NotifyMessage } from './notify/index'
 import { addPeriod, nowISO, diffInHours, diffInDays, nowInTimezone } from '../core/time'
-import { addLunarMonths, addLunarYears, solarToLunar, lunarToSolar } from '../core/lunar'
+import { addLunarMonths, addLunarYears } from '../core/lunar'
 import { generateId } from '../core/auth'
 
 export async function handleScheduled(env: Env): Promise<void> {
@@ -55,34 +55,6 @@ async function processUser(env: Env, prefix: string, db: D1Database, kv: KVNames
   }
 }
 
-/**
- * Compute the solar date of the next lunar anniversary.
- * Given an item's expiry_date (solar), find the lunar month/day,
- * then convert that to the current year's solar date.
- * If that date has already passed this year, use next year's.
- */
-function lunarAnniversarySolarDate(solarExpiry: string, now: Date): string | null {
-  const [y, m, d] = solarExpiry.split('-').map(Number)
-  const lunar = solarToLunar(y, m, d)
-  if (!lunar) return null
-
-  const currentYear = now.getUTCFullYear()
-
-  // Try this year
-  const thisYearSolar = lunarToSolar(currentYear, lunar.month, lunar.day, lunar.isLeap)
-  if (thisYearSolar) {
-    const thisYearDate = `${thisYearSolar.year.toString().padStart(4, '0')}-${thisYearSolar.month.toString().padStart(2, '0')}-${thisYearSolar.day.toString().padStart(2, '0')}`
-    if (new Date(thisYearDate) > now) return thisYearDate
-  }
-
-  // Try next year
-  const nextYearSolar = lunarToSolar(currentYear + 1, lunar.month, lunar.day, lunar.isLeap)
-  if (nextYearSolar) {
-    return `${nextYearSolar.year.toString().padStart(4, '0')}-${nextYearSolar.month.toString().padStart(2, '0')}-${nextYearSolar.day.toString().padStart(2, '0')}`
-  }
-
-  return null
-}
 
 async function processSubscription(
   env: Env,
@@ -108,14 +80,24 @@ async function processSubscription(
 
     let prevExpiry = sub.expiry_date
     let newExpiry = prevExpiry
+    let newLunarExpiry = sub.lunar_expiry_date ?? sub.expiry_date
     let iterations = 0
     const maxIterations = 1000
 
     while (new Date(newExpiry) <= now && iterations < maxIterations) {
       prevExpiry = newExpiry
-      if ((sub.calendar_mode === 'lunar' || sub.calendar_mode === 'both') && sub.period_unit === 'month') {
+      if (sub.calendar_mode === 'both') {
+        const nextSolar = addPeriod(newExpiry, sub.period_value, sub.period_unit)
+        const nextLunar = sub.period_unit === 'month'
+          ? addLunarMonths(newLunarExpiry, sub.period_value)
+          : sub.period_unit === 'year'
+            ? addLunarYears(newLunarExpiry, sub.period_value)
+            : addPeriod(newLunarExpiry, sub.period_value, sub.period_unit)
+        newLunarExpiry = nextLunar
+        newExpiry = nextSolar <= nextLunar ? nextSolar : nextLunar
+      } else if (sub.calendar_mode === 'lunar' && sub.period_unit === 'month') {
         newExpiry = addLunarMonths(prevExpiry, sub.period_value)
-      } else if ((sub.calendar_mode === 'lunar' || sub.calendar_mode === 'both') && sub.period_unit === 'year') {
+      } else if (sub.calendar_mode === 'lunar' && sub.period_unit === 'year') {
         newExpiry = addLunarYears(prevExpiry, sub.period_value)
       } else {
         newExpiry = addPeriod(prevExpiry, sub.period_value, sub.period_unit)
@@ -126,9 +108,15 @@ async function processSubscription(
 
     const renewedAt = nowISOStr
 
-    await env.DB.prepare(
-      `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
-    ).bind(newExpiry, renewedAt, renewedAt, sub.id).run()
+    if (sub.calendar_mode === 'both') {
+      await env.DB.prepare(
+        `UPDATE ${prefix}items SET expiry_date = ?, lunar_expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
+      ).bind(newExpiry, newLunarExpiry, renewedAt, renewedAt, sub.id).run()
+    } else {
+      await env.DB.prepare(
+        `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`
+      ).bind(newExpiry, renewedAt, renewedAt, sub.id).run()
+    }
 
     if (sub.amount) {
       await createPayment(env.DB, prefix, {
@@ -155,12 +143,9 @@ async function processSubscription(
   const checkDates: { date: string; label: 'solar' | 'lunar' }[] = []
 
   if (sub.calendar_mode === 'both') {
-    // Solar expiry date
     checkDates.push({ date: sub.expiry_date, label: 'solar' })
-    // Lunar anniversary date
-    const lunarDate = lunarAnniversarySolarDate(sub.expiry_date, now)
-    if (lunarDate) {
-      checkDates.push({ date: lunarDate, label: 'lunar' })
+    if (sub.lunar_expiry_date) {
+      checkDates.push({ date: sub.lunar_expiry_date, label: 'lunar' })
     }
   } else if (sub.calendar_mode === 'lunar') {
     // For lunar-only, the expiry_date is already stored as solar,

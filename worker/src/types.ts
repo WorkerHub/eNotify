@@ -53,6 +53,7 @@ export interface Item {
   is_active: number
   auto_renew: number
   calendar_mode: 'solar' | 'lunar' | 'both'
+  lunar_expiry_date: string | null
   channels: string
   notification_hours: string
   item_kind: 'regular' | 'subscription'

@@ -159,12 +159,13 @@ export function nextLunarAnniversary(solarDateStr: string): string | null {
 
   const now = new Date()
   const currentYear = now.getFullYear()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   // Try this year
   const thisYear = lunarToSolar(currentYear, lunar.month, lunar.day, lunar.isLeap)
   if (thisYear) {
     const dateStr = `${thisYear.year.toString().padStart(4, '0')}-${thisYear.month.toString().padStart(2, '0')}-${thisYear.day.toString().padStart(2, '0')}`
-    if (new Date(dateStr) > now) return dateStr
+    if (dateStr > todayStr) return dateStr
   }
 
   // Try next year

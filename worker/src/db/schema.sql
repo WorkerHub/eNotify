@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   is_active   INTEGER NOT NULL DEFAULT 1,
   auto_renew  INTEGER NOT NULL DEFAULT 1,
   calendar_mode TEXT NOT NULL DEFAULT 'solar',
+  lunar_expiry_date TEXT,
   channels    TEXT NOT NULL DEFAULT '[]',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   item_kind   TEXT NOT NULL DEFAULT 'regular',
