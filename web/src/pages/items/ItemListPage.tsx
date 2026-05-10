@@ -306,13 +306,13 @@ export function ItemListPage() {
           <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm table-fixed">
               <colgroup>
-                <col className="w-[16%]" />
+                <col className="w-[15%]" />
+                <col className="w-[9%]" />
                 <col className="w-[10%]" />
+                <col className="w-[18%]" />
                 <col className="w-[10%]" />
-                <col className="w-[22%]" />
-                <col className="w-[10%]" />
-                <col className="w-[8%]" />
-                <col className="w-[22%]" />
+                <col className="w-[13%]" />
+                <col className="w-[25%]" />
               </colgroup>
               <thead className="bg-muted/50">
                 <tr>
