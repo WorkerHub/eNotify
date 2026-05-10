@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -53,10 +53,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [theme])
 
-  const setTheme = (t: Theme) => {
+  const setTheme = useCallback((t: Theme) => {
     localStorage.setItem('theme', t)
     setThemeState(t)
-  }
+  }, [])
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>

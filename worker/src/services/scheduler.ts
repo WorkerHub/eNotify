@@ -6,7 +6,7 @@ import { getNotificationConfig } from '../db/queries/notifications'
 import { createPayment } from '../db/queries/payments'
 import { sendNotifications, type NotifyMessage } from './notify/index'
 import { addPeriod, nowISO, diffInHours, diffInDays, nowInTimezone } from '../core/time'
-import { addLunarMonths, addLunarYears } from '../core/lunar'
+import { addLunarMonths, addLunarYears, solarToLunar } from '../core/lunar'
 import { generateId } from '../core/auth'
 
 export async function handleScheduled(env: Env): Promise<void> {
@@ -43,7 +43,7 @@ async function processUser(env: Env, prefix: string, db: D1Database, kv: KVNames
 
       if (effectiveHours.length > 0 && !effectiveHours.includes(currentHour)) continue
 
-      await processSubscription(env, prefix, user.id, sub, notifyConfig, kv, lang)
+      await processSubscription(env, prefix, user.id, sub, notifyConfig, kv, lang, user.timezone || 'UTC')
     }
 
     await kv.put(`scheduler_status:${user.id}`, JSON.stringify({
@@ -56,6 +56,23 @@ async function processUser(env: Env, prefix: string, db: D1Database, kv: KVNames
 }
 
 
+function lunarLabel(solarDate: string): string | null {
+  const [y, m, d] = solarDate.split('-').map(Number)
+  const lunar = solarToLunar(y, m, d)
+  if (!lunar) return null
+  return `${lunar.monthStr}${lunar.dayStr}`
+}
+
+function formatUserTime(timezone: string): string {
+  const d = nowInTimezone(timezone)
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${mo}-${day} ${h}:${mi}`
+}
+
 async function processSubscription(
   env: Env,
   prefix: string,
@@ -63,7 +80,8 @@ async function processSubscription(
   sub: Item,
   notifyConfig: any,
   kv: KVNamespace,
-  lang: string
+  lang: string,
+  timezone: string
 ): Promise<void> {
   const now = new Date()
   const nowISOStr = nowISO()
@@ -186,19 +204,43 @@ async function processSubscription(
       ? (lang === 'zh' ? ' (农历)' : ' (Lunar)')
       : ''
 
-    const message: NotifyMessage = lang === 'zh'
-      ? {
-          title: `📅 ${sub.name} 即将到期${lunarSuffix}`,
-          body: sub.reminder_unit === 'hour'
-            ? `将在 ${Math.round(hoursUntil)} 小时后到期 (${checkDate})${lunarSuffix}`
-            : `将在 ${Math.round(daysUntil)} 天后到期 (${checkDate})${lunarSuffix}`,
-        }
-      : {
-          title: `📅 ${sub.name} expiring soon${lunarSuffix}`,
-          body: sub.reminder_unit === 'hour'
-            ? `Expires in ${Math.round(hoursUntil)} hours (${checkDate})${lunarSuffix}`
-            : `Expires in ${Math.round(daysUntil)} days (${checkDate})${lunarSuffix}`,
-        }
+    const sentAt = formatUserTime(timezone)
+    const lunarStr = sub.calendar_mode !== 'solar' ? lunarLabel(checkDate) : null
+
+    let message: NotifyMessage
+    if (lang === 'zh') {
+      const modeLabel = sub.item_mode === 'cycle' ? '周期' : '重置'
+      const autoRenewLabel = sub.auto_renew ? '是' : '否'
+      const timeLabel = sub.reminder_unit === 'hour'
+        ? `将在 ${Math.round(hoursUntil)} 小时后到期`
+        : `将在 ${Math.round(daysUntil)} 天后到期`
+      const lines = [
+        `名称：${sub.name}`,
+        `模式：${modeLabel}`,
+        `到期日期：${checkDate}`,
+      ]
+      if (lunarStr) lines.push(`农历日期：${lunarStr}`)
+      lines.push(`自动续期：${autoRenewLabel}`)
+      if (sub.notes) lines.push(`备注：${sub.notes}`)
+      lines.push(``, timeLabel, `发送时间：${sentAt}`, `当前时区：${timezone}`)
+      message = { title: `📅 ${sub.name} 即将到期${lunarSuffix}`, body: lines.join('\n') }
+    } else {
+      const modeLabel = sub.item_mode === 'cycle' ? 'Cycle' : 'Reset'
+      const autoRenewLabel = sub.auto_renew ? 'Yes' : 'No'
+      const timeLabel = sub.reminder_unit === 'hour'
+        ? `Expires in ${Math.round(hoursUntil)} hours`
+        : `Expires in ${Math.round(daysUntil)} days`
+      const lines = [
+        `Name: ${sub.name}`,
+        `Mode: ${modeLabel}`,
+        `Expiry date: ${checkDate}`,
+      ]
+      if (lunarStr) lines.push(`Lunar date: ${lunarStr}`)
+      lines.push(`Auto-renew: ${autoRenewLabel}`)
+      if (sub.notes) lines.push(`Notes: ${sub.notes}`)
+      lines.push(``, timeLabel, `Sent at: ${sentAt}`, `Timezone: ${timezone}`)
+      message = { title: `📅 ${sub.name} expiring soon${lunarSuffix}`, body: lines.join('\n') }
+    }
 
     await sendNotifications(notifyConfig, message, env, {
       db: env.DB, prefix, userId, itemId: sub.id,
