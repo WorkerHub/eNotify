@@ -8,9 +8,10 @@ import {
 } from '../db/queries/items'
 import { createPayment, listPaymentsByItem, updatePayment, deletePayment, getPayment } from '../db/queries/payments'
 import { getNotificationConfig } from '../db/queries/notifications'
+import { findUserById } from '../db/queries/users'
 import { generateId } from '../core/auth'
-import { nowISO, addPeriod } from '../core/time'
-import { addLunarMonths, addLunarYears } from '../core/lunar'
+import { nowISO, addPeriod, diffInHours, diffInDays, nowInTimezone } from '../core/time'
+import { addLunarMonths, addLunarYears, solarToLunar } from '../core/lunar'
 import { sendNotifications, type NotifyMessage } from '../services/notify/index'
 
 export const itemRoutes = new Hono<HonoEnv>()
@@ -399,9 +400,56 @@ itemRoutes.post('/:id/test-notify', async (c) => {
     return c.json({ error: 'No notification channels configured' }, 400)
   }
 
-  const message: NotifyMessage = {
-    title: `🔔 ${item.name} - Test Notification`,
-    body: `This is a test notification for "${item.name}" expiring on ${item.expiry_date}.`,
+  const user = await findUserById(c.env.DB, prefix, userId)
+  const lang = user?.language || 'en'
+  const timezone = user?.timezone || 'UTC'
+
+  const nowISOStr = nowISO()
+  const hoursUntil = diffInHours(nowISOStr, item.expiry_date)
+  const daysUntil = diffInDays(nowISOStr, item.expiry_date)
+
+  // Lunar date label for the expiry date
+  const [ey, em, ed] = item.expiry_date.split('-').map(Number)
+  const lunar = solarToLunar(ey, em, ed)
+  const lunarStr = item.calendar_mode !== 'solar' && lunar ? `${lunar.monthStr}${lunar.dayStr}` : null
+
+  // Formatted send time in user's timezone
+  const d = nowInTimezone(timezone)
+  const sentAt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+
+  let message: NotifyMessage
+  if (lang === 'zh') {
+    const modeLabel = item.item_mode === 'cycle' ? '周期' : '重置'
+    const autoRenewLabel = item.auto_renew ? '是' : '否'
+    const timeLabel = daysUntil > 0
+      ? (item.reminder_unit === 'hour' ? `将在 ${Math.round(hoursUntil)} 小时后到期` : `将在 ${Math.round(daysUntil)} 天后到期`)
+      : `已过期 ${Math.abs(Math.round(daysUntil))} 天`
+    const lines = [
+      `名称：${item.name}`,
+      `模式：${modeLabel}`,
+      `到期日期：${item.expiry_date}`,
+    ]
+    if (lunarStr) lines.push(`农历日期：${lunarStr}`)
+    lines.push(`自动续期：${autoRenewLabel}`)
+    if (item.notes) lines.push(`备注：${item.notes}`)
+    lines.push(``, timeLabel, `发送时间：${sentAt}`, `当前时区：${timezone}`)
+    message = { title: `🔔 ${item.name} - 测试通知`, body: lines.join('\n') }
+  } else {
+    const modeLabel = item.item_mode === 'cycle' ? 'Cycle' : 'Reset'
+    const autoRenewLabel = item.auto_renew ? 'Yes' : 'No'
+    const timeLabel = daysUntil > 0
+      ? (item.reminder_unit === 'hour' ? `Expires in ${Math.round(hoursUntil)} hours` : `Expires in ${Math.round(daysUntil)} days`)
+      : `Expired ${Math.abs(Math.round(daysUntil))} days ago`
+    const lines = [
+      `Name: ${item.name}`,
+      `Mode: ${modeLabel}`,
+      `Expiry date: ${item.expiry_date}`,
+    ]
+    if (lunarStr) lines.push(`Lunar date: ${lunarStr}`)
+    lines.push(`Auto-renew: ${autoRenewLabel}`)
+    if (item.notes) lines.push(`Notes: ${item.notes}`)
+    lines.push(``, timeLabel, `Sent at: ${sentAt}`, `Timezone: ${timezone}`)
+    message = { title: `🔔 ${item.name} - Test Notification`, body: lines.join('\n') }
   }
 
   // Filter channels if item has specific channels configured
