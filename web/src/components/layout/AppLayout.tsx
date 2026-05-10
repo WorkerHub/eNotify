@@ -144,7 +144,7 @@ function MobileAvatarDropdown({ user, onLogout, onNavigate }: {
 }
 
 export function AppLayout() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { user, logout, refreshUser } = useAuth()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
@@ -187,11 +187,6 @@ export function AppLayout() {
 
   const handleMenuNavigate = (path: string) => {
     navigate(path)
-  }
-
-  const toggleLanguage = () => {
-    const next = i18n.language === 'zh' ? 'en' : 'zh'
-    i18n.changeLanguage(next)
   }
 
   const cycleTheme = () => {
@@ -240,9 +235,6 @@ export function AppLayout() {
           <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
             {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
           </button>
-          <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
-            {i18n.language === 'zh' ? 'EN' : '中'}
-          </button>
           <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
 
@@ -266,9 +258,6 @@ export function AppLayout() {
         <div className="flex items-center gap-1">
           <button onClick={cycleTheme} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors" aria-label={t('settings.theme')}>
             {theme === 'light' ? <Sun className="w-4 h-4" /> : theme === 'dark' ? <Moon className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-          </button>
-          <button onClick={toggleLanguage} className="p-2 rounded-md text-muted-foreground hover:bg-accent transition-colors text-xs font-medium" aria-label={t('settings.language')}>
-            {i18n.language === 'zh' ? 'EN' : '中'}
           </button>
           <MobileAvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>

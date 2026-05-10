@@ -630,6 +630,7 @@ function PreferencesTab() {
   const [timezone, setTimezone] = useState(user?.timezone ?? 'UTC')
   const [baseCurrency, setBaseCurrency] = useState(user?.base_currency ?? 'USD')
   const [showLunar, setShowLunar] = useState(user?.show_lunar ?? false)
+  const [language, setLanguage] = useState(user?.language ?? 'en')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -639,6 +640,7 @@ function PreferencesTab() {
       setTimezone(user.timezone ?? 'UTC')
       setBaseCurrency(user.base_currency ?? 'USD')
       setShowLunar(user.show_lunar ?? false)
+      setLanguage(user.language ?? 'en')
     }
   }, [user])
 
@@ -651,11 +653,14 @@ function PreferencesTab() {
       await api.put('/me', {
         timezone,
         base_currency: baseCurrency,
-        language: i18n.language,
+        language,
         theme,
         show_lunar: showLunar,
       })
       await refreshUser()
+      if (i18n.language !== language) {
+        i18n.changeLanguage(language)
+      }
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
@@ -705,8 +710,8 @@ function PreferencesTab() {
                 type="radio"
                 name="language"
                 value={code}
-                checked={i18n.language === code}
-                onChange={() => i18n.changeLanguage(code)}
+                checked={language === code}
+                onChange={() => setLanguage(code)}
                 className="accent-primary"
               />
               <span className="text-sm text-foreground">{label}</span>

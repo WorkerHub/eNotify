@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '@/lib/api'
+import i18n from '@/lib/i18n'
 import type { User } from '@/types'
 
 interface LoginResponse {
@@ -35,6 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.get<User>('/me', { skipRedirect: true })
       setUser(data)
+      if (data.language && i18n.language !== data.language) {
+        i18n.changeLanguage(data.language)
+      }
     } catch {
       setUser(null)
     } finally {
