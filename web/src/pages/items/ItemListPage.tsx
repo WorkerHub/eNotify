@@ -445,7 +445,7 @@ export function ItemListPage() {
                           )}
                           <button
                             onClick={() => handleDelete(item)}
-                            className="p-1.5 rounded hover:bg-accent transition-colors text-destructive"
+                            className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-destructive"
                             title={t('common.delete')}
                             aria-label={t('common.delete')}
                           >
