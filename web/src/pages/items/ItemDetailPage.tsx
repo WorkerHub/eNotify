@@ -461,63 +461,93 @@ export function ItemDetailPage() {
               </div>
             </Field>
 
-            <Field label={t('items.expiryDate')}>
-              <div className="flex items-center gap-2">
+            <Field label={t('items.period')}>
+              <div className="flex gap-2">
                 <input
-                  type="date"
-                  className={cn(INPUT, 'flex-1')}
-                  value={item.expiry_date}
-                  onChange={(e) => setField('expiry_date', e.target.value)}
-                  required
+                  type="number"
+                  min={1}
+                  className={cn(INPUT, 'w-24')}
+                  value={item.period_value}
+                  onChange={(e) => setField('period_value', Number(e.target.value))}
                 />
-                {(item.calendar_mode !== 'solar' || showLunar) && item.expiry_date && (
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
+                <select
+                  className={SELECT}
+                  value={item.period_unit}
+                  onChange={(e) => setField('period_unit', e.target.value as any)}
+                >
+                  <option value="day">{t('items.periodUnit.day')}</option>
+                  <option value="week">{t('items.periodUnit.week')}</option>
+                  <option value="month">{t('items.periodUnit.month')}</option>
+                  <option value="year">{t('items.periodUnit.year')}</option>
+                </select>
+              </div>
+            </Field>
+
+            <div className={cn(item.calendar_mode === 'both' && 'sm:row-span-2')}>
+              <Field label={t('items.expiryDate')}>
+                {item.calendar_mode === 'both' ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarSolar')}</span>
+                      <input
+                        type="date"
+                        className={cn(INPUT, 'flex-1')}
+                        value={item.expiry_date}
+                        onChange={(e) => setField('expiry_date', e.target.value)}
+                        required
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0 w-8">{t('items.calendarLunar')}</span>
+                      <input
+                        type="date"
+                        className={cn(INPUT, 'flex-1')}
+                        value={item.lunar_expiry_date ?? ''}
+                        onChange={(e) => setField('lunar_expiry_date', e.target.value || null)}
+                      />
+                      {item.lunar_expiry_date && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.lunar_expiry_date)}</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      className={cn(INPUT, 'flex-1')}
+                      value={item.expiry_date}
+                      onChange={(e) => setField('expiry_date', e.target.value)}
+                      required
+                    />
+                    {(item.calendar_mode !== 'solar' || showLunar) && item.expiry_date && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatLunarDate(item.expiry_date)}</span>
+                    )}
+                  </div>
                 )}
+              </Field>
+            </div>
+
+            <Field label={t('items.reminderBefore')}>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  className={cn(INPUT, 'w-24')}
+                  value={item.reminder_value}
+                  onChange={(e) => setField('reminder_value', Number(e.target.value))}
+                />
+                <select
+                  className={SELECT}
+                  value={item.reminder_unit}
+                  onChange={(e) => setField('reminder_unit', e.target.value as any)}
+                >
+                  <option value="day">{t('items.periodUnit.day')}</option>
+                  <option value="hour">{t('items.periodUnit.hour')}</option>
+                </select>
               </div>
             </Field>
           </div>
-
-          <Field label={t('items.period')}>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={1}
-                className={cn(INPUT, 'w-24')}
-                value={item.period_value}
-                onChange={(e) => setField('period_value', Number(e.target.value))}
-              />
-              <select
-                className={SELECT}
-                value={item.period_unit}
-                onChange={(e) => setField('period_unit', e.target.value as any)}
-              >
-                <option value="day">{t('items.periodUnit.day')}</option>
-                <option value="week">{t('items.periodUnit.week')}</option>
-                <option value="month">{t('items.periodUnit.month')}</option>
-                <option value="year">{t('items.periodUnit.year')}</option>
-              </select>
-            </div>
-          </Field>
-
-          <Field label={t('items.reminderBefore')}>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={0}
-                className={cn(INPUT, 'w-24')}
-                value={item.reminder_value}
-                onChange={(e) => setField('reminder_value', Number(e.target.value))}
-              />
-              <select
-                className={SELECT}
-                value={item.reminder_unit}
-                onChange={(e) => setField('reminder_unit', e.target.value as any)}
-              >
-                <option value="day">{t('items.periodUnit.day')}</option>
-                <option value="hour">{t('items.periodUnit.hour')}</option>
-              </select>
-            </div>
-          </Field>
 
           {item.item_kind === 'subscription' && (
             <div className="grid sm:grid-cols-2 gap-4">
@@ -647,7 +677,7 @@ export function ItemDetailPage() {
         {notifyMsg && <span className={cn('text-sm self-center', notifyError ? 'text-destructive' : 'text-green-600')}>{notifyMsg}</span>}
         <button
           onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors ml-auto"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors ml-auto"
         >
           <Trash2 className="w-4 h-4" />
           {t('common.delete')}
