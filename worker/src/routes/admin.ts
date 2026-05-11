@@ -186,6 +186,7 @@ adminRoutes.post('/users/:uid/items', async (c) => {
     is_active: body.is_active ?? 1,
     auto_renew: body.auto_renew ?? 1,
     calendar_mode: body.calendar_mode || 'solar',
+    lunar_expiry_date: body.lunar_expiry_date || null,
     channels: JSON.stringify(body.channels || []),
     notification_hours: JSON.stringify(body.notification_hours || []),
     item_kind: body.item_kind || 'regular',
