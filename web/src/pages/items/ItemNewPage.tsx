@@ -326,8 +326,8 @@ export function ItemNewPage() {
                 required
               />
               <select className={SELECT} value={form.period_unit} onChange={(e) => set('period_unit', e.target.value as FormData['period_unit'])}>
-                <option value="day">{t('items.periodUnit.day')}</option>
-                <option value="week">{t('items.periodUnit.week')}</option>
+                {form.calendar_mode === 'solar' && <option value="day">{t('items.periodUnit.day')}</option>}
+                {form.calendar_mode === 'solar' && <option value="week">{t('items.periodUnit.week')}</option>}
                 <option value="month">{t('items.periodUnit.month')}</option>
                 <option value="year">{t('items.periodUnit.year')}</option>
               </select>
@@ -446,7 +446,13 @@ export function ItemNewPage() {
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => set('calendar_mode', mode)}
+                  onClick={() => {
+                    if ((mode === 'lunar' || mode === 'both') && (form.period_unit === 'day' || form.period_unit === 'week')) {
+                      setForm((prev) => ({ ...prev, calendar_mode: mode, period_unit: 'month' }))
+                    } else {
+                      set('calendar_mode', mode)
+                    }
+                  }}
                   className={cn(
                     'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
                     form.calendar_mode === mode

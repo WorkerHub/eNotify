@@ -535,8 +535,8 @@ export function ItemDetailPage() {
                   value={item.period_unit}
                   onChange={(e) => setField('period_unit', e.target.value as any)}
                 >
-                  <option value="day">{t('items.periodUnit.day')}</option>
-                  <option value="week">{t('items.periodUnit.week')}</option>
+                  {item.calendar_mode === 'solar' && <option value="day">{t('items.periodUnit.day')}</option>}
+                  {item.calendar_mode === 'solar' && <option value="week">{t('items.periodUnit.week')}</option>}
                   <option value="month">{t('items.periodUnit.month')}</option>
                   <option value="year">{t('items.periodUnit.year')}</option>
                 </select>
@@ -651,7 +651,13 @@ export function ItemDetailPage() {
                   <button
                     key={mode}
                     type="button"
-                    onClick={() => setField('calendar_mode', mode)}
+                    onClick={() => {
+                      if ((mode === 'lunar' || mode === 'both') && (item.period_unit === 'day' || item.period_unit === 'week')) {
+                        setItem((prev) => prev ? { ...prev, calendar_mode: mode, period_unit: 'month' } : prev)
+                      } else {
+                        setField('calendar_mode', mode)
+                      }
+                    }}
                     className={cn(
                       'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
                       item.calendar_mode === mode
