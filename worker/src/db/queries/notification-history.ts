@@ -4,6 +4,7 @@ export interface NotificationHistoryRecord {
   item_id: string | null
   channel: string
   title: string
+  body: string | null
   success: number
   error: string | null
   created_at: string
@@ -18,14 +19,15 @@ export async function insertNotificationHistory(
     item_id?: string | null
     channel: string
     title: string
+    body?: string | null
     success: boolean
     error?: string | null
   }
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO ${prefix}notification_history (id, user_id, item_id, channel, title, success, error, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO ${prefix}notification_history (id, user_id, item_id, channel, title, body, success, error, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       record.id,
@@ -33,6 +35,7 @@ export async function insertNotificationHistory(
       record.item_id ?? null,
       record.channel,
       record.title,
+      record.body ?? null,
       record.success ? 1 : 0,
       record.error ?? null,
       new Date().toISOString()

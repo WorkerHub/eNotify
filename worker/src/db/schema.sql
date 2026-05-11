@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_history (
   item_id    TEXT REFERENCES {prefix}items(id) ON DELETE SET NULL,
   channel    TEXT NOT NULL,
   title      TEXT NOT NULL,
+  body       TEXT,
   success    INTEGER NOT NULL DEFAULT 1,
   error      TEXT,
   created_at TEXT NOT NULL

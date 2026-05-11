@@ -227,7 +227,10 @@
     "time": "Time",
     "success": "Success",
     "failed": "Failed",
-    "noData": "No notification records yet"
+    "noData": "No notification records yet",
+    "detail": "Notification Detail",
+    "content": "Message Content",
+    "noContent": "No message content for this record"
   },
   "admin": {
     "title": "Admin Panel",

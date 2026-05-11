@@ -37,6 +37,16 @@ setupRoutes.post('/', async (c) => {
 })
 
 async function runMigrations(db: D1Database, prefix: string): Promise<void> {
+  // Migration: add body column to notification_history
+  try {
+    const histCols = await db.prepare(`PRAGMA table_info(${prefix}notification_history)`).all<{ name: string }>()
+    if (!histCols.results.some((c) => c.name === 'body')) {
+      await db.prepare(`ALTER TABLE ${prefix}notification_history ADD COLUMN body TEXT`).run()
+    }
+  } catch {
+    // ignore
+  }
+
   // Migration: drop type column from items + convert use_lunar to calendar_mode
   // SQLite doesn't support DROP COLUMN before 3.35.0, so we recreate the table
   try {
@@ -245,6 +255,7 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_history (
   item_id    TEXT,
   channel    TEXT NOT NULL,
   title      TEXT NOT NULL,
+  body       TEXT,
   success    INTEGER NOT NULL DEFAULT 1,
   error      TEXT,
   created_at TEXT NOT NULL

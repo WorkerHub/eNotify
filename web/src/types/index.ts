@@ -8,7 +8,6 @@ export interface User {
   timezone: string
   language: string
   theme: 'light' | 'dark' | 'system'
-  show_lunar: boolean
   created_at: string
   twofa?: {
     totp_enabled: boolean
@@ -107,6 +106,7 @@ export interface NotificationHistory {
   item_name?: string
   channel: string
   title: string
+  body: string | null
   success: number
   error: string | null
   created_at: string

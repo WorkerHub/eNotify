@@ -43,7 +43,7 @@ const CHANNEL_SENDERS: Record<string, (config: string, message: NotifyMessage, e
   notifyx: sendNotifyX,
 }
 
-async function recordHistory(context: NotifyContext, channel: string, title: string, success: boolean, error?: string | null): Promise<void> {
+async function recordHistory(context: NotifyContext, channel: string, title: string, body: string | null, success: boolean, error?: string | null): Promise<void> {
   try {
     await insertNotificationHistory(context.db, context.prefix, {
       id: generateId(),
@@ -51,6 +51,7 @@ async function recordHistory(context: NotifyContext, channel: string, title: str
       item_id: context.itemId,
       channel,
       title,
+      body,
       success,
       error,
     })
@@ -80,7 +81,7 @@ export async function sendNotifications(
     if (!sender) {
       results.push({ channel, success: false, error: 'Unknown channel' })
       if (context) {
-        await recordHistory(context, channel, message.title, false, 'Unknown channel')
+        await recordHistory(context, channel, message.title, message.body, false, 'Unknown channel')
       }
       continue
     }
@@ -98,7 +99,7 @@ export async function sendNotifications(
     results.push({ channel, ...result })
 
     if (context) {
-      await recordHistory(context, channel, message.title, result.success, result.error)
+      await recordHistory(context, channel, message.title, message.body, result.success, result.error)
     }
   }
 

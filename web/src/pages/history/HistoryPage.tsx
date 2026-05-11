@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, History } from 'lucide-react'
+import { CheckCircle, XCircle, History, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { NotificationHistory } from '@/types'
 
 interface GroupedHistory {
   id: string
   title: string
+  body: string | null
   item_name?: string
   channels: { channel: string; success: boolean; error: string | null }[]
   created_at: string
@@ -30,6 +31,7 @@ function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
       groups.push({
         id: r.id,
         title: r.title,
+        body: r.body,
         item_name: r.item_name,
         channels: [{ channel: r.channel, success: !!r.success, error: r.error }],
         created_at: r.created_at,
@@ -45,6 +47,7 @@ export function HistoryPage() {
   const [history, setHistory] = useState<NotificationHistory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selected, setSelected] = useState<GroupedHistory | null>(null)
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -103,7 +106,7 @@ export function HistoryPage() {
               </thead>
               <tbody className="divide-y">
                 {grouped.map((g) => (
-                  <tr key={g.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={g.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelected(g)}>
                     <td className="px-4 py-3">
                       <p className="font-medium truncate max-w-xs">{g.title}</p>
                       {g.item_name && (
@@ -149,7 +152,7 @@ export function HistoryPage() {
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
             {grouped.map((g) => (
-              <div key={g.id} className="bg-card rounded-xl border p-4 space-y-2">
+              <div key={g.id} className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors" onClick={() => setSelected(g)}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{g.title}</p>
@@ -188,6 +191,56 @@ export function HistoryPage() {
             ))}
           </div>
         </>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelected(null)}>
+          <div
+            className="bg-card border rounded-xl w-full max-w-lg shadow-lg flex flex-col max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+              <h3 className="font-semibold text-sm">{t('history.detail')}</h3>
+              <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3 overflow-y-auto">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">{t('history.title_col')}</p>
+                <p className="text-sm font-medium">{selected.title}</p>
+                {selected.item_name && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{selected.item_name}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">{t('history.content')}</p>
+                {selected.body ? (
+                  <pre className="text-sm bg-muted rounded-lg px-3 py-2.5 whitespace-pre-wrap font-mono leading-relaxed">
+                    {selected.body}
+                  </pre>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">{t('history.noContent')}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <div className="flex flex-wrap gap-1">
+                  {selected.channels.map((c, i) => (
+                    <span key={i} className={`uppercase px-1.5 py-0.5 rounded ${c.success ? 'text-muted-foreground bg-muted' : 'text-destructive bg-destructive/10'}`}>
+                      {c.channel}
+                    </span>
+                  ))}
+                </div>
+                <span className="shrink-0">{new Date(selected.created_at).toLocaleString()}</span>
+              </div>
+              {selected.channels.some(c => c.error) && (
+                <p className="text-xs text-destructive">
+                  {selected.channels.filter(c => c.error).map(c => `${c.channel}: ${c.error}`).join('\n')}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

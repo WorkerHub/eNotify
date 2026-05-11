@@ -227,7 +227,10 @@
     "time": "时间",
     "success": "成功",
     "failed": "失败",
-    "noData": "暂无通知记录"
+    "noData": "暂无通知记录",
+    "detail": "通知详情",
+    "content": "消息内容",
+    "noContent": "该记录无消息内容"
   },
   "admin": {
     "title": "管理后台",
