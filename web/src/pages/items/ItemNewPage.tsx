@@ -113,6 +113,46 @@ function Field({ label, children, required }: { label: string; children: ReactNo
   )
 }
 
+function FieldWithTooltip({ label, tooltip, children }: { label: string; tooltip: string; children: ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+
+  const updatePos = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setPos({ x: rect.left + rect.width / 2, y: rect.top })
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1">
+        <label className="text-sm font-medium">{label}</label>
+        <span
+          ref={ref}
+          className="inline-flex ml-0.5"
+          onMouseEnter={updatePos}
+          onMouseLeave={() => setPos(null)}
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+          {pos && (
+            <Portal>
+              <div
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
+                style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
+              >
+                {tooltip.split('\n').map((line, i) => (
+                  <span key={i}>{i > 0 && <br />}{line}</span>
+                ))}
+              </div>
+            </Portal>
+          )}
+        </span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 const INPUT =
   'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow'
 const SELECT = cn(INPUT, 'cursor-pointer')
@@ -313,12 +353,12 @@ export function ItemNewPage() {
             />
           </Field>
 
-          <Field label={t('items.mode.label')}>
+          <FieldWithTooltip label={t('items.mode.label')} tooltip={t('items.mode.tooltip')}>
             <select className={SELECT} value={form.item_mode} onChange={(e) => set('item_mode', e.target.value as FormData['item_mode'])}>
               <option value="cycle">{t('items.mode.cycle')}</option>
               <option value="reset">{t('items.mode.reset')}</option>
             </select>
-          </Field>
+          </FieldWithTooltip>
 
           <Field label={t('items.category')}>
             <TagCombobox
