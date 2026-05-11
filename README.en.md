@@ -58,31 +58,23 @@ In your repository Settings → Secrets and variables → Actions, add:
 | Secret | Description |
 |--------|-------------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (needs Workers and D1 permissions) |
-| `D1_DATABASE_NAME` | D1 database name |
-| `D1_DATABASE_ID` | D1 database ID |
-| `KV_NAMESPACE_ID` | KV namespace ID |
-
-### 3. Configure Worker Secrets
-
-In the Cloudflare dashboard, go to Workers → enotify → Settings → Variables → Secrets, and add:
-
-| Secret | Description |
-|--------|-------------|
 | `JWT_SECRET` | Any random 64-char string — e.g. `openssl rand -hex 32` |
 | `SETUP_SECRET` | Any random string — e.g. `openssl rand -hex 16` |
 
-Or via CLI:
+In Settings → Secrets and variables → Actions → Variables, add:
 
-```bash
-npx wrangler secret put JWT_SECRET
-npx wrangler secret put SETUP_SECRET
-```
+| Variable | Description |
+|----------|-------------|
+| `D1_DATABASE_NAME` | D1 database name |
+| `D1_DATABASE_ID` | D1 database ID |
+| `KV_NAMESPACE_ID` | KV namespace ID |
+| `TABLE_PREFIX` | Optional prefix for all DB table names(e.g. `myapp_`) |
 
-### 4. Deploy
+### 3. Deploy
 
 Push to `main` branch to trigger automatic deployment.
 
-### 5. Initialize Database
+### 4. Initialize Database
 
 After deployment, visit the following URL to initialize the database:
 
@@ -90,7 +82,7 @@ After deployment, visit the following URL to initialize the database:
 https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
 ```
 
-### 6. Register Admin
+### 5. Register Admin
 
 Visit the app homepage and register an account. The first registered user will automatically become the admin.
 
@@ -112,18 +104,13 @@ pnpm dev:worker
 
 ## Environment Variables
 
-### Worker Environment Variables (Cloudflare Dashboard or wrangler.toml)
+### Worker Environment Variables (wrangler.toml, injected by GitHub Actions during deployment)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TABLE_PREFIX` | `""` | Database table prefix (e.g., `hk_`) |
-
-### Worker Secrets (configured in Cloudflare dashboard)
-
-| Secret | Description |
-|--------|-------------|
-| `JWT_SECRET` | JWT signing secret |
-| `SETUP_SECRET` | Database initialization route secret |
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | JWT signing secret, any random 64-char string |
+| `SETUP_SECRET` | Database initialization route secret, any random string |
+| `TABLE_PREFIX` | Database table prefix (e.g., `hk_`), default is empty |
 
 ## License
 

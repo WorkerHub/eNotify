@@ -58,31 +58,23 @@ npx wrangler kv namespace create ENOTIFY_KV
 | Secret | 说明 |
 |--------|------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 和 D1 权限） |
-| `D1_DATABASE_NAME` | D1 数据库名称 |
-| `D1_DATABASE_ID` | D1 数据库 ID |
-| `KV_NAMESPACE_ID` | KV 命名空间 ID |
-
-### 3. 配置 Worker Secrets
-
-在 Cloudflare 控制台中，进入 Workers → enotify → Settings → Variables → Secrets，添加：
-
-| Secret | 说明 |
-|--------|------|
 | `JWT_SECRET` | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
 | `SETUP_SECRET` | 任意随机字符串，例如 `openssl rand -hex 16` |
 
-也可以通过命令行配置：
+在 Settings → Secrets and variables → Actions → Variables 中添加：
 
-```bash
-npx wrangler secret put JWT_SECRET
-npx wrangler secret put SETUP_SECRET
-```
+| Variable | 说明 |
+|----------|------|
+| `D1_DATABASE_NAME` | D1 数据库名称 |
+| `D1_DATABASE_ID` | D1 数据库 ID |
+| `KV_NAMESPACE_ID` | KV 命名空间 ID |
+| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空 |
 
-### 4. 部署
+### 3. 部署
 
 推送到 `main` 分支即可自动部署。
 
-### 5. 初始化数据库
+### 4. 初始化数据库
 
 部署完成后，访问以下 URL 初始化数据库：
 
@@ -90,7 +82,7 @@ npx wrangler secret put SETUP_SECRET
 https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
 ```
 
-### 6. 注册管理员
+### 5. 注册管理员
 
 访问应用首页注册账号，第一个注册的用户将自动成为管理员。
 
@@ -112,18 +104,13 @@ pnpm dev:worker
 
 ## 环境变量
 
-### Worker 环境变量（Cloudflare Dashboard 或 wrangler.toml）
+### Worker 环境变量（wrangler.toml，部署时由 GitHub Actions 注入）
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `TABLE_PREFIX` | `""` | 数据库表前缀（如 `hk_`） |
-
-### Worker Secrets（在 Cloudflare 控制台中配置）
-
-| Secret | 说明 |
-|--------|------|
-| `JWT_SECRET` | JWT 签名密钥 |
-| `SETUP_SECRET` | 数据库初始化路由密钥 |
+| 变量 | 说明 |
+|------|------|
+| `JWT_SECRET` | JWT 签名密钥，任意 64 位随机字符串 |
+| `SETUP_SECRET` | 数据库初始化路由密钥，任意随机字符串 |
+| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空 |
 
 ## 许可证
 

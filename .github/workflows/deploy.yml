@@ -31,11 +31,17 @@ jobs:
           D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SETUP_SECRET: ${{ secrets.SETUP_SECRET }}
+          TABLE_PREFIX: ${{ vars.TABLE_PREFIX }}
         run: |
           sed -i "s/CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER/${CLOUDFLARE_ACCOUNT_ID}/" wrangler.toml
           sed -i "s/D1_DATABASE_NAME_PLACEHOLDER/${D1_DATABASE_NAME}/g" wrangler.toml
           sed -i "s/D1_DATABASE_ID_PLACEHOLDER/${D1_DATABASE_ID}/g" wrangler.toml
           sed -i "s/KV_NAMESPACE_ID_PLACEHOLDER/${KV_NAMESPACE_ID}/g" wrangler.toml
+          sed -i "s/JWT_SECRET_PLACEHOLDER/${JWT_SECRET}/" wrangler.toml
+          sed -i "s/SETUP_SECRET_PLACEHOLDER/${SETUP_SECRET}/" wrangler.toml
+          sed -i "s/TABLE_PREFIX_PLACEHOLDER/${TABLE_PREFIX}/" wrangler.toml
 
       - name: Deploy Worker
         working-directory: worker

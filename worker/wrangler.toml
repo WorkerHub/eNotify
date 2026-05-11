@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER"
-keep_vars = true
+
 
 [define]
 APP_VERSION = "__APP_VERSION__"
@@ -21,6 +21,11 @@ database_id = "D1_DATABASE_ID_PLACEHOLDER"
 [[kv_namespaces]]
 binding = "KV"
 id = "KV_NAMESPACE_ID_PLACEHOLDER"
+
+[vars]
+JWT_SECRET = "JWT_SECRET_PLACEHOLDER"
+SETUP_SECRET = "SETUP_SECRET_PLACEHOLDER"
+TABLE_PREFIX = "TABLE_PREFIX_PLACEHOLDER"
 
 [triggers]
 crons = ["0 * * * *"]
