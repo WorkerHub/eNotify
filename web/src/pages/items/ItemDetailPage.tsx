@@ -401,6 +401,7 @@ export function ItemDetailPage() {
     setResetting(true)
     try {
       const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`, {
+        amount: renewAmount ? Number(renewAmount) : undefined,
         date: renewDate || undefined,
         note: renewNote || undefined,
       })
@@ -879,6 +880,17 @@ export function ItemDetailPage() {
           <h2 className="font-semibold text-base">{t('items.resetCycle')}</h2>
           <form onSubmit={handleResetSubmit} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
+              <Field label={t('items.amount')}>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={INPUT}
+                  value={renewAmount}
+                  onChange={(e) => setRenewAmount(e.target.value)}
+                />
+              </Field>
+
               <Field label={t('common.date')}>
                 <input
                   type="date"

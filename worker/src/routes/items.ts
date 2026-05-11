@@ -340,7 +340,7 @@ itemRoutes.post('/:id/reset', async (c) => {
     return c.json({ error: 'Item is not in reset mode' }, 400)
   }
 
-  const body = await c.req.json<{ date?: string; note?: string }>()
+  const body = await c.req.json<{ amount?: number; date?: string; note?: string }>()
   const now = nowISO()
   const today = body.date || now.split('T')[0]
   let newExpiry: string
@@ -373,7 +373,7 @@ itemRoutes.post('/:id/reset', async (c) => {
     item_id: id,
     user_id: userId,
     date: now,
-    amount: item.amount ?? 0,
+    amount: body.amount ?? item.amount ?? 0,
     currency: item.currency,
     type: 'manual',
     note: body.note || '',
