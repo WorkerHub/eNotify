@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, XCircle, History, X, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import type { NotificationHistory } from '@/types'
 
 interface GroupedHistory {
@@ -48,6 +49,7 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<GroupedHistory | null>(null)
+  const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -66,18 +68,23 @@ export function HistoryPage() {
 
   const grouped = groupHistory(history)
 
-  const handleClear = async (e: React.MouseEvent, g: GroupedHistory) => {
+  const handleClear = (e: React.MouseEvent, g: GroupedHistory) => {
     e.stopPropagation()
-    // Collect all record IDs that belong to this group
-    const groupRecords = history.filter(r => {
-      if (r.item_name !== g.item_name || r.title !== g.title) return false
-      const timeDiff = Math.abs(new Date(r.created_at).getTime() - new Date(g.created_at).getTime())
-      return timeDiff < 120_000
+    setConfirm({
+      message: t('common.confirmDelete', { name: g.title }),
+      onConfirm: async () => {
+        setConfirm(null)
+        const groupRecords = history.filter(r => {
+          if (r.item_name !== g.item_name || r.title !== g.title) return false
+          const timeDiff = Math.abs(new Date(r.created_at).getTime() - new Date(g.created_at).getTime())
+          return timeDiff < 120_000
+        })
+        for (const r of groupRecords) {
+          try { await api.delete(`/me/notification-history/${r.id}`) } catch { /* ignore individual errors */ }
+        }
+        setHistory(prev => prev.filter(r => !groupRecords.some(gr => gr.id === r.id)))
+      },
     })
-    for (const r of groupRecords) {
-      try { await api.delete(`/me/notification-history/${r.id}`) } catch { /* ignore individual errors */ }
-    }
-    setHistory(prev => prev.filter(r => !groupRecords.some(gr => gr.id === r.id)))
   }
 
   return (
@@ -275,6 +282,16 @@ export function HistoryPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        message={confirm?.message || ''}
+        variant="danger"
+        confirmLabel={t('common.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirm?.onConfirm || (() => {})}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }
