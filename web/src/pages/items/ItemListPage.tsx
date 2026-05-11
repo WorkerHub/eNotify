@@ -325,10 +325,10 @@ export function ItemListPage() {
                 <col className="w-[15%]" />
                 <col className="w-[9%]" />
                 <col className="w-[10%]" />
-                <col className="w-[25%]" />
+                <col className="w-[23%]" />
                 <col className="w-[10%]" />
                 <col className="w-[13%]" />
-                <col className="w-[18%]" />
+                <col className="w-[20%]" />
               </colgroup>
               <thead className="bg-muted/50">
                 <tr>
