@@ -62,3 +62,18 @@ export async function listNotificationHistory(
     .all<NotificationHistoryRecord & { item_name?: string }>()
   return result.results
 }
+
+export async function deleteNotificationHistory(
+  db: D1Database,
+  prefix: string,
+  userId: string,
+  id: string
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `DELETE FROM ${prefix}notification_history WHERE id = ? AND user_id = ?`
+    )
+    .bind(id, userId)
+    .run()
+  return result.meta.changes > 0
+}

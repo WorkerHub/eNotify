@@ -5,7 +5,7 @@ import { authMiddleware, getEffectiveUserId } from '../middleware/auth'
 import { rateLimit } from '../middleware/ratelimit'
 import { findUserById, updateUser } from '../db/queries/users'
 import { getNotificationConfig, upsertNotificationConfig } from '../db/queries/notifications'
-import { insertNotificationHistory, listNotificationHistory } from '../db/queries/notification-history'
+import { insertNotificationHistory, listNotificationHistory, deleteNotificationHistory } from '../db/queries/notification-history'
 import { get2FAConfig } from '../db/queries/twofa'
 import { hashPassword, verifyPassword, generateJti, signJWT, verifyJWT } from '../core/auth'
 import { getSessionIndex, removeSessionIndex, addSessionIndex } from './auth'
@@ -257,6 +257,16 @@ meRoutes.get('/notification-history', async (c) => {
   const limit = Math.min(Number(c.req.query('limit') || 50), 200)
   const history = await listNotificationHistory(c.env.DB, prefix, userId, limit)
   return c.json(history)
+})
+
+meRoutes.delete('/notification-history/:id', async (c) => {
+  const userId = getEffectiveUserId(c)
+  const prefix = getTablePrefix(c.env)
+  const id = c.req.param('id')
+
+  const deleted = await deleteNotificationHistory(c.env.DB, prefix, userId, id)
+  if (!deleted) return c.json({ error: 'Not found' }, 404)
+  return c.json({ success: true })
 })
 
 meRoutes.post('/notifications/token', async (c) => {

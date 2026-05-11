@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, XCircle, History, X } from 'lucide-react'
+import { CheckCircle, XCircle, History, X, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { NotificationHistory } from '@/types'
 
@@ -66,6 +66,20 @@ export function HistoryPage() {
 
   const grouped = groupHistory(history)
 
+  const handleClear = async (e: React.MouseEvent, g: GroupedHistory) => {
+    e.stopPropagation()
+    // Collect all record IDs that belong to this group
+    const groupRecords = history.filter(r => {
+      if (r.item_name !== g.item_name || r.title !== g.title) return false
+      const timeDiff = Math.abs(new Date(r.created_at).getTime() - new Date(g.created_at).getTime())
+      return timeDiff < 120_000
+    })
+    for (const r of groupRecords) {
+      try { await api.delete(`/me/notification-history/${r.id}`) } catch { /* ignore individual errors */ }
+    }
+    setHistory(prev => prev.filter(r => !groupRecords.some(gr => gr.id === r.id)))
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('history.title')}</h1>
@@ -97,6 +111,7 @@ export function HistoryPage() {
                     t('history.channel'),
                     t('common.status'),
                     t('history.time'),
+                    t('common.actions'),
                   ].map((h) => (
                     <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                       {h}
@@ -143,6 +158,15 @@ export function HistoryPage() {
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {new Date(g.created_at).toLocaleString()}
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={(e) => handleClear(e, g)}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title={t('common.clear')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -180,7 +204,16 @@ export function HistoryPage() {
                       </span>
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(g.created_at).toLocaleString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(g.created_at).toLocaleString()}</span>
+                    <button
+                      onClick={(e) => handleClear(e, g)}
+                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      title={t('common.clear')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 {g.channels.some(c => c.error) && (
                   <p className="text-xs text-destructive truncate">
