@@ -200,9 +200,10 @@ async function processSubscription(
     const existing = await kv.get(dedupeKey)
     if (existing) continue
 
+    const isBoth = sub.calendar_mode === 'both'
     const lunarSuffix = label === 'lunar'
       ? (lang === 'zh' ? ' (农历)' : ' (Lunar)')
-      : ''
+      : (isBoth ? (lang === 'zh' ? ' (阳历)' : ' (Solar)') : '')
 
     const sentAt = formatUserTime(timezone)
     const lunarStr = sub.calendar_mode !== 'solar' ? lunarLabel(checkDate) : null
@@ -217,9 +218,17 @@ async function processSubscription(
       const lines = [
         `名称：${sub.name}`,
         `模式：${modeLabel}`,
-        `到期日期：${checkDate}`,
       ]
-      if (lunarStr) lines.push(`农历日期：${lunarStr}`)
+      if (isBoth && label === 'lunar' && lunarStr) {
+        lines.push(`农历到期：${lunarStr}`)
+        lines.push(`对应阳历：${checkDate}`)
+      } else if (isBoth && label === 'solar') {
+        lines.push(`阳历到期：${checkDate}`)
+        if (lunarStr) lines.push(`对应农历：${lunarStr}`)
+      } else {
+        lines.push(`到期日期：${checkDate}`)
+        if (lunarStr) lines.push(`农历日期：${lunarStr}`)
+      }
       lines.push(`自动续期：${autoRenewLabel}`)
       if (sub.notes) lines.push(`备注：${sub.notes}`)
       lines.push(``, timeLabel, `发送时间：${sentAt}`, `当前时区：${timezone}`)
@@ -233,9 +242,17 @@ async function processSubscription(
       const lines = [
         `Name: ${sub.name}`,
         `Mode: ${modeLabel}`,
-        `Expiry date: ${checkDate}`,
       ]
-      if (lunarStr) lines.push(`Lunar date: ${lunarStr}`)
+      if (isBoth && label === 'lunar' && lunarStr) {
+        lines.push(`Lunar expiry: ${lunarStr}`)
+        lines.push(`Solar equivalent: ${checkDate}`)
+      } else if (isBoth && label === 'solar') {
+        lines.push(`Solar expiry: ${checkDate}`)
+        if (lunarStr) lines.push(`Lunar equivalent: ${lunarStr}`)
+      } else {
+        lines.push(`Expiry date: ${checkDate}`)
+        if (lunarStr) lines.push(`Lunar date: ${lunarStr}`)
+      }
       lines.push(`Auto-renew: ${autoRenewLabel}`)
       if (sub.notes) lines.push(`Notes: ${sub.notes}`)
       lines.push(``, timeLabel, `Sent at: ${sentAt}`, `Timezone: ${timezone}`)
