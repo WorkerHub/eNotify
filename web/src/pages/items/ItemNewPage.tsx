@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, type ReactNode } from 'react'
+import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, AlertCircle, Bell } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell, HelpCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
@@ -11,6 +11,7 @@ import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Portal } from '@/components/Portal'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
 
@@ -125,6 +126,8 @@ export function ItemNewPage() {
   const [error, setError] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [confirm, setConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const kindTooltipRef = useRef<HTMLSpanElement>(null)
+  const [kindTooltipPos, setKindTooltipPos] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     api.get<{ categories: string[] }>('/items/tags').then((r) => setTags(r.categories || [])).catch(() => {})
@@ -247,6 +250,7 @@ export function ItemNewPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Kind selector */}
+        <div className="flex items-center gap-2">
         <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
           <button
             type="button"
@@ -272,6 +276,31 @@ export function ItemNewPage() {
           >
             {t('items.kindSubscription')}
           </button>
+        </div>
+        <span
+          ref={kindTooltipRef}
+          className="inline-flex"
+          onMouseEnter={() => {
+            if (!kindTooltipRef.current) return
+            const rect = kindTooltipRef.current.getBoundingClientRect()
+            setKindTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
+          }}
+          onMouseLeave={() => setKindTooltipPos(null)}
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+          {kindTooltipPos && (
+            <Portal>
+              <div
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
+                style={{ left: kindTooltipPos.x, top: kindTooltipPos.y, transform: 'translate(-50%, calc(-100% - 8px))' }}
+              >
+                <span className="font-medium">{t('items.kindRegular')}：</span>{t('items.kindRegularTooltip')}
+                <br />
+                <span className="font-medium">{t('items.kindSubscription')}：</span>{t('items.kindSubscriptionTooltip')}
+              </div>
+            </Portal>
+          )}
+        </span>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
