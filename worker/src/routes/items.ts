@@ -343,6 +343,15 @@ itemRoutes.post('/:id/reset', async (c) => {
   const body = await c.req.json<{ amount?: number; date?: string; note?: string }>()
   const now = nowISO()
   const today = body.date || now.split('T')[0]
+
+  // Update the previous period's end date to the day before reset
+  const prevPayments = await listPaymentsByItem(c.env.DB, prefix, id)
+  const lastPayment = prevPayments.find(p => p.period_end === item.expiry_date)
+  if (lastPayment) {
+    const dayBefore = addPeriod(today, -1, 'day')
+    await updatePayment(c.env.DB, prefix, lastPayment.id, { period_end: dayBefore })
+  }
+
   let newExpiry: string
 
   let newLunarExpiry: string | null = null

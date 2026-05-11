@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, RefreshCw, HelpCircle, Calculator } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, HelpCircle, Calculator } from 'lucide-react'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Portal } from '@/components/Portal'
@@ -353,52 +353,6 @@ export function ItemDetailPage() {
           setNotifyError(true)
         } finally {
           setNotifying(false)
-        }
-      },
-    })
-  }
-
-  const handleQuickRenew = () => {
-    setConfirm({
-      message: t('items.renewConfirm'),
-      variant: 'primary',
-      onConfirm: async () => {
-        setConfirm(null)
-        setRenewing(true)
-        try {
-          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/renew`, { multiplier: 1 })
-          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
-          if (item?.item_kind === 'subscription') {
-            const updated = await api.get<Payment[]>(`/items/${id}/payments`)
-            setPayments(updated)
-          }
-        } catch (e: any) {
-          setError(e.message)
-        } finally {
-          setRenewing(false)
-        }
-      },
-    })
-  }
-
-  const handleReset = () => {
-    setConfirm({
-      message: t('items.resetConfirm'),
-      variant: 'primary',
-      onConfirm: async () => {
-        setConfirm(null)
-        setResetting(true)
-        try {
-          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`)
-          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
-          if (item?.item_kind === 'subscription') {
-            const updated = await api.get<Payment[]>(`/items/${id}/payments`)
-            setPayments(updated)
-          }
-        } catch (e: any) {
-          setError(e.message)
-        } finally {
-          setResetting(false)
         }
       },
     })
@@ -805,17 +759,6 @@ export function ItemDetailPage() {
         </form>
       </section>
 
-      {/* Delete */}
-      <section className="flex">
-        <button
-          onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          {t('common.delete')}
-        </button>
-      </section>
-
       {/* Renew / Reset */}
       {item.item_mode === 'cycle' ? (
         <section className="bg-card rounded-xl border p-5 space-y-4">
@@ -912,7 +855,7 @@ export function ItemDetailPage() {
       {/* Payment / Renewal history */}
       <section className="bg-card rounded-xl border p-5 space-y-4">
         <h2 className="font-semibold text-base">
-          {item.item_kind === 'subscription' ? t('items.paymentHistory') : t('items.renewHistory')}
+          {t('items.renewHistory')}
         </h2>
 
         {payments.length === 0 ? (
@@ -1064,6 +1007,17 @@ export function ItemDetailPage() {
             </div>
           </>
         )}
+      </section>
+
+      {/* Delete */}
+      <section className="flex">
+        <button
+          onClick={handleDelete}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+          {t('common.delete')}
+        </button>
       </section>
 
       <ConfirmDialog
