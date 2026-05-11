@@ -196,6 +196,7 @@ export function ItemDetailPage() {
         setItem(s)
         setPayments(p)
         setRenewAmount(String(s.amount ?? ''))
+        setRenewDate(getTodayStr())
         // Parse channels from the item
         try {
           const parsedChannels = JSON.parse(s.channels || '[]')
@@ -306,25 +307,32 @@ export function ItemDetailPage() {
 
   const handleRenew = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setRenewing(true)
-    try {
-      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/renew`, {
-        amount: renewAmount ? Number(renewAmount) : undefined,
-        date: renewDate || undefined,
-        multiplier: Number(renewMultiplier) || 1,
-        note: renewNote || undefined,
-      })
-      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
-      const updated = await api.get<Payment[]>(`/items/${id}/payments`)
-      setPayments(updated)
-      setRenewNote('')
-      setRenewDate('')
-      setRenewMultiplier('1')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setRenewing(false)
-    }
+    setConfirm({
+      message: t('items.renewConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setRenewing(true)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/renew`, {
+            amount: renewAmount ? Number(renewAmount) : undefined,
+            date: renewDate || undefined,
+            multiplier: Number(renewMultiplier) || 1,
+            note: renewNote || undefined,
+          })
+          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date } : prev)
+          const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+          setPayments(updated)
+          setRenewNote('')
+          setRenewDate(getTodayStr())
+          setRenewMultiplier('1')
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setRenewing(false)
+        }
+      },
+    })
   }
 
   const handleTestNotify = () => {
@@ -398,23 +406,30 @@ export function ItemDetailPage() {
 
   const handleResetSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setResetting(true)
-    try {
-      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`, {
-        amount: renewAmount ? Number(renewAmount) : undefined,
-        date: renewDate || undefined,
-        note: renewNote || undefined,
-      })
-      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
-      const updated = await api.get<Payment[]>(`/items/${id}/payments`)
-      setPayments(updated)
-      setRenewNote('')
-      setRenewDate('')
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setResetting(false)
-    }
+    setConfirm({
+      message: t('items.resetConfirm'),
+      variant: 'primary',
+      onConfirm: async () => {
+        setConfirm(null)
+        setResetting(true)
+        try {
+          const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`, {
+            amount: renewAmount ? Number(renewAmount) : undefined,
+            date: renewDate || undefined,
+            note: renewNote || undefined,
+          })
+          setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
+          const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+          setPayments(updated)
+          setRenewNote('')
+          setRenewDate(getTodayStr())
+        } catch (e: any) {
+          setError(e.message)
+        } finally {
+          setResetting(false)
+        }
+      },
+    })
   }
 
   const handleSavePayment = async () => {
@@ -735,28 +750,6 @@ export function ItemDetailPage() {
               </div>
             </Field>
             <div className="flex flex-wrap gap-3">
-              {item.item_mode === 'cycle' && (
-                <button
-                  type="button"
-                  onClick={handleQuickRenew}
-                  disabled={renewing}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  {renewing ? t('common.loading') : t('items.renew')}
-                </button>
-              )}
-              {item.item_mode === 'reset' && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={resetting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  {resetting ? t('common.loading') : t('items.resetCycle')}
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleTestNotify}
