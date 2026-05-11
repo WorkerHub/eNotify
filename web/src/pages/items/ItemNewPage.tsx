@@ -139,18 +139,17 @@ export function ItemNewPage() {
     const today = getTodayStr()
 
     if (form.calendar_mode === 'both') {
+      // Solar and lunar tracks advance independently from start_date
       let solarDate = addPeriod(form.start_date, pv, form.period_unit)
-      let lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
-      let iter = 0
-      while (iter < 1000) {
-        const minDate = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
-        if (minDate >= today) break
+      while (solarDate < today) {
         solarDate = addPeriod(solarDate, pv, form.period_unit)
-        lunarDate = lunarDate
-          ? (addLunarPeriod(lunarDate, pv, form.period_unit) ?? addPeriod(lunarDate, pv, form.period_unit))
-          : null
-        iter++
       }
+
+      let lunarDate = addLunarPeriod(form.start_date, pv, form.period_unit)
+      while (lunarDate && lunarDate < today) {
+        lunarDate = addLunarPeriod(lunarDate, pv, form.period_unit) ?? addPeriod(lunarDate, pv, form.period_unit)
+      }
+
       const stored = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
       return { solar: solarDate, lunarDate, stored }
     }

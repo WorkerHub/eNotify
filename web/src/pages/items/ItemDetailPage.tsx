@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode } from 'react'
+import { useEffect, useState, useRef, useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, RefreshCw, HelpCircle, Calculator } from 'lucide-react'
@@ -256,18 +256,17 @@ export function ItemDetailPage() {
     const today = getTodayStr()
 
     if (item.calendar_mode === 'both') {
+      // Solar and lunar tracks advance independently from start_date
       let solarDate = addPeriod(item.start_date, pv, item.period_unit)
-      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit)
-      let iter = 0
-      while (iter < 1000) {
-        const minDate = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
-        if (minDate >= today) break
+      while (solarDate < today) {
         solarDate = addPeriod(solarDate, pv, item.period_unit)
-        lunarDate = lunarDate
-          ? (addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit))
-          : null
-        iter++
       }
+
+      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit)
+      while (lunarDate && lunarDate < today) {
+        lunarDate = addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit)
+      }
+
       setField('expiry_date', solarDate)
       setField('lunar_expiry_date', lunarDate && lunarDate <= solarDate ? lunarDate : null)
     } else if (item.calendar_mode === 'lunar') {
@@ -436,6 +435,50 @@ export function ItemDetailPage() {
 
   const setField = <K extends keyof Item>(key: K, val: Item[K]) =>
     setItem((prev) => prev ? { ...prev, [key]: val } : prev)
+
+  // Auto-recalculate expiry dates when start_date / period changes in lunar/both mode
+  const derivedExpiry = useMemo(() => {
+    if (!item?.start_date) return null
+    const pv = item.period_value || 1
+    const today = getTodayStr()
+
+    if (item.calendar_mode === 'both') {
+      let solarDate = addPeriod(item.start_date, pv, item.period_unit)
+      while (solarDate < today) solarDate = addPeriod(solarDate, pv, item.period_unit)
+
+      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit)
+      while (lunarDate && lunarDate < today) {
+        lunarDate = addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit)
+      }
+
+      return { solar: solarDate, lunar: lunarDate }
+    }
+
+    if (item.calendar_mode === 'lunar') {
+      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit) ?? addPeriod(item.start_date, pv, item.period_unit)
+      while (lunarDate < today) {
+        lunarDate = addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit)
+      }
+      return { solar: lunarDate, lunar: null as string | null }
+    }
+
+    let solarDate = addPeriod(item.start_date, pv, item.period_unit)
+    while (solarDate < today) solarDate = addPeriod(solarDate, pv, item.period_unit)
+    return { solar: solarDate, lunar: null as string | null }
+  }, [item?.start_date, item?.period_value, item?.period_unit, item?.calendar_mode])
+
+  useEffect(() => {
+    if (!item || !derivedExpiry) return
+    // Only auto-sync in both/lunar mode; in solar mode the user may freely edit expiry_date
+    if (item.calendar_mode === 'both') {
+      if (item.expiry_date !== derivedExpiry.solar) setField('expiry_date', derivedExpiry.solar)
+      const expectedLunar = derivedExpiry.lunar && derivedExpiry.lunar <= derivedExpiry.solar ? derivedExpiry.lunar : null
+      if (item.lunar_expiry_date !== expectedLunar) setField('lunar_expiry_date', expectedLunar)
+    } else if (item.calendar_mode === 'lunar') {
+      if (item.expiry_date !== derivedExpiry.solar) setField('expiry_date', derivedExpiry.solar)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [derivedExpiry])
 
   if (loading) {
     return (
