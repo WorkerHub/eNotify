@@ -1,18 +1,64 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, RefreshCw, HelpCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Bell, Trash2, Pencil, Check, X, RotateCcw, RefreshCw, HelpCircle, Calculator } from 'lucide-react'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Portal } from '@/components/Portal'
 import { cn } from '@/lib/utils'
 import type { Item, Payment } from '@/types'
-import { formatLunarDate } from '@/lib/lunar'
+import { formatLunarDate, solarToLunar, lunarToSolar } from '@/lib/lunar'
 import { ChannelSelector } from '@/components/ChannelSelector'
 import { NotificationHoursSelector } from '@/components/NotificationHoursSelector'
 import { TagCombobox } from '@/components/TagCombobox'
 
 const CURRENCIES = ['CNY', 'USD', 'EUR', 'GBP', 'JPY', 'HKD', 'TWD', 'KRW', 'TRY']
+
+function getTodayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addPeriod(date: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string {
+  const d = new Date(date + 'T00:00:00Z')
+  if (unit === 'day') {
+    d.setUTCDate(d.getUTCDate() + value)
+  } else if (unit === 'week') {
+    d.setUTCDate(d.getUTCDate() + value * 7)
+  } else if (unit === 'month') {
+    const origDay = d.getUTCDate()
+    d.setUTCMonth(d.getUTCMonth() + value)
+    if (d.getUTCDate() !== origDay) d.setUTCDate(0)
+  } else {
+    const origDay = d.getUTCDate()
+    d.setUTCFullYear(d.getUTCFullYear() + value)
+    if (d.getUTCDate() !== origDay) d.setUTCDate(0)
+  }
+  return d.toISOString().slice(0, 10)
+}
+
+function addLunarPeriod(solarDate: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string | null {
+  if (unit === 'day' || unit === 'week') return addPeriod(solarDate, value, unit)
+  const [y, m, d] = solarDate.split('-').map(Number)
+  const lunar = solarToLunar(y, m, d)
+  if (!lunar) return null
+  let newYear = lunar.lunarYear
+  let newMonth = lunar.month
+  if (unit === 'month') {
+    newMonth += value
+    while (newMonth > 12) { newMonth -= 12; newYear++ }
+  } else {
+    newYear += value
+  }
+  let solar = lunarToSolar(newYear, newMonth, lunar.day, lunar.isLeap)
+  if (!solar) solar = lunarToSolar(newYear, newMonth, lunar.day, false)
+  if (!solar && lunar.day === 30) {
+    solar = lunarToSolar(newYear, newMonth, 29, lunar.isLeap)
+    if (!solar) solar = lunarToSolar(newYear, newMonth, 29, false)
+  }
+  if (!solar) return null
+  return `${solar.year}-${String(solar.month).padStart(2, '0')}-${String(solar.day).padStart(2, '0')}`
+}
 
 const INPUT =
   'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow'
@@ -201,6 +247,45 @@ export function ItemDetailPage() {
       setError(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleRecalcExpiry = () => {
+    if (!item?.start_date) return
+    const pv = item.period_value || 1
+    const today = getTodayStr()
+
+    if (item.calendar_mode === 'both') {
+      let solarDate = addPeriod(item.start_date, pv, item.period_unit)
+      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit)
+      let iter = 0
+      while (iter < 1000) {
+        const minDate = lunarDate && lunarDate <= solarDate ? lunarDate : solarDate
+        if (minDate >= today) break
+        solarDate = addPeriod(solarDate, pv, item.period_unit)
+        lunarDate = lunarDate
+          ? (addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit))
+          : null
+        iter++
+      }
+      setField('expiry_date', solarDate)
+      setField('lunar_expiry_date', lunarDate && lunarDate <= solarDate ? lunarDate : null)
+    } else if (item.calendar_mode === 'lunar') {
+      let lunarDate = addLunarPeriod(item.start_date, pv, item.period_unit) ?? addPeriod(item.start_date, pv, item.period_unit)
+      let iter = 0
+      while (lunarDate < today && iter < 1000) {
+        lunarDate = addLunarPeriod(lunarDate, pv, item.period_unit) ?? addPeriod(lunarDate, pv, item.period_unit)
+        iter++
+      }
+      setField('expiry_date', lunarDate)
+    } else {
+      let solarDate = addPeriod(item.start_date, pv, item.period_unit)
+      let iter = 0
+      while (solarDate < today && iter < 1000) {
+        solarDate = addPeriod(solarDate, pv, item.period_unit)
+        iter++
+      }
+      setField('expiry_date', solarDate)
     }
   }
 
@@ -610,6 +695,15 @@ export function ItemDetailPage() {
               >
                 <Bell className="w-4 h-4" />
                 {t('items.testNotify')}
+              </button>
+              <button
+                type="button"
+                onClick={handleRecalcExpiry}
+                disabled={!item?.start_date}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+              >
+                <Calculator className="w-4 h-4" />
+                {t('items.recalcExpiry')}
               </button>
               {notifyMsg && <span className={cn('text-sm self-center', notifyError ? 'text-destructive' : 'text-green-600')}>{notifyMsg}</span>}
             </div>
