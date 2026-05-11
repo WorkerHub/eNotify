@@ -340,8 +340,9 @@ itemRoutes.post('/:id/reset', async (c) => {
     return c.json({ error: 'Item is not in reset mode' }, 400)
   }
 
+  const body = await c.req.json<{ date?: string; note?: string }>()
   const now = nowISO()
-  const today = now.split('T')[0]
+  const today = body.date || now.split('T')[0]
   let newExpiry: string
 
   let newLunarExpiry: string | null = null
@@ -367,20 +368,18 @@ itemRoutes.post('/:id/reset', async (c) => {
     last_payment_date: now,
   })
 
-  if (item.amount) {
-    await createPayment(c.env.DB, prefix, {
-      id: generateId(),
-      item_id: id,
-      user_id: userId,
-      date: now,
-      amount: item.amount,
-      currency: item.currency,
-      type: 'manual',
-      note: 'Reset renewal',
-      period_start: now,
-      period_end: newExpiry,
-    })
-  }
+  await createPayment(c.env.DB, prefix, {
+    id: generateId(),
+    item_id: id,
+    user_id: userId,
+    date: now,
+    amount: item.amount ?? 0,
+    currency: item.currency,
+    type: 'manual',
+    note: body.note || '',
+    period_start: today,
+    period_end: newExpiry,
+  })
 
   return c.json({ success: true, new_expiry_date: newExpiry })
 })

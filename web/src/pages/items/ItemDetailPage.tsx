@@ -396,6 +396,26 @@ export function ItemDetailPage() {
     })
   }
 
+  const handleResetSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setResetting(true)
+    try {
+      const res = await api.post<{ new_expiry_date: string }>(`/items/${id}/reset`, {
+        date: renewDate || undefined,
+        note: renewNote || undefined,
+      })
+      setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date, last_payment_date: new Date().toISOString() } : prev)
+      const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+      setPayments(updated)
+      setRenewNote('')
+      setRenewDate('')
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const handleSavePayment = async () => {
     if (!editingPayment) return
     try {
@@ -802,55 +822,87 @@ export function ItemDetailPage() {
         </button>
       </section>
 
-      {/* Renew */}
-      {item.item_kind === 'subscription' && <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t('items.renew')}</h2>
-        <form onSubmit={handleRenew} className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t('items.amount')}>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={INPUT}
-                value={renewAmount}
-                onChange={(e) => setRenewAmount(e.target.value)}
-              />
-            </Field>
+      {/* Renew / Reset */}
+      {item.item_mode === 'cycle' ? (
+        <section className="bg-card rounded-xl border p-5 space-y-4">
+          <h2 className="font-semibold text-base">{t('items.renew')}</h2>
+          <form onSubmit={handleRenew} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {item.item_kind === 'subscription' && (
+                <Field label={t('items.amount')}>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className={INPUT}
+                    value={renewAmount}
+                    onChange={(e) => setRenewAmount(e.target.value)}
+                  />
+                </Field>
+              )}
 
-            <Field label={t('common.date')}>
-              <input
-                type="date"
-                className={INPUT}
-                value={renewDate}
-                onChange={(e) => setRenewDate(e.target.value)}
-              />
-            </Field>
+              <Field label={t('common.date')}>
+                <input
+                  type="date"
+                  className={INPUT}
+                  value={renewDate}
+                  onChange={(e) => setRenewDate(e.target.value)}
+                />
+              </Field>
 
-            <Field label={t('items.renewMultiplier')}>
-              <input
-                type="number"
-                min={1}
-                className={INPUT}
-                value={renewMultiplier}
-                onChange={(e) => setRenewMultiplier(e.target.value)}
-              />
-            </Field>
+              <Field label={t('items.renewMultiplier')}>
+                <input
+                  type="number"
+                  min={1}
+                  className={INPUT}
+                  value={renewMultiplier}
+                  onChange={(e) => setRenewMultiplier(e.target.value)}
+                />
+              </Field>
 
-            <Field label={t('common.note')}>
-              <input className={INPUT} value={renewNote} onChange={(e) => setRenewNote(e.target.value)} />
-            </Field>
-          </div>
+              <Field label={t('common.note')}>
+                <input className={INPUT} value={renewNote} onChange={(e) => setRenewNote(e.target.value)} />
+              </Field>
+            </div>
 
-          <button
-            type="submit"
-            disabled={renewing}
-            className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {renewing ? t('common.loading') : t('items.renew')}
-          </button>
-        </form>
-      </section>}
+            <button
+              type="submit"
+              disabled={renewing}
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {renewing ? t('common.loading') : t('items.renew')}
+            </button>
+          </form>
+        </section>
+      ) : (
+        <section className="bg-card rounded-xl border p-5 space-y-4">
+          <h2 className="font-semibold text-base">{t('items.resetCycle')}</h2>
+          <form onSubmit={handleResetSubmit} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label={t('common.date')}>
+                <input
+                  type="date"
+                  className={INPUT}
+                  value={renewDate}
+                  onChange={(e) => setRenewDate(e.target.value)}
+                />
+              </Field>
+
+              <Field label={t('common.note')}>
+                <input className={INPUT} value={renewNote} onChange={(e) => setRenewNote(e.target.value)} />
+              </Field>
+            </div>
+
+            <button
+              type="submit"
+              disabled={resetting}
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {resetting ? t('common.loading') : t('items.resetCycle')}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Payment / Renewal history */}
       <section className="bg-card rounded-xl border p-5 space-y-4">
