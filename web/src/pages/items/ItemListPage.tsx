@@ -16,17 +16,26 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function getEffectiveExpiry(item: Item): string {
+  if (item.calendar_mode === 'both' && item.lunar_expiry_date) {
+    return item.lunar_expiry_date <= item.expiry_date ? item.lunar_expiry_date : item.expiry_date
+  }
+  return item.expiry_date
+}
+
 function getStatus(item: Item): StatusKey {
   if (!item.is_active) return 'inactive'
   const today = localToday()
-  if (item.expiry_date < today) return 'expired'
-  const diff = Math.ceil((new Date(item.expiry_date).getTime() - new Date(today).getTime()) / 86400000)
+  const expiry = getEffectiveExpiry(item)
+  if (expiry < today) return 'expired'
+  const diff = Math.ceil((new Date(expiry).getTime() - new Date(today).getTime()) / 86400000)
   if (diff <= 7) return 'expiringSoon'
   return 'active'
 }
 
-function getDaysRemaining(expiry: string): number {
+function getDaysRemaining(item: Item): number {
   const today = localToday()
+  const expiry = getEffectiveExpiry(item)
   return Math.ceil((new Date(expiry).getTime() - new Date(today).getTime()) / 86400000)
 }
 
@@ -271,8 +280,8 @@ export function ItemListPage() {
     .filter((i) => !filterCategory || i.category === filterCategory)
     .sort((a, b) => {
       if (!sortOrder) return 0
-      const da = new Date(a.expiry_date).getTime()
-      const db = new Date(b.expiry_date).getTime()
+      const da = new Date(getEffectiveExpiry(a)).getTime()
+      const db = new Date(getEffectiveExpiry(b)).getTime()
       return sortOrder === 'asc' ? da - db : db - da
     })
 
@@ -347,7 +356,7 @@ export function ItemListPage() {
               <tbody className="divide-y">
                 {displayItems.map((item) => {
                   const status = getStatus(item)
-                  const days = getDaysRemaining(item.expiry_date)
+                  const days = getDaysRemaining(item)
                   return (
                     <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-2 overflow-hidden">
@@ -364,10 +373,17 @@ export function ItemListPage() {
                       </td>
                       <td className="px-4 py-2 overflow-hidden">
                         <div className="flex items-center gap-2">
-                          <span>{item.expiry_date}</span>
+                          <span>{getEffectiveExpiry(item)}</span>
                           <DaysBadge days={days} />
                         </div>
-                        <span className="text-xs text-muted-foreground block truncate">{formatLunarDate(item.expiry_date)}</span>
+                        {item.calendar_mode === 'both' && item.lunar_expiry_date && item.lunar_expiry_date !== item.expiry_date ? (
+                          <>
+                            <span className="text-xs text-muted-foreground block truncate">{t('items.calendarSolar')}：{item.expiry_date} {formatLunarDate(item.expiry_date)}</span>
+                            <span className="text-xs text-muted-foreground block truncate">{t('items.calendarLunar')}：{item.lunar_expiry_date} {formatLunarDate(item.lunar_expiry_date)}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground block truncate">{formatLunarDate(getEffectiveExpiry(item))}</span>
+                        )}
                         {item.start_date && (
                           <span className="text-xs text-muted-foreground block truncate">{t('items.startDate')}：{item.start_date}</span>
                         )}
@@ -464,7 +480,7 @@ export function ItemListPage() {
           <div className="md:hidden space-y-3">
             {displayItems.map((item) => {
               const status = getStatus(item)
-              const days = getDaysRemaining(item.expiry_date)
+              const days = getDaysRemaining(item)
               return (
                 <div key={item.id} className="bg-card rounded-xl border p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -490,10 +506,17 @@ export function ItemListPage() {
                     <div className="flex items-start gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{item.expiry_date}</span>
+                          <span className="text-muted-foreground">{getEffectiveExpiry(item)}</span>
                           <DaysBadge days={days} />
                         </div>
-                        <span className="text-xs text-muted-foreground block">{formatLunarDate(item.expiry_date)}</span>
+                        {item.calendar_mode === 'both' && item.lunar_expiry_date && item.lunar_expiry_date !== item.expiry_date ? (
+                          <>
+                            <span className="text-xs text-muted-foreground block">{t('items.calendarSolar')}：{item.expiry_date} {formatLunarDate(item.expiry_date)}</span>
+                            <span className="text-xs text-muted-foreground block">{t('items.calendarLunar')}：{item.lunar_expiry_date} {formatLunarDate(item.lunar_expiry_date)}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground block">{formatLunarDate(getEffectiveExpiry(item))}</span>
+                        )}
                         {item.start_date && (
                           <span className="text-xs text-muted-foreground block">{t('items.startDate')}：{item.start_date}</span>
                         )}
