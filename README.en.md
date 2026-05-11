@@ -1,0 +1,117 @@
+# eNotify
+
+[中文](./README.md) | English
+
+A smart notification management system that helps you track expiry dates and expenses, sending reminders through multiple channels.
+
+## Features
+
+- **Multi-user** — Registration/login, first user becomes admin automatically
+- **Notification Management** — Add, edit, renew, deactivate, with cycle/reset modes, regular and subscription types
+- **Auto-renewal** — Expired subscriptions are automatically renewed with payment history recorded
+- **Payment History** — Record every payment, multi-currency with real-time exchange rates
+- **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
+- **9 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX
+- **Channel Management** — Dedicated page to enable and configure notification channels
+- **Per-Item Channel Selection** — Each notification item can specify which channels to use; defaults to all enabled channels if unset
+- **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override
+- **Notification History** — View all sent notifications with delivery status
+- **Two-Factor Auth** — TOTP (authenticator app), Email OTP, Passkey
+- **Password Reset** — Reset password via email verification code
+- **Admin Panel** — User management, system settings, user impersonation
+- **Lunar Calendar** — Lunar date display and period calculation (1900-2100)
+- **Theme Switching** — Light/Dark/System
+- **Bilingual** — Chinese/English
+- **Mobile-First** — Responsive design with top bar and bottom navigation
+
+## Tech Stack
+
+- **Backend**: Cloudflare Workers + Hono.js (TypeScript)
+- **Database**: Cloudflare D1 (SQLite)
+- **Cache**: Cloudflare KV
+- **Frontend**: React 19 + Vite + Tailwind CSS v4 + shadcn/ui
+- **Deployment**: GitHub Actions + Wrangler
+
+## Deployment Guide
+
+### Prerequisites
+
+- Cloudflare account
+- GitHub repository
+- Node.js >= 22
+- pnpm
+
+### 1. Create Cloudflare Resources
+
+```bash
+# Create D1 database
+npx wrangler d1 create enotify-db
+
+# Create KV namespace
+npx wrangler kv namespace create ENOTIFY_KV
+```
+
+### 2. Configure GitHub Secrets
+
+In your repository Settings → Secrets and variables → Actions, add:
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (needs Workers and D1 permissions) |
+| `JWT_SECRET` | Any random 64-char string — e.g. `openssl rand -hex 32` |
+| `SETUP_SECRET` | Any random string — e.g. `openssl rand -hex 16` |
+
+In Settings → Secrets and variables → Actions → Variables, add:
+
+| Variable | Description |
+|----------|-------------|
+| `D1_DATABASE_NAME` | D1 database name |
+| `D1_DATABASE_ID` | D1 database ID |
+| `KV_NAMESPACE_ID` | KV namespace ID |
+| `TABLE_PREFIX` | Optional prefix for all DB table names(e.g. `myapp_`) |
+
+### 3. Deploy
+
+Push to `main` branch to trigger automatic deployment.
+
+### 4. Initialize Database
+
+After deployment, visit the following URL to initialize the database:
+
+```
+https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
+```
+
+### 5. Register Admin
+
+Visit the app homepage and register an account. The first registered user will automatically become the admin.
+
+## Local Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start development (frontend + backend)
+pnpm dev
+
+# Frontend only
+pnpm dev:web
+
+# Backend only
+pnpm dev:worker
+```
+
+## Environment Variables
+
+### Worker Environment Variables (wrangler.toml, injected by GitHub Actions during deployment)
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | JWT signing secret, any random 64-char string |
+| `SETUP_SECRET` | Database initialization route secret, any random string |
+| `TABLE_PREFIX` | Database table prefix (e.g., `hk_`), default is empty |
+
+## License
+
+[MIT](LICENSE)
