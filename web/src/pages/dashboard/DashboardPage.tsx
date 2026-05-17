@@ -73,17 +73,25 @@ function ProgressBar({ name, value, max, unit }: { name: string; value: number; 
   )
 }
 
+// Module-level cache so re-visiting the dashboard shows data instantly
+let cachedStats: DashboardStats | null = null
+
 export function DashboardPage() {
   const { t } = useTranslation()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<DashboardStats | null>(cachedStats)
+  const [loading, setLoading] = useState(!cachedStats)
   const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
     api
       .get<DashboardStats>('/dashboard/stats')
-      .then((data) => { if (!cancelled) setStats(data) })
+      .then((data) => {
+        if (!cancelled) {
+          cachedStats = data
+          setStats(data)
+        }
+      })
       .catch((e) => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
