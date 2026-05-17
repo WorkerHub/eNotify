@@ -195,7 +195,7 @@ export function AppLayout() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="h-dvh md:min-h-screen flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
         <div className="h-14 flex items-center px-4 border-b">
@@ -221,7 +221,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 pt-11 pb-16 md:pt-0 md:pb-0">
+      <main className="flex-1 pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pt-0 md:pb-0">
         {/* Desktop top bar */}
         <div className="hidden md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card">
           <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
@@ -242,7 +242,13 @@ export function AppLayout() {
       </main>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center justify-between px-4 h-11 z-50">
+      <header
+        className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center justify-between px-4 z-50"
+        style={{
+          height: 'calc(3rem + env(safe-area-inset-top, 0px))',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        }}
+      >
         <span className="text-base font-bold text-primary">{appName}</span>
         <div className="flex items-center gap-1">
           <MobileAvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
@@ -250,12 +256,18 @@ export function AppLayout() {
       </header>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around py-2 z-50">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around z-50"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingTop: '0.5rem',
+        }}
+      >
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/'}
+            end
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 px-3 py-1 text-xs ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
