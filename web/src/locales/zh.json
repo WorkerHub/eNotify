@@ -83,6 +83,10 @@
     "admin": "管理",
     "about": "关于"
   },
+  "pwa": {
+    "updateAvailable": "检测到新版本",
+    "updateAction": "更新"
+  },
   "dashboard": {
     "title": "仪表盘",
     "monthlyExpense": "本月支出",

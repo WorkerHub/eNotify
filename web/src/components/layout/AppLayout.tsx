@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
-import { LayoutDashboard, CreditCard, Shield, LogOut, XCircle, Settings, History, User, ChevronDown, Info, Radio } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Shield, LogOut, XCircle, Settings, History, User, ChevronDown, Info, Radio, RefreshCw } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
+import { usePWAUpdate } from '@/hooks/usePWAUpdate'
 
 function AvatarDropdown({ user, onLogout, onNavigate }: {
   user: { email: string; role: string } | null
@@ -78,6 +79,7 @@ export function AppLayout() {
   const { t } = useTranslation()
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const { needRefresh, update, dismiss } = usePWAUpdate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
   const [appName, setAppName] = useState('eNotify')
 
@@ -187,6 +189,22 @@ export function AppLayout() {
             </button>
           </div>
         )}
+
+        {needRefresh && (
+          <div className="bg-blue-500/90 text-white text-sm px-4 py-2 flex items-center justify-between">
+            <span>{t('pwa.updateAvailable')}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={update} className="flex items-center gap-1 font-medium hover:underline">
+                <RefreshCw className="w-4 h-4" />
+                {t('pwa.updateAction')}
+              </button>
+              <button onClick={dismiss} className="opacity-70 hover:opacity-100">
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="p-4 md:p-6 max-w-6xl mx-auto">
           <Outlet />
         </div>

@@ -83,6 +83,10 @@
     "admin": "Admin",
     "about": "About"
   },
+  "pwa": {
+    "updateAvailable": "A new version is available",
+    "updateAction": "Update"
+  },
   "dashboard": {
     "title": "Dashboard",
     "monthlyExpense": "Monthly Expense",
