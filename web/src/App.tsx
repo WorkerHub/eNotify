@@ -22,6 +22,7 @@ const AdminAppPage = lazy(() => import('@/pages/admin/AdminAppPage').then(m => (
 const AdminEmailPage = lazy(() => import('@/pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })))
 const AdminSecurityPage = lazy(() => import('@/pages/admin/AdminSecurityPage').then(m => ({ default: m.AdminSecurityPage })))
 const AboutPage = lazy(() => import('@/pages/about/AboutPage').then(m => ({ default: m.AboutPage })))
+const MePage = lazy(() => import('@/pages/me/MePage').then(m => ({ default: m.MePage })))
 const ChannelPage = lazy(() => import('@/pages/channels/ChannelPage').then(m => ({ default: m.ChannelPage })))
 
 function PageLoader() {
@@ -72,12 +73,13 @@ export function App() {
                 <Route path="items/:id" element={<ItemDetailPage />} />
                 <Route path="channels" element={<ChannelPage />} />
                 <Route path="history" element={<HistoryPage />} />
+                <Route path="me" element={<MePage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="about" element={<AboutPage />} />
 
                 {/* Admin routes */}
                 <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>}>
-                  <Route index element={<Navigate to="users" replace />} />
+                  <Route index element={<></>} />
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="app" element={<AdminAppPage />} />
                   <Route path="email" element={<AdminEmailPage />} />

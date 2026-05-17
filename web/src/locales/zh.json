@@ -75,6 +75,7 @@
   },
   "nav": {
     "dashboard": "仪表盘",
+    "me": "我的",
     "items": "通知",
     "channels": "通道",
     "history": "历史通知",

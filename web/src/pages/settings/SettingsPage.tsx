@@ -3,12 +3,13 @@ import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import {
   User, Shield, Sliders, Monitor,
-  CheckCircle, QrCode, Key,
+  CheckCircle, QrCode, Key, ChevronRight,
 } from 'lucide-react'
 import QRCode from 'qrcode'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/components/ThemeProvider'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn, serializeRegistrationCredential, prepareRegistrationOptions } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -774,10 +775,13 @@ function PreferencesTab() {
 export function SettingsPage() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
+  const isMobile = useIsMobile()
 
   const validTabs: TabId[] = ['account', 'security', 'sessions', 'preferences']
   const rawTab = searchParams.get('tab') as TabId | null
-  const activeTab: TabId = rawTab && validTabs.includes(rawTab) ? rawTab : 'account'
+  const hasExplicitTab = rawTab && validTabs.includes(rawTab)
+  const showMenu = !hasExplicitTab && isMobile
+  const activeTab: TabId = hasExplicitTab ? rawTab! : 'account'
 
   const setTab = (tab: TabId) => {
     setSearchParams({ tab })
@@ -790,34 +794,64 @@ export function SettingsPage() {
     { id: 'preferences', label: t('settings.preferences'), icon: <Sliders className="w-4 h-4" /> },
   ]
 
+  const menuItems = [
+    { id: 'account' as TabId, label: t('settings.account'), icon: User },
+    { id: 'security' as TabId, label: t('settings.security'), icon: Shield },
+    { id: 'sessions' as TabId, label: t('settings.sessions'), icon: Monitor },
+    { id: 'preferences' as TabId, label: t('settings.preferences'), icon: Sliders },
+  ]
+
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold text-foreground mb-6">{t('settings.title')}</h1>
+      {/* Mobile sub-menu */}
+      {showMenu && (
+        <div className="md:hidden">
+          <h1 className="text-xl font-bold text-foreground mb-6">{t('settings.title')}</h1>
+          <div className="rounded-lg border overflow-hidden divide-y">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent transition-colors"
+              >
+                <item.icon className="w-5 h-5 text-muted-foreground" />
+                <span className="flex-1 text-left text-sm text-foreground">{item.label}</span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b mb-6 overflow-x-auto">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setTab(tab.id)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors',
-              activeTab === tab.id
-                ? 'border-primary text-primary font-semibold'
-                : 'border-transparent text-muted-foreground font-medium hover:text-foreground'
-            )}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      {/* Content area */}
+      <div className={showMenu ? 'hidden md:block' : ''}>
+        {!isMobile && <h1 className="text-xl font-bold text-foreground mb-6">{t('settings.title')}</h1>}
+
+        {/* Tab bar - desktop only */}
+        <div className="hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setTab(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors',
+                activeTab === tab.id
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground font-medium hover:text-foreground'
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'account' && <AccountTab />}
+        {activeTab === 'security' && <SecurityTab />}
+        {activeTab === 'sessions' && <SessionsTab />}
+        {activeTab === 'preferences' && <PreferencesTab />}
       </div>
-
-      {/* Tab content */}
-      {activeTab === 'account' && <AccountTab />}
-      {activeTab === 'security' && <SecurityTab />}
-      {activeTab === 'sessions' && <SessionsTab />}
-      {activeTab === 'preferences' && <PreferencesTab />}
     </div>
   )
 }
