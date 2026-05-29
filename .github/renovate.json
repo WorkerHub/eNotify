@@ -3,6 +3,8 @@
   "extends": ["config:recommended"],
   "schedule": ["before 6am on Monday"],
   "timezone": "Asia/Shanghai",
+  "automerge": true,
+  "platformAutomerge": true,
   "labels": ["dependencies"],
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
