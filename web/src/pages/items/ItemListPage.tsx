@@ -499,7 +499,7 @@ export function ItemListPage() {
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="relative flex gap-2">
               {/* Category dropdown trigger */}
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
@@ -533,58 +533,61 @@ export function ItemListPage() {
                 {sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : sortOrder === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3" />}
                 {t('items.sortExpiry')}
               </button>
+              {/* Dropdown panel */}
+              {openDropdown && (
+                <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />
+              )}
+              {openDropdown === 'category' && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-lg">
+                  <button
+                    onClick={() => { setFilterCategory(''); setOpenDropdown(null) }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                      !filterCategory ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                    )}
+                  >
+                    {t('items.filterAll')}
+                  </button>
+                  {categoryOptions.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => { setFilterCategory(cat); setOpenDropdown(null) }}
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                        filterCategory === cat ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {openDropdown === 'status' && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-lg">
+                  <button
+                    onClick={() => { setFilterStatus(''); setOpenDropdown(null) }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                      !filterStatus ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                    )}
+                  >
+                    {t('items.filterAll')}
+                  </button>
+                  {(['active', 'expiringSoon', 'expired', 'inactive'] as StatusKey[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setFilterStatus(s); setOpenDropdown(null) }}
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                        filterStatus === s ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                      )}
+                    >
+                      {t(`items.status.${s}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            {/* Dropdown panel */}
-            {openDropdown === 'category' && (
-              <div className="flex flex-wrap gap-2 p-2 rounded-lg border bg-card">
-                <button
-                  onClick={() => { setFilterCategory(''); setOpenDropdown(null) }}
-                  className={cn(
-                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                    !filterCategory ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                  )}
-                >
-                  {t('items.filterAll')}
-                </button>
-                {categoryOptions.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => { setFilterCategory(cat); setOpenDropdown(null) }}
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                      filterCategory === cat ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
-            {openDropdown === 'status' && (
-              <div className="flex flex-wrap gap-2 p-2 rounded-lg border bg-card">
-                <button
-                  onClick={() => { setFilterStatus(''); setOpenDropdown(null) }}
-                  className={cn(
-                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                    !filterStatus ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                  )}
-                >
-                  {t('items.filterAll')}
-                </button>
-                {(['active', 'expiringSoon', 'expired', 'inactive'] as StatusKey[]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => { setFilterStatus(s); setOpenDropdown(null) }}
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                      filterStatus === s ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                    )}
-                  >
-                    {t(`items.status.${s}`)}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Mobile card list */}
