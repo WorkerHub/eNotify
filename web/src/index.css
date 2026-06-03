@@ -51,6 +51,11 @@
   --radius: 0.5rem;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
