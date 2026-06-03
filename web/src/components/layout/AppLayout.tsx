@@ -205,7 +205,7 @@ export function AppLayout() {
           </div>
         )}
 
-        <div className="p-4 md:p-6 max-w-6xl mx-auto">
+        <div className="px-4 pt-2 pb-4 md:p-6 max-w-6xl mx-auto">
           <Outlet />
         </div>
       </main>
