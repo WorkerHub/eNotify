@@ -282,7 +282,12 @@ itemRoutes.post('/:id/renew', async (c) => {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  const body = await c.req.json<{ amount?: number; date?: string; multiplier?: number; note?: string }>()
+  let body: { amount?: number; date?: string; multiplier?: number; note?: string } = {}
+  try {
+    body = await c.req.json<{ amount?: number; date?: string; multiplier?: number; note?: string }>()
+  } catch {
+    // Allow empty request body for manual renew calls.
+  }
   const multiplier = Math.min(Math.max(body.multiplier || 1, 1), 120)
   let newExpiry = item.expiry_date
   let newLunarExpiry = item.lunar_expiry_date
@@ -340,7 +345,12 @@ itemRoutes.post('/:id/reset', async (c) => {
     return c.json({ error: 'Item is not in reset mode' }, 400)
   }
 
-  const body = await c.req.json<{ amount?: number; date?: string; note?: string }>()
+  let body: { amount?: number; date?: string; note?: string } = {}
+  try {
+    body = await c.req.json<{ amount?: number; date?: string; note?: string }>()
+  } catch {
+    // Allow empty request body for reset action triggered from list page.
+  }
   const now = nowISO()
   const today = body.date || now.split('T')[0]
 
