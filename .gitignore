@@ -19,6 +19,7 @@ dist
 # Build
 web/dist
 worker/dist
+*.tsbuildinfo
 
 # Logs
 *.log
