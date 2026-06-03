@@ -448,7 +448,7 @@ export function ChannelPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold text-foreground mb-6">{t('channels.title')}</h1>
+      <h1 className="text-2xl font-bold">{t('channels.title')}</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b mb-6 overflow-x-auto">
