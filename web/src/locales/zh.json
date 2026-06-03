@@ -182,7 +182,10 @@
     "sortAsc": "升序",
     "sortDesc": "降序",
     "filter": "筛选",
-    "filterAll": "全部"
+    "filterAll": "全部",
+    "searchPlaceholder": "搜索通知...",
+    "sortExpiry": "到期日",
+    "statusAll": "全部状态"
   },
   "settings": {
     "title": "设置",

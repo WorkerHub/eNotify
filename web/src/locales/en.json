@@ -182,7 +182,10 @@
     "sortAsc": "Ascending",
     "sortDesc": "Descending",
     "filter": "Filter",
-    "filterAll": "All"
+    "filterAll": "All",
+    "searchPlaceholder": "Search notifications...",
+    "sortExpiry": "Expiry",
+    "statusAll": "All Status"
   },
   "settings": {
     "title": "Settings",

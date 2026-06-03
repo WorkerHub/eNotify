@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil } from 'lucide-react'
+import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil, Search } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
@@ -172,6 +172,8 @@ export function ItemListPage() {
   // Sort & filter
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [filterCategory, setFilterCategory] = useState<string>('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState<StatusKey | ''>('')
 
   const loadItems = useCallback(async () => {
     setLoading(true)
@@ -277,7 +279,15 @@ export function ItemListPage() {
 
   // Filtered & sorted items
   const displayItems = items
-    .filter((i) => !filterCategory || i.category === filterCategory)
+    .filter((i) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        if (!i.name.toLowerCase().includes(q)) return false
+      }
+      if (filterCategory && i.category !== filterCategory) return false
+      if (filterStatus && getStatus(i) !== filterStatus) return false
+      return true
+    })
     .sort((a, b) => {
       if (!sortOrder) return 0
       const da = new Date(getEffectiveExpiry(a)).getTime()
@@ -474,6 +484,79 @@ export function ItemListPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile search & filter toolbar */}
+          <div className="md:hidden space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('items.searchPlaceholder')}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {/* Category chips */}
+              <button
+                onClick={() => setFilterCategory('')}
+                className={cn(
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  !filterCategory ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                )}
+              >
+                {t('items.filterAll')}
+              </button>
+              {categoryOptions.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategory(filterCategory === cat ? '' : cat)}
+                  className={cn(
+                    'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                    filterCategory === cat ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+              <span className="shrink-0 w-px bg-border" />
+              {/* Status chips */}
+              <button
+                onClick={() => setFilterStatus('')}
+                className={cn(
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  !filterStatus ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                )}
+              >
+                {t('items.statusAll')}
+              </button>
+              {(['active', 'expiringSoon', 'expired', 'inactive'] as StatusKey[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(filterStatus === s ? '' : s)}
+                  className={cn(
+                    'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                    filterStatus === s ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  )}
+                >
+                  {t(`items.status.${s}`)}
+                </button>
+              ))}
+              <span className="shrink-0 w-px bg-border" />
+              {/* Sort chip */}
+              <button
+                onClick={() => setSortOrder((prev) => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
+                className={cn(
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors inline-flex items-center gap-1',
+                  sortOrder ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                )}
+              >
+                {sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : sortOrder === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3" />}
+                {t('items.sortExpiry')}
+              </button>
+            </div>
           </div>
 
           {/* Mobile card list */}
