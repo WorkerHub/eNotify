@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil, Search } from 'lucide-react'
+import { Plus, Trash2, ToggleLeft, ToggleRight, AlertCircle, CreditCard, Bell, RotateCcw, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, RefreshCw, Pencil, Search, ChevronDown } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { Item } from '@/types'
@@ -174,6 +174,7 @@ export function ItemListPage() {
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<StatusKey | ''>('')
+  const [openDropdown, setOpenDropdown] = useState<'category' | 'status' | null>(null)
 
   const loadItems = useCallback(async () => {
     setLoading(true)
@@ -498,53 +499,29 @@ export function ItemListPage() {
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {/* Category chips */}
+            <div className="flex gap-2">
+              {/* Category dropdown trigger */}
               <button
-                onClick={() => setFilterCategory('')}
+                onClick={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
                 className={cn(
-                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  !filterCategory ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors inline-flex items-center gap-1',
+                  filterCategory || openDropdown === 'category' ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
                 )}
               >
-                {t('items.filterAll')}
+                {filterCategory || t('items.category')}
+                <ChevronDown className={cn('w-3 h-3 transition-transform', openDropdown === 'category' && 'rotate-180')} />
               </button>
-              {categoryOptions.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(filterCategory === cat ? '' : cat)}
-                  className={cn(
-                    'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                    filterCategory === cat ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                  )}
-                >
-                  {cat}
-                </button>
-              ))}
-              <span className="shrink-0 w-px bg-border" />
-              {/* Status chips */}
+              {/* Status dropdown trigger */}
               <button
-                onClick={() => setFilterStatus('')}
+                onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
                 className={cn(
-                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  !filterStatus ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors inline-flex items-center gap-1',
+                  filterStatus || openDropdown === 'status' ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
                 )}
               >
-                {t('items.statusAll')}
+                {filterStatus ? t(`items.status.${filterStatus}`) : t('common.status')}
+                <ChevronDown className={cn('w-3 h-3 transition-transform', openDropdown === 'status' && 'rotate-180')} />
               </button>
-              {(['active', 'expiringSoon', 'expired', 'inactive'] as StatusKey[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFilterStatus(filterStatus === s ? '' : s)}
-                  className={cn(
-                    'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                    filterStatus === s ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
-                  )}
-                >
-                  {t(`items.status.${s}`)}
-                </button>
-              ))}
-              <span className="shrink-0 w-px bg-border" />
               {/* Sort chip */}
               <button
                 onClick={() => setSortOrder((prev) => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
@@ -557,6 +534,57 @@ export function ItemListPage() {
                 {t('items.sortExpiry')}
               </button>
             </div>
+            {/* Dropdown panel */}
+            {openDropdown === 'category' && (
+              <div className="flex flex-wrap gap-2 p-2 rounded-lg border bg-card">
+                <button
+                  onClick={() => { setFilterCategory(''); setOpenDropdown(null) }}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                    !filterCategory ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  )}
+                >
+                  {t('items.filterAll')}
+                </button>
+                {categoryOptions.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => { setFilterCategory(cat); setOpenDropdown(null) }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                      filterCategory === cat ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+            {openDropdown === 'status' && (
+              <div className="flex flex-wrap gap-2 p-2 rounded-lg border bg-card">
+                <button
+                  onClick={() => { setFilterStatus(''); setOpenDropdown(null) }}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                    !filterStatus ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                  )}
+                >
+                  {t('items.filterAll')}
+                </button>
+                {(['active', 'expiringSoon', 'expired', 'inactive'] as StatusKey[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => { setFilterStatus(s); setOpenDropdown(null) }}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                      filterStatus === s ? 'bg-primary/10 text-primary' : 'bg-muted/30 text-muted-foreground'
+                    )}
+                  >
+                    {t(`items.status.${s}`)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Mobile card list */}
