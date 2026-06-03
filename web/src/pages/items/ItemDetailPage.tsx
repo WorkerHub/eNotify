@@ -414,8 +414,12 @@ export function ItemDetailPage() {
       onConfirm: async () => {
         setConfirm(null)
         try {
-          await api.delete(`/items/${id}/payments/${pid}`)
-          setPayments((prev) => prev.filter((p) => p.id !== pid))
+          const res = await api.delete<{ success: boolean; new_expiry_date?: string }>(`/items/${id}/payments/${pid}`)
+          const updated = await api.get<Payment[]>(`/items/${id}/payments`)
+          setPayments(updated)
+          if (res.new_expiry_date) {
+            setItem((prev) => prev ? { ...prev, expiry_date: res.new_expiry_date! } : prev)
+          }
         } catch (e: any) {
           setError(e.message)
         }
@@ -489,7 +493,7 @@ export function ItemDetailPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate('/items')} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
           <ArrowLeft className="w-5 h-5" />
@@ -903,7 +907,7 @@ export function ItemDetailPage() {
                             onChange={(e) => setEditingPayment({ ...editingPayment, note: e.target.value })}
                           />
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs">
+                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
                           {p.period_start && p.period_end ? `${p.period_start} → ${p.period_end}` : '—'}
                         </td>
                         <td className="px-3 py-2">
@@ -925,7 +929,7 @@ export function ItemDetailPage() {
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{t(`items.paymentType.${p.type}`)}</td>
                         <td className="px-3 py-2 text-muted-foreground">{p.note || '—'}</td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs">
+                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
                           {p.period_start && p.period_end ? `${p.period_start} → ${p.period_end}` : '—'}
                         </td>
                         <td className="px-3 py-2">

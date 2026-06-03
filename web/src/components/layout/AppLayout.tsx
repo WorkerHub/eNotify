@@ -148,9 +148,9 @@ export function AppLayout() {
   ]
 
   return (
-    <div className="h-dvh md:min-h-screen flex flex-col md:flex-row">
+    <div className="h-dvh flex flex-col md:flex-row md:overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col bg-card border-r">
+      <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-64 md:flex-col bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 border-r shadow-[1px_0_0_0_hsl(var(--border))]">
         <div className="h-14 flex items-center px-4 border-b">
           <h1 className="text-xl font-bold text-primary">{appName}</h1>
         </div>
@@ -174,9 +174,9 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pt-0 md:pb-0">
+      <main className="flex-1 pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:ml-64 md:h-dvh md:overflow-y-auto md:pt-14 md:pb-0">
         {/* Desktop top bar */}
-        <div className="hidden md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card">
+        <div className="hidden md:fixed md:top-0 md:left-64 md:right-0 md:z-30 md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-sm">
           <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
         </div>
 

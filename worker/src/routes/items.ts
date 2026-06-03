@@ -359,7 +359,11 @@ itemRoutes.post('/:id/reset', async (c) => {
   const lastPayment = prevPayments.find(p => p.period_end === item.expiry_date)
   if (lastPayment) {
     const dayBefore = addPeriod(today, -1, 'day')
-    await updatePayment(c.env.DB, prefix, lastPayment.id, { period_end: dayBefore })
+    // Clamp period_end so it never goes before period_start
+    const clampedEnd = lastPayment.period_start && dayBefore < lastPayment.period_start
+      ? lastPayment.period_start
+      : dayBefore
+    await updatePayment(c.env.DB, prefix, lastPayment.id, { period_end: clampedEnd })
   }
 
   let newExpiry: string
@@ -548,13 +552,59 @@ itemRoutes.delete('/:id/payments/:pid', async (c) => {
 
   await deletePayment(c.env.DB, prefix, pid)
 
+  let newExpiryDate: string | null = null
+
   if (payment.period_start) {
     const remaining = await listPaymentsByItem(c.env.DB, prefix, id)
     const hasLaterPayment = remaining.some((p) => p.period_end && p.period_end > (payment.period_start as string))
     if (!hasLaterPayment) {
-      await updateItem(c.env.DB, prefix, id, { expiry_date: payment.period_start })
+      if (item.item_mode === 'reset') {
+        // For reset-mode items, recalculate expiry from the previous payment's period_start or item start_date
+        const sortedRemaining = remaining
+          .filter((p) => p.period_start)
+          .sort((a, b) => (b.period_start || '').localeCompare(a.period_start || ''))
+        const prevPayment = sortedRemaining[0]
+        const baseDate = (prevPayment?.period_start || item.start_date)?.slice(0, 10)
+
+        if (baseDate) {
+          let newExpiry: string
+          let newLunarExpiry: string | null = null
+
+          if (item.calendar_mode === 'both') {
+            newExpiry = addPeriod(baseDate, item.period_value, item.period_unit)
+            newLunarExpiry = item.period_unit === 'month'
+              ? addLunarMonths(baseDate, item.period_value)
+              : item.period_unit === 'year'
+                ? addLunarYears(baseDate, item.period_value)
+                : addPeriod(baseDate, item.period_value, item.period_unit)
+          } else if (item.calendar_mode === 'lunar' && item.period_unit === 'month') {
+            newExpiry = addLunarMonths(baseDate, item.period_value)
+          } else if (item.calendar_mode === 'lunar' && item.period_unit === 'year') {
+            newExpiry = addLunarYears(baseDate, item.period_value)
+          } else {
+            newExpiry = addPeriod(baseDate, item.period_value, item.period_unit)
+          }
+
+          // Restore the previous payment's period_end to the recalculated value
+          if (prevPayment) {
+            await updatePayment(c.env.DB, prefix, prevPayment.id, { period_end: newExpiry })
+          }
+
+          await updateItem(c.env.DB, prefix, id, {
+            expiry_date: newExpiry,
+            ...(item.calendar_mode === 'both' ? { lunar_expiry_date: newLunarExpiry } : {}),
+          })
+          newExpiryDate = newExpiry
+        } else {
+          // No base date available, fall back
+          await updateItem(c.env.DB, prefix, id, { expiry_date: payment.period_start })
+          newExpiryDate = payment.period_start
+        }
+      } else {
+        await updateItem(c.env.DB, prefix, id, { expiry_date: payment.period_start })
+      }
     }
   }
 
-  return c.json({ success: true })
+  return c.json({ success: true, ...(newExpiryDate ? { new_expiry_date: newExpiryDate } : {}) })
 })
