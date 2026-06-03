@@ -27,29 +27,37 @@
     },
     {
       "groupName": "Cloudflare packages",
-      "matchPackagePatterns": ["^@cloudflare/"],
-      "matchPackageNames": ["wrangler"]
+      "matchPackageNames": ["wrangler", "/^@cloudflare//"]
     },
     {
       "groupName": "SimpleWebAuthn packages",
-      "matchPackagePatterns": ["^@simplewebauthn/"]
+      "matchPackageNames": [
+        "/^@simplewebauthn//"
+      ]
     },
     {
       "groupName": "Radix UI packages",
-      "matchPackagePatterns": ["^@radix-ui/"]
+      "matchPackageNames": [
+        "/^@radix-ui//"
+      ]
     },
     {
       "groupName": "i18next packages",
-      "matchPackagePatterns": ["^i18next", "^react-i18next"]
+      "matchPackageNames": [
+        "/^i18next/",
+        "/^react-i18next/"
+      ]
     },
     {
       "groupName": "Tailwind CSS packages",
-      "matchPackagePatterns": ["^tailwindcss", "^@tailwindcss/"]
+      "matchPackageNames": [
+        "/^tailwindcss/",
+        "/^@tailwindcss//"
+      ]
     },
     {
       "groupName": "React packages",
-      "matchPackageNames": ["react", "react-dom"],
-      "matchPackagePatterns": ["^@types/react"]
+      "matchPackageNames": ["react", "react-dom", "/^@types/react/"]
     }
   ]
 }
