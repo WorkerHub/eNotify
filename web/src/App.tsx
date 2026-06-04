@@ -4,26 +4,28 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
 
+// Bottom nav pages — bundled directly for instant tab switching
+import { DashboardPage } from '@/pages/dashboard/DashboardPage'
+import { ItemListPage } from '@/pages/items/ItemListPage'
+import { ChannelPage } from '@/pages/channels/ChannelPage'
+import { HistoryPage } from '@/pages/history/HistoryPage'
+import { MePage } from '@/pages/me/MePage'
+
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage').then(m => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage').then(m => ({ default: m.RegisterPage })))
 const TwoFactorPage = lazy(() => import('@/pages/auth/TwoFactorPage').then(m => ({ default: m.TwoFactorPage })))
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
-const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
-const ItemListPage = lazy(() => import('@/pages/items/ItemListPage').then(m => ({ default: m.ItemListPage })))
 const ItemNewPage = lazy(() => import('@/pages/items/ItemNewPage').then(m => ({ default: m.ItemNewPage })))
 const ItemDetailPage = lazy(() => import('@/pages/items/ItemDetailPage').then(m => ({ default: m.ItemDetailPage })))
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
-const HistoryPage = lazy(() => import('@/pages/history/HistoryPage').then(m => ({ default: m.HistoryPage })))
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage').then(m => ({ default: m.AdminPage })))
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })))
 const AdminAppPage = lazy(() => import('@/pages/admin/AdminAppPage').then(m => ({ default: m.AdminAppPage })))
 const AdminEmailPage = lazy(() => import('@/pages/admin/AdminEmailPage').then(m => ({ default: m.AdminEmailPage })))
 const AdminSecurityPage = lazy(() => import('@/pages/admin/AdminSecurityPage').then(m => ({ default: m.AdminSecurityPage })))
 const AboutPage = lazy(() => import('@/pages/about/AboutPage').then(m => ({ default: m.AboutPage })))
-const MePage = lazy(() => import('@/pages/me/MePage').then(m => ({ default: m.MePage })))
-const ChannelPage = lazy(() => import('@/pages/channels/ChannelPage').then(m => ({ default: m.ChannelPage })))
 
 function PageLoader() {
   return <div className="flex items-center justify-center h-screen">Loading...</div>

@@ -104,17 +104,6 @@ export function AppLayout() {
     }
   }, [navigate])
 
-  // Prefetch bottom nav tab chunks so mobile tab switching is instant
-  useEffect(() => {
-    const tid = setTimeout(() => {
-      import('@/pages/items/ItemListPage')
-      import('@/pages/channels/ChannelPage')
-      import('@/pages/history/HistoryPage')
-      import('@/pages/me/MePage')
-    }, 500)
-    return () => clearTimeout(tid)
-  }, [])
-
   const stopImpersonating = async () => {
     sessionStorage.removeItem('impersonate_user_id')
     window.dispatchEvent(new Event('impersonation-change'))
