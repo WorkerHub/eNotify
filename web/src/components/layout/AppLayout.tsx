@@ -1,10 +1,15 @@
-import { Outlet, NavLink, useNavigate } from 'react-router'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { LayoutDashboard, CreditCard, Shield, LogOut, XCircle, Settings, History, User, ChevronDown, Info, Radio, RefreshCw } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { usePWAUpdate } from '@/hooks/usePWAUpdate'
+import { DashboardPage } from '@/pages/dashboard/DashboardPage'
+import { ItemListPage } from '@/pages/items/ItemListPage'
+import { ChannelPage } from '@/pages/channels/ChannelPage'
+import { HistoryPage } from '@/pages/history/HistoryPage'
+import { MePage } from '@/pages/me/MePage'
 
 function AvatarDropdown({ user, onLogout, onNavigate }: {
   user: { email: string; role: string } | null
@@ -79,9 +84,23 @@ export function AppLayout() {
   const { t } = useTranslation()
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { needRefresh, update, dismiss } = usePWAUpdate()
   const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
   const [appName, setAppName] = useState('eNotify')
+
+  const TAB_PATHS = ['/', '/items', '/channels', '/history', '/me']
+  const isTabPath = TAB_PATHS.includes(location.pathname)
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([location.pathname]))
+
+  useEffect(() => {
+    if (TAB_PATHS.includes(location.pathname)) {
+      setVisitedTabs((prev) => {
+        if (prev.has(location.pathname)) return prev
+        return new Set(prev).add(location.pathname)
+      })
+    }
+  }, [location.pathname])
 
   useEffect(() => {
     api.get<{ app_name: string; version: string }>('/system/info')
@@ -195,7 +214,34 @@ export function AppLayout() {
         )}
 
         <div className="px-4 pt-2 pb-4 md:p-6 max-w-6xl mx-auto">
-          <Outlet />
+          {/* Desktop: always use Outlet */}
+          <div className="hidden md:block">
+            <Outlet />
+          </div>
+          {/* Mobile: KeepAlive for tab pages, Outlet for non-tab pages */}
+          <div className="md:hidden">
+            {isTabPath ? (
+              <>
+                <div style={{ display: location.pathname === '/' ? 'block' : 'none' }}>
+                  {visitedTabs.has('/') && <DashboardPage />}
+                </div>
+                <div style={{ display: location.pathname === '/items' ? 'block' : 'none' }}>
+                  {visitedTabs.has('/items') && <ItemListPage />}
+                </div>
+                <div style={{ display: location.pathname === '/channels' ? 'block' : 'none' }}>
+                  {visitedTabs.has('/channels') && <ChannelPage />}
+                </div>
+                <div style={{ display: location.pathname === '/history' ? 'block' : 'none' }}>
+                  {visitedTabs.has('/history') && <HistoryPage />}
+                </div>
+                <div style={{ display: location.pathname === '/me' ? 'block' : 'none' }}>
+                  {visitedTabs.has('/me') && <MePage />}
+                </div>
+              </>
+            ) : (
+              <Outlet />
+            )}
+          </div>
         </div>
       </main>
 
