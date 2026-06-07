@@ -91,14 +91,14 @@ importers:
         version: 3.6.0
       vite-plugin-pwa:
         specifier: ^1.3.0
-        version: 1.3.0(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))(workbox-build@7.4.1)(workbox-window@7.4.1)
+        version: 1.3.0(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))(workbox-build@7.4.1)(workbox-window@7.4.1)
       workbox-window:
         specifier: ^7.4.1
         version: 7.4.1
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.3.0
-        version: 4.3.0(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))
+        version: 4.3.0(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))
       '@types/qrcode':
         specifier: ^1.5.5
         version: 1.5.6
@@ -110,7 +110,7 @@ importers:
         version: 19.2.3(@types/react@19.2.15)
       '@vitejs/plugin-react':
         specifier: ^6.0.2
-        version: 6.0.2(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))
+        version: 6.0.2(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))
       tailwindcss:
         specifier: ^4.1.6
         version: 4.3.0
@@ -119,7 +119,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.15
-        version: 8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
+        version: 8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
 
   worker:
     dependencies:
@@ -2248,8 +2248,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.365:
-    resolution: {integrity: sha512-xfip4u1QF1s+URFqpA6N+OeFpDGpN7VJz1f3MO3bVL0QYBjpGiZ5/Of7kugvM+o8TTqmanUlviHN3c8M9vYWCw==}
+  electron-to-chromium@1.5.366:
+    resolution: {integrity: sha512-OlRuhb688YTCzzU3gXPLn6nGyd+F+53INE1qaKKlu6kETErE8FYsyDh0XqXEU+uBRn0MpCzz2vfNwORhkap8qg==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3299,8 +3299,8 @@ packages:
       '@vite-pwa/assets-generator':
         optional: true
 
-  vite@8.0.15:
-    resolution: {integrity: sha512-qpgllRxrLqwsMAGRdLhsEr9bepaOQk1rxH1xT2coBXLaEB/bfkqQj1j7RMxwMfnYrvO1ZnFMiwX+wBVgnsyn0g==}
+  vite@8.0.16:
+    resolution: {integrity: sha512-h9bXPmJichP5fLmVQo3PyaGSDE2n3aPuomeAlVRm0JLmt4rY6zmPKd59HYI4LNW8oTK7tlTsuC7l/m7awx9Jcw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5247,12 +5247,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.0
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.0
 
-  '@tailwindcss/vite@4.3.0(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))':
+  '@tailwindcss/vite@4.3.0(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))':
     dependencies:
       '@tailwindcss/node': 4.3.0
       '@tailwindcss/oxide': 4.3.0
       tailwindcss: 4.3.0
-      vite: 8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
+      vite: 8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
 
   '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
     dependencies:
@@ -5288,10 +5288,10 @@ snapshots:
 
   '@types/trusted-types@2.0.7': {}
 
-  '@vitejs/plugin-react@6.0.2(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))':
+  '@vitejs/plugin-react@6.0.2(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
+      vite: 8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
 
   acorn@8.16.0: {}
 
@@ -5387,7 +5387,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.10.33
       caniuse-lite: 1.0.30001793
-      electron-to-chromium: 1.5.365
+      electron-to-chromium: 1.5.366
       node-releases: 2.0.47
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
 
@@ -5528,7 +5528,7 @@ snapshots:
     dependencies:
       jake: 10.9.4
 
-  electron-to-chromium@1.5.365: {}
+  electron-to-chromium@1.5.366: {}
 
   emoji-regex@8.0.0: {}
 
@@ -6663,18 +6663,18 @@ snapshots:
     dependencies:
       react: 19.2.6
 
-  vite-plugin-pwa@1.3.0(vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))(workbox-build@7.4.1)(workbox-window@7.4.1):
+  vite-plugin-pwa@1.3.0(vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0))(workbox-build@7.4.1)(workbox-window@7.4.1):
     dependencies:
       debug: 4.4.3
       pretty-bytes: 6.1.1
       tinyglobby: 0.2.16
-      vite: 8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
+      vite: 8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0)
       workbox-build: 7.4.1
       workbox-window: 7.4.1
     transitivePeerDependencies:
       - supports-color
 
-  vite@8.0.15(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0):
+  vite@8.0.16(@types/node@25.6.0)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.48.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
