@@ -1,33 +1,33 @@
 export interface NotificationHistoryRecord {
-  id: string
-  user_id: string
-  item_id: string | null
-  channel: string
-  title: string
-  body: string | null
-  success: number
-  error: string | null
-  created_at: string
+  id: string;
+  user_id: string;
+  item_id: string | null;
+  channel: string;
+  title: string;
+  body: string | null;
+  success: number;
+  error: string | null;
+  created_at: string;
 }
 
 export async function insertNotificationHistory(
   db: D1Database,
   prefix: string,
   record: {
-    id: string
-    user_id: string
-    item_id?: string | null
-    channel: string
-    title: string
-    body?: string | null
-    success: boolean
-    error?: string | null
-  }
+    id: string;
+    user_id: string;
+    item_id?: string | null;
+    channel: string;
+    title: string;
+    body?: string | null;
+    success: boolean;
+    error?: string | null;
+  },
 ): Promise<void> {
   await db
     .prepare(
       `INSERT INTO ${prefix}notification_history (id, user_id, item_id, channel, title, body, success, error, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       record.id,
@@ -38,16 +38,16 @@ export async function insertNotificationHistory(
       record.body ?? null,
       record.success ? 1 : 0,
       record.error ?? null,
-      new Date().toISOString()
+      new Date().toISOString(),
     )
-    .run()
+    .run();
 }
 
 export async function listNotificationHistory(
   db: D1Database,
   prefix: string,
   userId: string,
-  limit = 50
+  limit = 50,
 ): Promise<NotificationHistoryRecord[]> {
   const result = await db
     .prepare(
@@ -56,24 +56,24 @@ export async function listNotificationHistory(
        LEFT JOIN ${prefix}items i ON i.id = h.item_id
        WHERE h.user_id = ?
        ORDER BY h.created_at DESC
-       LIMIT ?`
+       LIMIT ?`,
     )
     .bind(userId, limit)
-    .all<NotificationHistoryRecord & { item_name?: string }>()
-  return result.results
+    .all<NotificationHistoryRecord & { item_name?: string }>();
+  return result.results;
 }
 
 export async function deleteNotificationHistory(
   db: D1Database,
   prefix: string,
   userId: string,
-  id: string
+  id: string,
 ): Promise<boolean> {
   const result = await db
     .prepare(
-      `DELETE FROM ${prefix}notification_history WHERE id = ? AND user_id = ?`
+      `DELETE FROM ${prefix}notification_history WHERE id = ? AND user_id = ?`,
     )
     .bind(id, userId)
-    .run()
-  return result.meta.changes > 0
+    .run();
+  return result.meta.changes > 0;
 }

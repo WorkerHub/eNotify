@@ -31,29 +31,19 @@
     },
     {
       "groupName": "SimpleWebAuthn packages",
-      "matchPackageNames": [
-        "/^@simplewebauthn//"
-      ]
+      "matchPackageNames": ["/^@simplewebauthn//"]
     },
     {
       "groupName": "Radix UI packages",
-      "matchPackageNames": [
-        "/^@radix-ui//"
-      ]
+      "matchPackageNames": ["/^@radix-ui//"]
     },
     {
       "groupName": "i18next packages",
-      "matchPackageNames": [
-        "/^i18next/",
-        "/^react-i18next/"
-      ]
+      "matchPackageNames": ["/^i18next/", "/^react-i18next/"]
     },
     {
       "groupName": "Tailwind CSS packages",
-      "matchPackageNames": [
-        "/^tailwindcss/",
-        "/^@tailwindcss//"
-      ]
+      "matchPackageNames": ["/^tailwindcss/", "/^@tailwindcss//"]
     },
     {
       "groupName": "React packages",

@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag name (e.g., v1.0.0)'
+        description: "Tag name (e.g., v1.0.0)"
         required: true
         type: string
 
 jobs:
   create-tag:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Validate tag format
         run: |
@@ -22,14 +22,14 @@ jobs:
             exit 1
           fi
           echo "✅ Tag format is valid: $TAG"
-      
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
-      
+
       - name: Check if tag already exists
         run: |
           TAG="${{ inputs.tag }}"
@@ -41,12 +41,12 @@ jobs:
             exit 1
           fi
           echo "✅ Tag '$TAG' does not exist, proceeding..."
-      
+
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Create and push tag
         run: |
           TAG="${{ inputs.tag }}"

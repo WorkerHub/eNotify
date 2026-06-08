@@ -4,7 +4,7 @@ interface ExchangeRateCache {
 }
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours in ms
-const CACHE_TTL_S = 24 * 60 * 60;          // 24 hours in seconds (for KV expiration)
+const CACHE_TTL_S = 24 * 60 * 60; // 24 hours in seconds (for KV expiration)
 
 export async function getExchangeRates(
   kv: KVNamespace,
@@ -12,7 +12,7 @@ export async function getExchangeRates(
 ): Promise<Record<string, number>> {
   const cacheKey = `exchange_rates:${baseCurrency}`;
 
-  const cached = await kv.get<ExchangeRateCache>(cacheKey, 'json');
+  const cached = await kv.get<ExchangeRateCache>(cacheKey, "json");
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return cached.rates;
   }
@@ -24,7 +24,9 @@ export async function getExchangeRates(
   if (!response.ok) {
     // Return stale cached data as fallback rather than surfacing a fetch error
     if (cached) return cached.rates;
-    throw new Error(`Failed to fetch exchange rates for ${baseCurrency}: HTTP ${response.status}`);
+    throw new Error(
+      `Failed to fetch exchange rates for ${baseCurrency}: HTTP ${response.status}`,
+    );
   }
 
   const data = (await response.json()) as { rates: Record<string, number> };
@@ -32,7 +34,10 @@ export async function getExchangeRates(
 
   await kv.put(
     cacheKey,
-    JSON.stringify({ rates, timestamp: Date.now() } satisfies ExchangeRateCache),
+    JSON.stringify({
+      rates,
+      timestamp: Date.now(),
+    } satisfies ExchangeRateCache),
     { expirationTtl: CACHE_TTL_S },
   );
 
@@ -63,7 +68,7 @@ export function convertAmount(
   const rateTo = rates[to];
 
   if (rateFrom !== undefined && rateTo !== undefined) {
-    return amount / rateFrom * rateTo;
+    return (amount / rateFrom) * rateTo;
   }
   if (rateFrom !== undefined) {
     return amount / rateFrom;

@@ -1,47 +1,53 @@
-import { Hono } from 'hono'
-import { getTablePrefix } from '../types'
-import type { Env } from '../types'
+import { Hono } from "hono";
+import { getTablePrefix } from "../types";
+import type { Env } from "../types";
 
-type HonoEnv = { Bindings: Env }
+type HonoEnv = { Bindings: Env };
 
-export const setupRoutes = new Hono<HonoEnv>()
+export const setupRoutes = new Hono<HonoEnv>();
 
 const DEFAULT_SETTINGS: Record<string, string> = {
-  email_verification_enabled: '0',
-  require_2fa: '0',
-  registration_enabled: '1',
-  smtp_config: '{}',
-  resend_config: '{}',
-  email_provider: 'none',
-  app_name: 'eNotify',
-}
+  email_verification_enabled: "0",
+  require_2fa: "0",
+  registration_enabled: "1",
+  smtp_config: "{}",
+  resend_config: "{}",
+  email_provider: "none",
+  app_name: "eNotify",
+};
 
-setupRoutes.get('/:secret', async (c) => {
-  const secret = c.req.param('secret')
-
-  if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
-    return c.json({ error: 'Invalid setup secret' }, 403)
-  }
-
-  return runSetup(c)
-})
-
-setupRoutes.post('/', async (c) => {
-  const secret = c.req.header('X-Setup-Secret')
+setupRoutes.get("/:secret", async (c) => {
+  const secret = c.req.param("secret");
 
   if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
-    return c.json({ error: 'Invalid setup secret' }, 403)
+    return c.json({ error: "Invalid setup secret" }, 403);
   }
 
-  return runSetup(c)
-})
+  return runSetup(c);
+});
+
+setupRoutes.post("/", async (c) => {
+  const secret = c.req.header("X-Setup-Secret");
+
+  if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
+    return c.json({ error: "Invalid setup secret" }, 403);
+  }
+
+  return runSetup(c);
+});
 
 async function runMigrations(db: D1Database, prefix: string): Promise<void> {
   // Migration: add body column to notification_history
   try {
-    const histCols = await db.prepare(`PRAGMA table_info(${prefix}notification_history)`).all<{ name: string }>()
-    if (!histCols.results.some((c) => c.name === 'body')) {
-      await db.prepare(`ALTER TABLE ${prefix}notification_history ADD COLUMN body TEXT`).run()
+    const histCols = await db
+      .prepare(`PRAGMA table_info(${prefix}notification_history)`)
+      .all<{ name: string }>();
+    if (!histCols.results.some((c) => c.name === "body")) {
+      await db
+        .prepare(
+          `ALTER TABLE ${prefix}notification_history ADD COLUMN body TEXT`,
+        )
+        .run();
     }
   } catch {
     // ignore
@@ -50,11 +56,15 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
   // Migration: drop type column from items + convert use_lunar to calendar_mode
   // SQLite doesn't support DROP COLUMN before 3.35.0, so we recreate the table
   try {
-    const colCheck = await db.prepare(`PRAGMA table_info(${prefix}items)`).all<{ name: string }>()
-    const hasType = colCheck.results.some((c) => c.name === 'type')
-    const hasUseLunar = colCheck.results.some((c) => c.name === 'use_lunar')
+    const colCheck = await db
+      .prepare(`PRAGMA table_info(${prefix}items)`)
+      .all<{ name: string }>();
+    const hasType = colCheck.results.some((c) => c.name === "type");
+    const hasUseLunar = colCheck.results.some((c) => c.name === "use_lunar");
     if (hasType || hasUseLunar) {
-      await db.prepare(`
+      await db
+        .prepare(
+          `
         CREATE TABLE ${prefix}items_new (
           id          TEXT PRIMARY KEY,
           user_id     TEXT NOT NULL REFERENCES ${prefix}users(id) ON DELETE CASCADE,
@@ -80,32 +90,79 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
           created_at        TEXT NOT NULL,
           updated_at        TEXT NOT NULL
         )
-      `).run()
+      `,
+        )
+        .run();
       // Map use_lunar → calendar_mode: use_lunar=1 → 'lunar', use_lunar=0 → 'solar'
       // If use_lunar column doesn't exist yet (fresh from type migration), default to 'solar'
       const useLunarExpr = hasUseLunar
         ? `CASE WHEN use_lunar = 1 THEN 'lunar' ELSE 'solar' END`
-        : `'solar'`
+        : `'solar'`;
       // Build column lists for INSERT...SELECT
       const srcCols = [
-        'id', 'user_id', 'name', 'item_mode', 'category', 'start_date', 'expiry_date',
-        'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency',
-        'last_payment_date', 'is_active', 'auto_renew',
+        "id",
+        "user_id",
+        "name",
+        "item_mode",
+        "category",
+        "start_date",
+        "expiry_date",
+        "period_value",
+        "period_unit",
+        "reminder_unit",
+        "reminder_value",
+        "notes",
+        "amount",
+        "currency",
+        "last_payment_date",
+        "is_active",
+        "auto_renew",
         useLunarExpr,
-        'channels', 'notification_hours', 'item_kind', 'created_at', 'updated_at',
-      ].join(', ')
+        "channels",
+        "notification_hours",
+        "item_kind",
+        "created_at",
+        "updated_at",
+      ].join(", ");
       const dstCols = [
-        'id', 'user_id', 'name', 'item_mode', 'category', 'start_date', 'expiry_date',
-        'period_value', 'period_unit', 'reminder_unit', 'reminder_value', 'notes', 'amount', 'currency',
-        'last_payment_date', 'is_active', 'auto_renew', 'calendar_mode',
-        'channels', 'notification_hours', 'item_kind', 'created_at', 'updated_at',
-      ].join(', ')
-      await db.prepare(
-        `INSERT INTO ${prefix}items_new (${dstCols}) SELECT ${srcCols} FROM ${prefix}items`
-      ).run()
-      await db.prepare(`DROP TABLE ${prefix}items`).run()
-      await db.prepare(`ALTER TABLE ${prefix}items_new RENAME TO ${prefix}items`).run()
-      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_${prefix}items_user_id ON ${prefix}items(user_id)`).run()
+        "id",
+        "user_id",
+        "name",
+        "item_mode",
+        "category",
+        "start_date",
+        "expiry_date",
+        "period_value",
+        "period_unit",
+        "reminder_unit",
+        "reminder_value",
+        "notes",
+        "amount",
+        "currency",
+        "last_payment_date",
+        "is_active",
+        "auto_renew",
+        "calendar_mode",
+        "channels",
+        "notification_hours",
+        "item_kind",
+        "created_at",
+        "updated_at",
+      ].join(", ");
+      await db
+        .prepare(
+          `INSERT INTO ${prefix}items_new (${dstCols}) SELECT ${srcCols} FROM ${prefix}items`,
+        )
+        .run();
+      await db.prepare(`DROP TABLE ${prefix}items`).run();
+      await db
+        .prepare(`ALTER TABLE ${prefix}items_new RENAME TO ${prefix}items`)
+        .run();
+      await db
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS idx_${prefix}items_user_id ON ${prefix}items(user_id)`,
+        )
+        .run();
     }
   } catch {
     // Migration failed — ignore
@@ -113,43 +170,43 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
 }
 
 async function runSetup(c: any) {
-  const prefix = getTablePrefix(c.env)
-  const db = c.env.DB
+  const prefix = getTablePrefix(c.env);
+  const db = c.env.DB;
 
   // Check if already initialized
   const existing = await db
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
     .bind(`${prefix}users`)
-    .first()
+    .first();
 
   if (existing) {
-    await runMigrations(db, prefix)
-    return c.json({ success: true, alreadyInitialized: true })
+    await runMigrations(db, prefix);
+    return c.json({ success: true, alreadyInitialized: true });
   }
 
-  const schemaSQL = getSchema()
-  const resolvedSQL = schemaSQL.replace(/\{prefix\}/g, prefix)
+  const schemaSQL = getSchema();
+  const resolvedSQL = schemaSQL.replace(/\{prefix\}/g, prefix);
 
   const statements = resolvedSQL
-    .split(';')
+    .split(";")
     .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .filter((s) => s.length > 0);
 
   for (const stmt of statements) {
-    await db.prepare(stmt).run()
+    await db.prepare(stmt).run();
   }
 
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     await db
       .prepare(
-        `INSERT OR IGNORE INTO ${prefix}system_settings (key, value, updated_at) VALUES (?, ?, ?)`
+        `INSERT OR IGNORE INTO ${prefix}system_settings (key, value, updated_at) VALUES (?, ?, ?)`,
       )
       .bind(key, value, now)
-      .run()
+      .run();
   }
 
-  return c.json({ success: true })
+  return c.json({ success: true });
 }
 
 function getSchema(): string {
@@ -262,5 +319,5 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
-  ON {prefix}notification_history(user_id, created_at)`
+  ON {prefix}notification_history(user_id, created_at)`;
 }

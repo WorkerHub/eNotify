@@ -7,6 +7,9 @@
     "dev": "concurrently \"pnpm dev:worker\" \"pnpm dev:web\"",
     "dev:web": "pnpm --filter web dev",
     "dev:worker": "pnpm --filter worker dev",
+    "lint": "biome lint .",
+    "format:check": "biome format .",
+    "format": "biome format --write .",
     "build": "pnpm --filter web build && pnpm --filter worker build",
     "build:web": "pnpm --filter web build",
     "build:worker": "pnpm --filter worker build",
@@ -14,11 +17,12 @@
     "typecheck": "pnpm --filter web typecheck && pnpm --filter worker typecheck"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "concurrently": "^9.2.1",
     "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@11.5.1"
+  "packageManager": "pnpm@11.5.2"
 }

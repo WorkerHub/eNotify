@@ -13,27 +13,27 @@ export function nowISO(): string {
 export function nowInTimezone(timezone: string): Date {
   const now = new Date();
 
-  const fmt = new Intl.DateTimeFormat('en-US', {
+  const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   });
 
   const parts = fmt.formatToParts(now);
   const get = (type: string): number =>
-    parseInt(parts.find(p => p.type === type)?.value ?? '0', 10);
+    Number.parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
 
-  const year = get('year');
-  const month = get('month') - 1; // Date constructor months are 0-indexed
-  const day = get('day');
-  const hour = get('hour') % 24; // guard against the rare "24:00" edge case
-  const minute = get('minute');
-  const second = get('second');
+  const year = get("year");
+  const month = get("month") - 1; // Date constructor months are 0-indexed
+  const day = get("day");
+  const hour = get("hour") % 24; // guard against the rare "24:00" edge case
+  const minute = get("minute");
+  const second = get("second");
 
   return new Date(year, month, day, hour, minute, second);
 }
@@ -42,14 +42,18 @@ export function nowInTimezone(timezone: string): Date {
  * Add a calendar period to an ISO date string (YYYY-MM-DD or full ISO).
  * Returns YYYY-MM-DD of the resulting UTC date.
  */
-export function addPeriod(date: string, value: number, unit: 'day' | 'week' | 'month' | 'year'): string {
+export function addPeriod(
+  date: string,
+  value: number,
+  unit: "day" | "week" | "month" | "year",
+): string {
   const d = new Date(date);
 
-  if (unit === 'day') {
+  if (unit === "day") {
     d.setUTCDate(d.getUTCDate() + value);
-  } else if (unit === 'week') {
+  } else if (unit === "week") {
     d.setUTCDate(d.getUTCDate() + value * 7);
-  } else if (unit === 'month') {
+  } else if (unit === "month") {
     const origDay = d.getUTCDate();
     d.setUTCMonth(d.getUTCMonth() + value);
     if (d.getUTCDate() !== origDay) {

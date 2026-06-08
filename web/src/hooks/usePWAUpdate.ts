@@ -1,29 +1,32 @@
-import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 export function usePWAUpdate() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW(swUrl, r) {
+    onRegisteredSW(_swUrl, r) {
       if (r) {
-        setInterval(() => {
-          r.update()
-        }, 30 * 60 * 1000)
+        setInterval(
+          () => {
+            r.update();
+          },
+          30 * 60 * 1000,
+        );
       }
     },
     onRegisterError(error) {
-      console.error('SW registration error:', error)
+      console.error("SW registration error:", error);
     },
-  })
+  });
 
   const update = () => {
-    updateServiceWorker(true)
-  }
+    updateServiceWorker(true);
+  };
 
   const dismiss = () => {
-    setNeedRefresh(false)
-  }
+    setNeedRefresh(false);
+  };
 
-  return { needRefresh, update, dismiss }
+  return { needRefresh, update, dismiss };
 }

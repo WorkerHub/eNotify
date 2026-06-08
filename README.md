@@ -55,20 +55,20 @@ npx wrangler kv namespace create ENOTIFY_KV
 
 在仓库的 Settings → Secrets and variables → Actions 中添加：
 
-| Secret | 说明 |
-|--------|------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 和 D1 权限） |
-| `JWT_SECRET` | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
-| `SETUP_SECRET` | 任意随机字符串，例如 `openssl rand -hex 16` |
+| Secret                 | 说明                                              |
+| ---------------------- | ------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 和 D1 权限）     |
+| `JWT_SECRET`           | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
+| `SETUP_SECRET`         | 任意随机字符串，例如 `openssl rand -hex 16`       |
 
 在 Settings → Secrets and variables → Actions → Variables 中添加：
 
-| Variable | 说明 |
-|----------|------|
-| `D1_DATABASE_NAME` | D1 数据库名称 |
-| `D1_DATABASE_ID` | D1 数据库 ID |
-| `KV_NAMESPACE_ID` | KV 命名空间 ID |
-| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空 |
+| Variable           | 说明                               |
+| ------------------ | ---------------------------------- |
+| `D1_DATABASE_NAME` | D1 数据库名称                      |
+| `D1_DATABASE_ID`   | D1 数据库 ID                       |
+| `KV_NAMESPACE_ID`  | KV 命名空间 ID                     |
+| `TABLE_PREFIX`     | 数据库表前缀（如 `hk_`），默认为空 |
 
 ### 3. 部署
 
@@ -106,11 +106,11 @@ pnpm dev:worker
 
 ### Worker 环境变量（wrangler.toml，部署时由 GitHub Actions 注入）
 
-| 变量 | 说明 |
-|------|------|
-| `JWT_SECRET` | JWT 签名密钥，任意 64 位随机字符串 |
+| 变量           | 说明                                 |
+| -------------- | ------------------------------------ |
+| `JWT_SECRET`   | JWT 签名密钥，任意 64 位随机字符串   |
 | `SETUP_SECRET` | 数据库初始化路由密钥，任意随机字符串 |
-| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空 |
+| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空   |
 
 ## 许可证
 

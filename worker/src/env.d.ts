@@ -1,1 +1,1 @@
-declare const APP_VERSION: string | undefined
+declare const APP_VERSION: string | undefined;

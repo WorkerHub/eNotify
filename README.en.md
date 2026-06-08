@@ -55,20 +55,20 @@ npx wrangler kv namespace create ENOTIFY_KV
 
 In your repository Settings → Secrets and variables → Actions, add:
 
-| Secret | Description |
-|--------|-------------|
+| Secret                 | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (needs Workers and D1 permissions) |
-| `JWT_SECRET` | Any random 64-char string — e.g. `openssl rand -hex 32` |
-| `SETUP_SECRET` | Any random string — e.g. `openssl rand -hex 16` |
+| `JWT_SECRET`           | Any random 64-char string — e.g. `openssl rand -hex 32` |
+| `SETUP_SECRET`         | Any random string — e.g. `openssl rand -hex 16`         |
 
 In Settings → Secrets and variables → Actions → Variables, add:
 
-| Variable | Description |
-|----------|-------------|
-| `D1_DATABASE_NAME` | D1 database name |
-| `D1_DATABASE_ID` | D1 database ID |
-| `KV_NAMESPACE_ID` | KV namespace ID |
-| `TABLE_PREFIX` | Optional prefix for all DB table names(e.g. `myapp_`) |
+| Variable           | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| `D1_DATABASE_NAME` | D1 database name                                      |
+| `D1_DATABASE_ID`   | D1 database ID                                        |
+| `KV_NAMESPACE_ID`  | KV namespace ID                                       |
+| `TABLE_PREFIX`     | Optional prefix for all DB table names(e.g. `myapp_`) |
 
 ### 3. Deploy
 
@@ -106,11 +106,11 @@ pnpm dev:worker
 
 ### Worker Environment Variables (wrangler.toml, injected by GitHub Actions during deployment)
 
-| Variable | Description |
-|----------|-------------|
-| `JWT_SECRET` | JWT signing secret, any random 64-char string |
+| Variable       | Description                                             |
+| -------------- | ------------------------------------------------------- |
+| `JWT_SECRET`   | JWT signing secret, any random 64-char string           |
 | `SETUP_SECRET` | Database initialization route secret, any random string |
-| `TABLE_PREFIX` | Database table prefix (e.g., `hk_`), default is empty |
+| `TABLE_PREFIX` | Database table prefix (e.g., `hk_`), default is empty   |
 
 ## License
 

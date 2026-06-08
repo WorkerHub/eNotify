@@ -43,6 +43,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 **Entry point**: `worker/src/index.ts` — registers all Hono routes and the scheduled handler.
 
 **Route structure** (`worker/src/routes/`):
+
 - `auth.ts` — registration, login, logout, email verification
 - `auth2fa.ts` — TOTP, Passkey (WebAuthn), email OTP
 - `me.ts` — user profile, notification settings
@@ -53,11 +54,13 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `setup.ts` — one-time DB initialization via `SETUP_SECRET`
 
 **Database** (`worker/src/db/`):
+
 - Cloudflare D1 (SQLite). Schema defined in `worker/src/db/schema.sql`.
 - All table names use a `{prefix}` placeholder at definition time, resolved at runtime via `TABLE_PREFIX` env var and the `getTablePrefix()` helper in `types.ts`.
 - Query functions are organized by entity in `worker/src/db/queries/`. Key entities: `items`, `payments`, `users`, `notifications` (channel config), `settings`.
 
 **Core utilities** (`worker/src/core/`):
+
 - `auth.ts` — JWT signing/verification, password hashing, ID generation
 - `time.ts` — timezone-aware date arithmetic, period calculations
 - `lunar.ts` — Chinese lunar calendar support (1900–2100)
@@ -66,11 +69,13 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 **Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels, with optional per-item channel filtering via the `channels` parameter.
 
 **Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly via Cloudflare Cron Trigger (`0 * * * *`). For each active user it:
+
 1. Checks their allowed notification hours (per-timezone).
 2. Auto-renews expired items (with KV deduplication).
 3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication). If an item has specific channels configured (`channels` column), only those channels are used; otherwise all enabled channels receive the notification.
 
 **Cloudflare bindings**:
+
 - `DB` — D1 database
 - `KV` — KV namespace (used for scheduler deduplication and status)
 - `ASSETS` — static file serving
