@@ -1,45 +1,60 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
-import path from 'path'
-import pkg from '../package.json'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
+import path from "node:path";
+import pkg from "../package.json";
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: "prompt",
       injectRegister: false,
-      appleMobileWebAppStatusBarStyle: 'black-translucent',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon-192x192.png', 'icon-512x512.png'],
+      appleMobileWebAppStatusBarStyle: "black-translucent",
+      includeAssets: [
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "icon-192x192.png",
+        "icon-512x512.png",
+      ],
       manifest: {
-        name: 'eNotify',
-        short_name: 'eNotify',
-        description: pkg.description || '',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone',
-        scope: '/',
-        start_url: '/',
+        name: "eNotify",
+        short_name: "eNotify",
+        description: pkg.description || "",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
         icons: [
-          { src: 'icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-          { src: 'icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: "icon-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "icon-512x512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,wasm,woff,woff2,json}'],
-        navigateFallback: '/index.html',
+        globPatterns: ["**/*.{js,css,html,svg,png,wasm,woff,woff2,json}"],
+        navigateFallback: "/index.html",
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkFirst',
+            handler: "NetworkFirst",
             options: {
-              cacheName: 'api-cache',
+              cacheName: "api-cache",
               networkTimeoutSeconds: 10,
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
             },
@@ -53,15 +68,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8787',
+      "/api": {
+        target: "http://localhost:8787",
         changeOrigin: true,
       },
     },
   },
-})
+});

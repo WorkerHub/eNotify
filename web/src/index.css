@@ -125,37 +125,81 @@ select {
 
 /* iOS 15 fallback: color-mix() not supported, provide hsl() with alpha */
 @supports not (color: color-mix(in lab, red, red)) {
-  .bg-destructive\/5 { background-color: hsl(var(--destructive) / 0.05); }
+  .bg-destructive\/5 {
+    background-color: hsl(var(--destructive) / 0.05);
+  }
   .bg-destructive\/10,
-  .hover\:bg-destructive\/10:hover { background-color: hsl(var(--destructive) / 0.1); }
+  .hover\:bg-destructive\/10:hover {
+    background-color: hsl(var(--destructive) / 0.1);
+  }
   .bg-destructive\/20,
-  .hover\:bg-destructive\/20:hover { background-color: hsl(var(--destructive) / 0.2); }
+  .hover\:bg-destructive\/20:hover {
+    background-color: hsl(var(--destructive) / 0.2);
+  }
   .bg-destructive\/90,
-  .hover\:bg-destructive\/90:hover { background-color: hsl(var(--destructive) / 0.9); }
-  .bg-primary\/10 { background-color: hsl(var(--primary) / 0.1); }
-  .bg-primary\/20 { background-color: hsl(var(--primary) / 0.2); }
+  .hover\:bg-destructive\/90:hover {
+    background-color: hsl(var(--destructive) / 0.9);
+  }
+  .bg-primary\/10 {
+    background-color: hsl(var(--primary) / 0.1);
+  }
+  .bg-primary\/20 {
+    background-color: hsl(var(--primary) / 0.2);
+  }
   .bg-primary\/90,
-  .hover\:bg-primary\/90:hover { background-color: hsl(var(--primary) / 0.9); }
+  .hover\:bg-primary\/90:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
   .bg-muted\/20,
-  .hover\:bg-muted\/20:hover { background-color: hsl(var(--muted) / 0.2); }
+  .hover\:bg-muted\/20:hover {
+    background-color: hsl(var(--muted) / 0.2);
+  }
   .bg-muted\/30,
-  .hover\:bg-muted\/30:hover { background-color: hsl(var(--muted) / 0.3); }
-  .bg-muted\/50 { background-color: hsl(var(--muted) / 0.5); }
+  .hover\:bg-muted\/30:hover {
+    background-color: hsl(var(--muted) / 0.3);
+  }
+  .bg-muted\/50 {
+    background-color: hsl(var(--muted) / 0.5);
+  }
   .bg-muted\/80,
-  .hover\:bg-muted\/80:hover { background-color: hsl(var(--muted) / 0.8); }
-  .bg-card\/85 { background-color: hsl(var(--card) / 0.85); }
-  .bg-card\/95 { background-color: hsl(var(--card) / 0.95); }
+  .hover\:bg-muted\/80:hover {
+    background-color: hsl(var(--muted) / 0.8);
+  }
+  .bg-card\/85 {
+    background-color: hsl(var(--card) / 0.85);
+  }
+  .bg-card\/95 {
+    background-color: hsl(var(--card) / 0.95);
+  }
   .bg-accent\/70,
-  .hover\:bg-accent\/70:hover { background-color: hsl(var(--accent) / 0.7); }
+  .hover\:bg-accent\/70:hover {
+    background-color: hsl(var(--accent) / 0.7);
+  }
   .bg-secondary\/80,
-  .hover\:bg-secondary\/80:hover { background-color: hsl(var(--secondary) / 0.8); }
-  .border-destructive\/20 { border-color: hsl(var(--destructive) / 0.2); }
-  .border-destructive\/30 { border-color: hsl(var(--destructive) / 0.3); }
-  .border-primary\/30 { border-color: hsl(var(--primary) / 0.3); }
+  .hover\:bg-secondary\/80:hover {
+    background-color: hsl(var(--secondary) / 0.8);
+  }
+  .border-destructive\/20 {
+    border-color: hsl(var(--destructive) / 0.2);
+  }
+  .border-destructive\/30 {
+    border-color: hsl(var(--destructive) / 0.3);
+  }
+  .border-primary\/30 {
+    border-color: hsl(var(--primary) / 0.3);
+  }
   .border-primary\/50,
-  .hover\:border-primary\/50:hover { border-color: hsl(var(--primary) / 0.5); }
-  .text-destructive\/50 { color: hsl(var(--destructive) / 0.5); }
-  .text-muted-foreground\/50 { color: hsl(var(--muted-foreground) / 0.5); }
+  .hover\:border-primary\/50:hover {
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  .text-destructive\/50 {
+    color: hsl(var(--destructive) / 0.5);
+  }
+  .text-muted-foreground\/50 {
+    color: hsl(var(--muted-foreground) / 0.5);
+  }
   .text-primary\/70,
-  .hover\:text-primary\/70:hover { color: hsl(var(--primary) / 0.7); }
+  .hover\:text-primary\/70:hover {
+    color: hsl(var(--primary) / 0.7);
+  }
 }

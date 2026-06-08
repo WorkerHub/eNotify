@@ -1,43 +1,61 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/hooks/useAuth'
-import { LayoutDashboard, CreditCard, Shield, LogOut, XCircle, Settings, History, User, ChevronDown, Info, Radio, RefreshCw } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
-import { api } from '@/lib/api'
-import { usePWAUpdate } from '@/hooks/usePWAUpdate'
-import { DashboardPage } from '@/pages/dashboard/DashboardPage'
-import { ItemListPage } from '@/pages/items/ItemListPage'
-import { ChannelPage } from '@/pages/channels/ChannelPage'
-import { HistoryPage } from '@/pages/history/HistoryPage'
-import { MePage } from '@/pages/me/MePage'
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  LayoutDashboard,
+  CreditCard,
+  Shield,
+  LogOut,
+  XCircle,
+  Settings,
+  History,
+  User,
+  ChevronDown,
+  Info,
+  Radio,
+  RefreshCw,
+} from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { api } from "@/lib/api";
+import { usePWAUpdate } from "@/hooks/usePWAUpdate";
+import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { ItemListPage } from "@/pages/items/ItemListPage";
+import { ChannelPage } from "@/pages/channels/ChannelPage";
+import { HistoryPage } from "@/pages/history/HistoryPage";
+import { MePage } from "@/pages/me/MePage";
 
-function AvatarDropdown({ user, onLogout, onNavigate }: {
-  user: { email: string; role: string } | null
-  onLogout: () => void
-  onNavigate: (path: string) => void
+function AvatarDropdown({
+  user,
+  onLogout,
+  onNavigate,
+}: {
+  user: { email: string; role: string } | null;
+  onLogout: () => void;
+  onNavigate: (path: string) => void;
 }) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const handleNavigate = (path: string) => {
-    setOpen(false)
-    onNavigate(path)
-  }
+    setOpen(false);
+    onNavigate(path);
+  };
 
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((p) => !p)}
         className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent transition-colors"
       >
@@ -51,109 +69,134 @@ function AvatarDropdown({ user, onLogout, onNavigate }: {
           <div className="px-3 py-2 border-b">
             <p className="text-sm font-medium truncate">{user?.email}</p>
           </div>
-          <button onClick={() => handleNavigate('/settings')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+          <button
+            type="button"
+            onClick={() => handleNavigate("/settings")}
+            className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors"
+          >
             <Settings className="w-4 h-4" />
-            {t('nav.settings')}
+            {t("nav.settings")}
           </button>
-          {user?.role === 'admin' && (
-            <button onClick={() => handleNavigate('/admin')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+          {user?.role === "admin" && (
+            <button
+              type="button"
+              onClick={() => handleNavigate("/admin")}
+              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors"
+            >
               <Shield className="w-4 h-4" />
-              {t('nav.admin')}
+              {t("nav.admin")}
             </button>
           )}
-          <button onClick={() => handleNavigate('/about')} className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors">
+          <button
+            type="button"
+            onClick={() => handleNavigate("/about")}
+            className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors"
+          >
             <Info className="w-4 h-4" />
-            {t('nav.about')}
+            {t("nav.about")}
           </button>
           <div className="border-t mt-1 pt-1">
             <button
+              type="button"
               onClick={onLogout}
               className="flex items-center gap-2 px-3 py-2 text-sm w-full text-destructive hover:bg-accent transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              {t('auth.logout')}
+              {t("auth.logout")}
             </button>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export function AppLayout() {
-  const { t } = useTranslation()
-  const { user, logout, refreshUser } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { needRefresh, update, dismiss } = usePWAUpdate()
-  const [impersonating, setImpersonating] = useState(() => !!sessionStorage.getItem('impersonate_user_id'))
-  const [appName, setAppName] = useState('eNotify')
+  const { t } = useTranslation();
+  const { user, logout, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { needRefresh, update, dismiss } = usePWAUpdate();
+  const [impersonating, setImpersonating] = useState(
+    () => !!sessionStorage.getItem("impersonate_user_id"),
+  );
+  const [appName, setAppName] = useState("eNotify");
 
-  const TAB_PATHS = ['/', '/items', '/channels', '/history', '/me']
-  const isTabPath = TAB_PATHS.includes(location.pathname)
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([location.pathname]))
+  const TAB_PATHS = ["/", "/items", "/channels", "/history", "/me"];
+  const isTabPath = TAB_PATHS.includes(location.pathname);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(
+    () => new Set([location.pathname]),
+  );
 
   useEffect(() => {
     if (TAB_PATHS.includes(location.pathname)) {
       setVisitedTabs((prev) => {
-        if (prev.has(location.pathname)) return prev
-        return new Set(prev).add(location.pathname)
+        if (prev.has(location.pathname)) return prev;
+        return new Set(prev).add(location.pathname);
+      });
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    api
+      .get<{ app_name: string; version: string }>("/system/info")
+      .then((info) => {
+        if (info.app_name) setAppName(info.app_name);
       })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const check = () =>
+      setImpersonating(!!sessionStorage.getItem("impersonate_user_id"));
+    window.addEventListener("storage", check);
+    window.addEventListener("impersonation-change", check);
+    const id = setInterval(check, 3000);
+    return () => {
+      window.removeEventListener("storage", check);
+      window.removeEventListener("impersonation-change", check);
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("needs_2fa_setup")) {
+      sessionStorage.removeItem("needs_2fa_setup");
+      navigate("/settings?tab=security", { replace: true });
     }
-  }, [location.pathname])
-
-  useEffect(() => {
-    api.get<{ app_name: string; version: string }>('/system/info')
-      .then((info) => { if (info.app_name) setAppName(info.app_name) })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    const check = () => setImpersonating(!!sessionStorage.getItem('impersonate_user_id'))
-    window.addEventListener('storage', check)
-    window.addEventListener('impersonation-change', check)
-    const id = setInterval(check, 3000)
-    return () => { window.removeEventListener('storage', check); window.removeEventListener('impersonation-change', check); clearInterval(id) }
-  }, [])
-
-  useEffect(() => {
-    if (sessionStorage.getItem('needs_2fa_setup')) {
-      sessionStorage.removeItem('needs_2fa_setup')
-      navigate('/settings?tab=security', { replace: true })
-    }
-  }, [navigate])
+  }, [navigate]);
 
   const stopImpersonating = async () => {
-    sessionStorage.removeItem('impersonate_user_id')
-    window.dispatchEvent(new Event('impersonation-change'))
-    setImpersonating(false)
-    await refreshUser()
-    navigate('/admin/users')
-  }
+    sessionStorage.removeItem("impersonate_user_id");
+    window.dispatchEvent(new Event("impersonation-change"));
+    setImpersonating(false);
+    await refreshUser();
+    navigate("/admin/users");
+  };
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
+    await logout();
+    navigate("/login");
+  };
 
   const handleMenuNavigate = (path: string) => {
-    navigate(path)
-  }
+    navigate(path);
+  };
 
   const desktopNavItems = [
-    { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
-    { to: '/items', icon: CreditCard, label: t('nav.items') },
-    { to: '/channels', icon: Radio, label: t('nav.channels') },
-    { to: '/history', icon: History, label: t('nav.history') },
-  ]
+    { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { to: "/items", icon: CreditCard, label: t("nav.items") },
+    { to: "/channels", icon: Radio, label: t("nav.channels") },
+    { to: "/history", icon: History, label: t("nav.history") },
+  ];
 
   const mobileNavItems = [
-    { to: '/', icon: LayoutDashboard, label: t('nav.dashboard') },
-    { to: '/items', icon: CreditCard, label: t('nav.items') },
-    { to: '/channels', icon: Radio, label: t('nav.channels') },
-    { to: '/history', icon: History, label: t('nav.history') },
-    { to: '/me', icon: User, label: t('nav.me') },
-  ]
+    { to: "/", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { to: "/items", icon: CreditCard, label: t("nav.items") },
+    { to: "/channels", icon: Radio, label: t("nav.channels") },
+    { to: "/history", icon: History, label: t("nav.history") },
+    { to: "/me", icon: User, label: t("nav.me") },
+  ];
 
   return (
     <div className="h-dvh flex flex-col md:flex-row md:overflow-hidden">
@@ -167,10 +210,12 @@ export function AppLayout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === "/"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                  isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-accent'
+                  isActive
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent"
                 }`
               }
             >
@@ -185,28 +230,48 @@ export function AppLayout() {
       <main className="flex-1 pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:ml-64 md:h-dvh md:overflow-y-auto md:pt-14 md:pb-0">
         {/* Desktop top bar */}
         <div className="hidden md:fixed md:top-0 md:left-64 md:right-0 md:z-30 md:flex items-center justify-end gap-2 px-6 h-14 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-sm">
-          <AvatarDropdown user={user} onLogout={handleLogout} onNavigate={handleMenuNavigate} />
+          <AvatarDropdown
+            user={user}
+            onLogout={handleLogout}
+            onNavigate={handleMenuNavigate}
+          />
         </div>
 
         {impersonating && (
           <div className="bg-yellow-500/90 text-yellow-950 text-sm px-4 py-2 flex items-center justify-between">
-            <span>{t('admin.impersonating', { defaultValue: 'Impersonating another user' })}</span>
-            <button onClick={stopImpersonating} className="flex items-center gap-1 font-medium hover:underline">
+            <span>
+              {t("admin.impersonating", {
+                defaultValue: "Impersonating another user",
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={stopImpersonating}
+              className="flex items-center gap-1 font-medium hover:underline"
+            >
               <XCircle className="w-4 h-4" />
-              {t('common.stop', { defaultValue: 'Stop' })}
+              {t("common.stop", { defaultValue: "Stop" })}
             </button>
           </div>
         )}
 
         {needRefresh && (
           <div className="bg-blue-500/90 text-white text-sm px-4 py-2 flex items-center justify-between">
-            <span>{t('pwa.updateAvailable')}</span>
+            <span>{t("pwa.updateAvailable")}</span>
             <div className="flex items-center gap-2">
-              <button onClick={update} className="flex items-center gap-1 font-medium hover:underline">
+              <button
+                type="button"
+                onClick={update}
+                className="flex items-center gap-1 font-medium hover:underline"
+              >
                 <RefreshCw className="w-4 h-4" />
-                {t('pwa.updateAction')}
+                {t("pwa.updateAction")}
               </button>
-              <button onClick={dismiss} className="opacity-70 hover:opacity-100">
+              <button
+                type="button"
+                onClick={dismiss}
+                className="opacity-70 hover:opacity-100"
+              >
                 <XCircle className="w-4 h-4" />
               </button>
             </div>
@@ -222,20 +287,42 @@ export function AppLayout() {
           <div className="md:hidden">
             {isTabPath ? (
               <>
-                <div style={{ display: location.pathname === '/' ? 'block' : 'none' }}>
-                  {visitedTabs.has('/') && <DashboardPage />}
+                <div
+                  style={{
+                    display: location.pathname === "/" ? "block" : "none",
+                  }}
+                >
+                  {visitedTabs.has("/") && <DashboardPage />}
                 </div>
-                <div style={{ display: location.pathname === '/items' ? 'block' : 'none' }}>
-                  {visitedTabs.has('/items') && <ItemListPage />}
+                <div
+                  style={{
+                    display: location.pathname === "/items" ? "block" : "none",
+                  }}
+                >
+                  {visitedTabs.has("/items") && <ItemListPage />}
                 </div>
-                <div style={{ display: location.pathname === '/channels' ? 'block' : 'none' }}>
-                  {visitedTabs.has('/channels') && <ChannelPage />}
+                <div
+                  style={{
+                    display:
+                      location.pathname === "/channels" ? "block" : "none",
+                  }}
+                >
+                  {visitedTabs.has("/channels") && <ChannelPage />}
                 </div>
-                <div style={{ display: location.pathname === '/history' ? 'block' : 'none' }}>
-                  {visitedTabs.has('/history') && <HistoryPage />}
+                <div
+                  style={{
+                    display:
+                      location.pathname === "/history" ? "block" : "none",
+                  }}
+                >
+                  {visitedTabs.has("/history") && <HistoryPage />}
                 </div>
-                <div style={{ display: location.pathname === '/me' ? 'block' : 'none' }}>
-                  {visitedTabs.has('/me') && <MePage />}
+                <div
+                  style={{
+                    display: location.pathname === "/me" ? "block" : "none",
+                  }}
+                >
+                  {visitedTabs.has("/me") && <MePage />}
                 </div>
               </>
             ) : (
@@ -249,8 +336,8 @@ export function AppLayout() {
       <header
         className="md:hidden fixed top-0 left-0 right-0 bg-card border-b flex items-center px-4 z-50"
         style={{
-          height: 'calc(3rem + env(safe-area-inset-top, 0px))',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          height: "calc(3rem + env(safe-area-inset-top, 0px))",
+          paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
         <span className="text-base font-bold text-primary">{appName}</span>
@@ -260,8 +347,8 @@ export function AppLayout() {
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around z-50"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingTop: '0.5rem',
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingTop: "0.5rem",
         }}
       >
         {mobileNavItems.map((item) => (
@@ -271,7 +358,7 @@ export function AppLayout() {
             end
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 px-3 py-1 text-xs ${
-                isActive ? 'text-primary' : 'text-muted-foreground'
+                isActive ? "text-primary" : "text-muted-foreground"
               }`
             }
           >
@@ -281,5 +368,5 @@ export function AppLayout() {
         ))}
       </nav>
     </div>
-  )
+  );
 }

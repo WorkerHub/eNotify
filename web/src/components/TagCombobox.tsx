@@ -1,36 +1,45 @@
-import { useState, useRef, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface TagComboboxProps {
-  value: string
-  onChange: (val: string) => void
-  options: string[]
-  placeholder?: string
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
 }
 
 const INPUT =
-  'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow'
+  "w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow";
 
-export function TagCombobox({ value, onChange, options, placeholder }: TagComboboxProps) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+export function TagCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: TagComboboxProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = options.filter((o) =>
-    value === '' || o.toLowerCase().includes(value.toLowerCase())
-  )
-  const showCreate = value.trim() !== '' && !options.some((o) => o === value.trim())
+  const filtered = options.filter(
+    (o) => value === "" || o.toLowerCase().includes(value.toLowerCase()),
+  );
+  const showCreate =
+    value.trim() !== "" && !options.some((o) => o === value.trim());
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
       }
     }
-    if (open) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -41,7 +50,7 @@ export function TagCombobox({ value, onChange, options, placeholder }: TagCombob
         onFocus={() => setOpen(true)}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') setOpen(false)
+          if (e.key === "Escape") setOpen(false);
         }}
       />
       {open && (filtered.length > 0 || showCreate) && (
@@ -52,13 +61,13 @@ export function TagCombobox({ value, onChange, options, placeholder }: TagCombob
                 <li
                   key={option}
                   className={cn(
-                    'px-3 py-2 text-sm cursor-pointer hover:bg-accent transition-colors',
-                    option === value && 'bg-accent font-medium',
+                    "px-3 py-2 text-sm cursor-pointer hover:bg-accent transition-colors",
+                    option === value && "bg-accent font-medium",
                   )}
                   onMouseDown={(e) => {
-                    e.preventDefault()
-                    onChange(option)
-                    setOpen(false)
+                    e.preventDefault();
+                    onChange(option);
+                    setOpen(false);
                   }}
                 >
                   {option}
@@ -69,21 +78,21 @@ export function TagCombobox({ value, onChange, options, placeholder }: TagCombob
           {showCreate && (
             <div
               className={cn(
-                'px-3 py-2 text-sm cursor-pointer text-primary hover:bg-accent transition-colors flex items-center gap-1.5',
-                filtered.length > 0 && 'border-t',
+                "px-3 py-2 text-sm cursor-pointer text-primary hover:bg-accent transition-colors flex items-center gap-1.5",
+                filtered.length > 0 && "border-t",
               )}
               onMouseDown={(e) => {
-                e.preventDefault()
-                onChange(value.trim())
-                setOpen(false)
+                e.preventDefault();
+                onChange(value.trim());
+                setOpen(false);
               }}
             >
               <span>+</span>
-              <span>{t('items.tagCreate', { value: value.trim() })}</span>
+              <span>{t("items.tagCreate", { value: value.trim() })}</span>
             </div>
           )}
         </div>
       )}
     </div>
-  )
+  );
 }

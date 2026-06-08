@@ -1,18 +1,18 @@
-import { JWTPayload } from '../types';
+import type { JWTPayload } from "../types";
 
 // ─── Buffer helpers ───────────────────────────────────────────────────────────
 
 function bufToHex(buf: Uint8Array | ArrayBuffer): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16);
   }
   return bytes;
 }
@@ -21,22 +21,30 @@ function hexToBytes(hex: string): Uint8Array {
 
 function base64urlEncodeString(input: string): string {
   const bytes = new TextEncoder().encode(input);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++)
+    binary += String.fromCharCode(bytes[i]);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function base64urlEncodeBuffer(input: ArrayBuffer): string {
   const bytes = new Uint8Array(input);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++)
+    binary += String.fromCharCode(bytes[i]);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function base64urlDecodeToString(input: string): string {
-  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
   const pad = padded.length % 4;
-  return atob(pad ? padded + '='.repeat(4 - pad) : padded);
+  return atob(pad ? padded + "=".repeat(4 - pad) : padded);
 }
 
 function base64urlDecodeToBuffer(input: string): ArrayBuffer {
@@ -52,15 +60,15 @@ export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(32));
 
   const keyMaterial = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     new TextEncoder().encode(password),
-    'PBKDF2',
+    "PBKDF2",
     false,
-    ['deriveBits'],
+    ["deriveBits"],
   );
 
   const hashBuffer = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
     keyMaterial,
     256,
   );
@@ -68,8 +76,11 @@ export async function hashPassword(password: string): Promise<string> {
   return `${bufToHex(salt)}:${bufToHex(hashBuffer)}`;
 }
 
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const colonIdx = stored.indexOf(':');
+export async function verifyPassword(
+  password: string,
+  stored: string,
+): Promise<boolean> {
+  const colonIdx = stored.indexOf(":");
   if (colonIdx === -1) return false;
 
   const saltHex = stored.slice(0, colonIdx);
@@ -79,15 +90,15 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const salt = hexToBytes(saltHex);
 
   const keyMaterial = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     new TextEncoder().encode(password),
-    'PBKDF2',
+    "PBKDF2",
     false,
-    ['deriveBits'],
+    ["deriveBits"],
   );
 
   const hashBuffer = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
     keyMaterial,
     256,
   );
@@ -105,41 +116,53 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────
 
-export async function signJWT(payload: JWTPayload, secret: string): Promise<string> {
-  const encodedHeader = base64urlEncodeString(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+export async function signJWT(
+  payload: JWTPayload,
+  secret: string,
+): Promise<string> {
+  const encodedHeader = base64urlEncodeString(
+    JSON.stringify({ alg: "HS256", typ: "JWT" }),
+  );
   const encodedPayload = base64urlEncodeString(JSON.stringify(payload));
   const signingInput = `${encodedHeader}.${encodedPayload}`;
 
   const key = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
+    { name: "HMAC", hash: "SHA-256" },
     false,
-    ['sign'],
+    ["sign"],
   );
 
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(signingInput),
+  );
 
   return `${signingInput}.${base64urlEncodeBuffer(signature)}`;
 }
 
-export async function verifyJWT(token: string, secret: string): Promise<JWTPayload | null> {
-  const parts = token.split('.');
+export async function verifyJWT(
+  token: string,
+  secret: string,
+): Promise<JWTPayload | null> {
+  const parts = token.split(".");
   if (parts.length !== 3) return null;
 
   const [encodedHeader, encodedPayload, encodedSignature] = parts;
   const signingInput = `${encodedHeader}.${encodedPayload}`;
 
   const key = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
+    { name: "HMAC", hash: "SHA-256" },
     false,
-    ['verify'],
+    ["verify"],
   );
 
   const valid = await crypto.subtle.verify(
-    'HMAC',
+    "HMAC",
     key,
     base64urlDecodeToBuffer(encodedSignature),
     new TextEncoder().encode(signingInput),
@@ -153,7 +176,7 @@ export async function verifyJWT(token: string, secret: string): Promise<JWTPaylo
   } catch {
     return null;
   }
-  if (header.alg !== 'HS256') return null;
+  if (header.alg !== "HS256") return null;
 
   let payload: JWTPayload;
   try {
@@ -162,7 +185,8 @@ export async function verifyJWT(token: string, secret: string): Promise<JWTPaylo
     return null;
   }
 
-  if (typeof payload.exp === 'number' && Date.now() / 1000 > payload.exp) return null;
+  if (typeof payload.exp === "number" && Date.now() / 1000 > payload.exp)
+    return null;
 
   if (!payload.sub || !payload.role || !payload.jti) return null;
 

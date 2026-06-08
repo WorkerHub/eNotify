@@ -1,37 +1,56 @@
-import { useNavigate } from 'react-router'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '@/hooks/useAuth'
-import { User, ChevronRight, Settings, Shield, Info, LogOut } from 'lucide-react'
+import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  User,
+  ChevronRight,
+  Settings,
+  Shield,
+  Info,
+  LogOut,
+} from "lucide-react";
 
-function MenuItem({ icon: Icon, label, onClick, destructive }: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  onClick: () => void
-  destructive?: boolean
+function MenuItem({
+  icon: Icon,
+  label,
+  onClick,
+  destructive,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent transition-colors"
     >
-      <Icon className={`w-5 h-5 ${destructive ? 'text-destructive' : 'text-muted-foreground'}`} />
-      <span className={`flex-1 text-left text-sm ${destructive ? 'text-destructive' : 'text-foreground'}`}>
+      <Icon
+        className={`w-5 h-5 ${destructive ? "text-destructive" : "text-muted-foreground"}`}
+      />
+      <span
+        className={`flex-1 text-left text-sm ${destructive ? "text-destructive" : "text-foreground"}`}
+      >
         {label}
       </span>
-      <ChevronRight className={`w-4 h-4 ${destructive ? 'text-destructive/50' : 'text-muted-foreground/50'}`} />
+      <ChevronRight
+        className={`w-4 h-4 ${destructive ? "text-destructive/50" : "text-muted-foreground/50"}`}
+      />
     </button>
-  )
+  );
 }
 
 export function MePage() {
-  const { t } = useTranslation()
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <div className="max-w-lg mx-auto">
@@ -46,11 +65,23 @@ export function MePage() {
       {/* Menu items */}
       <div className="mb-4">
         <div className="rounded-lg border overflow-hidden divide-y">
-          <MenuItem icon={Settings} label={t('nav.settings')} onClick={() => navigate('/settings')} />
-          {user?.role === 'admin' && (
-            <MenuItem icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />
+          <MenuItem
+            icon={Settings}
+            label={t("nav.settings")}
+            onClick={() => navigate("/settings")}
+          />
+          {user?.role === "admin" && (
+            <MenuItem
+              icon={Shield}
+              label={t("nav.admin")}
+              onClick={() => navigate("/admin")}
+            />
           )}
-          <MenuItem icon={Info} label={t('nav.about')} onClick={() => navigate('/about')} />
+          <MenuItem
+            icon={Info}
+            label={t("nav.about")}
+            onClick={() => navigate("/about")}
+          />
         </div>
       </div>
 
@@ -59,12 +90,12 @@ export function MePage() {
         <div className="rounded-lg border overflow-hidden">
           <MenuItem
             icon={LogOut}
-            label={t('auth.logout')}
+            label={t("auth.logout")}
             onClick={handleLogout}
             destructive
           />
         </div>
       </div>
     </div>
-  )
+  );
 }

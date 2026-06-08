@@ -1,61 +1,66 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router'
-import { useTranslation } from 'react-i18next'
-import { Globe, Sun, Moon, Monitor } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
-import { useTheme } from '@/components/ThemeProvider'
+import { useState } from "react";
+import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
+import { Globe, Sun, Moon, Monitor } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/components/ThemeProvider";
 
 export function RegisterPage() {
-  const { t, i18n } = useTranslation()
-  const { register } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { t, i18n } = useTranslation();
+  const { register } = useAuth();
+  const { theme, setTheme } = useTheme();
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
     if (password !== confirmPassword) {
-      setError(t('auth.passwordMismatch'))
-      return
+      setError(t("auth.passwordMismatch"));
+      return;
     }
-    setError('')
-    setLoading(true)
+    setError("");
+    setLoading(true);
     try {
-      const res = await register(email, password)
+      const res = await register(email, password);
       if (res.requiresVerification) {
-        setMessage(t('auth.verifyEmailSent'))
+        setMessage(t("auth.verifyEmailSent"));
       } else {
-        setMessage(t('auth.registerSuccess'))
+        setMessage(t("auth.registerSuccess"));
       }
     } catch (err: any) {
-      setError(err.message || t('common.error'))
+      setError(err.message || t("common.error"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const toggleLang = () => {
-    i18n.changeLanguage(i18n.language === 'zh' ? 'en' : 'zh')
-  }
+    i18n.changeLanguage(i18n.language === "zh" ? "en" : "zh");
+  };
 
   const cycleTheme = () => {
-    const order: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
-    const idx = order.indexOf(theme)
-    setTheme(order[(idx + 1) % 3])
-  }
+    const order: Array<"light" | "dark" | "system"> = [
+      "light",
+      "dark",
+      "system",
+    ];
+    const idx = order.indexOf(theme);
+    setTheme(order[(idx + 1) % 3]);
+  };
 
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
+  const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
       {/* Top-right controls */}
       <div className="absolute top-4 right-4 flex items-center gap-1">
         <button
+          type="button"
           onClick={toggleLang}
           className="p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           title="Switch language"
@@ -63,6 +68,7 @@ export function RegisterPage() {
           <Globe className="w-4 h-4" />
         </button>
         <button
+          type="button"
           onClick={cycleTheme}
           className="p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           title="Toggle theme"
@@ -74,8 +80,12 @@ export function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="bg-card border rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">{t('app.name')}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t('app.tagline')}</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {t("app.name")}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t("app.tagline")}
+            </p>
           </div>
 
           {message ? (
@@ -83,15 +93,18 @@ export function RegisterPage() {
               <div className="text-sm text-foreground bg-primary/10 px-4 py-3 rounded-md">
                 {message}
               </div>
-              <Link to="/login" className="block text-sm text-primary hover:underline font-medium">
-                {t('auth.login')}
+              <Link
+                to="/login"
+                className="block text-sm text-primary hover:underline font-medium"
+              >
+                {t("auth.login")}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t('auth.email')}
+                  {t("auth.email")}
                 </label>
                 <input
                   type="email"
@@ -106,7 +119,7 @@ export function RegisterPage() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t('auth.password')}
+                  {t("auth.password")}
                 </label>
                 <input
                   type="password"
@@ -120,7 +133,7 @@ export function RegisterPage() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {t('auth.confirmPassword')}
+                  {t("auth.confirmPassword")}
                 </label>
                 <input
                   type="password"
@@ -143,21 +156,24 @@ export function RegisterPage() {
                 disabled={loading}
                 className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
-                {loading ? t('common.loading') : t('auth.register')}
+                {loading ? t("common.loading") : t("auth.register")}
               </button>
             </form>
           )}
 
           {!message && (
             <p className="text-center text-sm text-muted-foreground mt-6">
-              {t('auth.hasAccount')}{' '}
-              <Link to="/login" className="text-primary hover:underline font-medium">
-                {t('auth.login')}
+              {t("auth.hasAccount")}{" "}
+              <Link
+                to="/login"
+                className="text-primary hover:underline font-medium"
+              >
+                {t("auth.login")}
               </Link>
             </p>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }
