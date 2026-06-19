@@ -17,7 +17,7 @@
     "typecheck": "pnpm --filter web typecheck && pnpm --filter worker typecheck"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.0.0",
     "concurrently": "^10.0.3",
     "typescript": "^6.0.3"
   },
