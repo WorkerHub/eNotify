@@ -121,7 +121,7 @@ function FieldWithTooltip({
   tooltip: string;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   const updatePos = () => {
@@ -134,7 +134,9 @@ function FieldWithTooltip({
     <div className="space-y-1.5">
       <div className="flex items-center gap-1">
         <label className="text-sm font-medium">{label}</label>
-        <span
+        <button
+          type="button"
+          aria-label={label}
           ref={ref}
           className="inline-flex ml-0.5"
           onMouseEnter={updatePos}
@@ -144,23 +146,18 @@ function FieldWithTooltip({
           {pos && (
             <Portal>
               <div
-                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
                 style={{
                   left: pos.x,
                   top: pos.y,
                   transform: "translate(-50%, calc(-100% - 8px))",
                 }}
               >
-                {tooltip.split("\n").map((line, i) => (
-                  <span key={`${line}-${i + 1}`}>
-                    {i > 0 && <br />}
-                    {line}
-                  </span>
-                ))}
+                {tooltip}
               </div>
             </Portal>
           )}
-        </span>
+        </button>
       </div>
       {children}
     </div>

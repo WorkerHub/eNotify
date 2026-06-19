@@ -227,7 +227,8 @@ export function HistoryPage() {
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
             {grouped.map((g) => (
-              <div
+              <button
+                type="button"
                 key={g.id}
                 className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
                 onClick={() => setSelected(g)}
@@ -286,21 +287,21 @@ export function HistoryPage() {
                       .join("; ")}
                   </p>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </>
       )}
 
       {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="bg-card border rounded-xl w-full max-w-lg shadow-lg flex flex-col max-h-[80vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close details"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setSelected(null)}
+          />
+          <div className="relative bg-card border rounded-xl w-full max-w-lg shadow-lg flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
               <h3 className="font-semibold text-sm">{t("history.detail")}</h3>
               <button

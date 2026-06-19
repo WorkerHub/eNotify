@@ -31,7 +31,7 @@ notifyRoutes.post("/:token", async (c) => {
   }
 
   const user = await findUserById(c.env.DB, prefix, userId);
-  if (!user || !user.is_active) {
+  if (!user?.is_active) {
     return c.json({ error: "User not found or disabled" }, 401);
   }
 

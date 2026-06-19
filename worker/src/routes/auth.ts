@@ -258,7 +258,7 @@ authRoutes.post("/refresh", async (c) => {
 
   const prefix = getTablePrefix(c.env);
   const user = await findUserById(c.env.DB, prefix, payload.sub);
-  if (!user || !user.is_active) {
+  if (!user?.is_active) {
     return c.json({ error: "User not found or disabled" }, 401);
   }
 
@@ -321,7 +321,7 @@ authRoutes.post("/password/forgot", async (c) => {
   const user = await findUserByEmail(c.env.DB, prefix, email);
 
   // Always return success to avoid email enumeration
-  if (!user || !user.is_active) return c.json({ success: true });
+  if (!user?.is_active) return c.json({ success: true });
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await c.env.KV.put(`pwd_reset:${user.id}`, code, { expirationTtl: 900 }); // 15 min
@@ -352,7 +352,7 @@ authRoutes.post("/password/reset", async (c) => {
 
   const prefix = getTablePrefix(c.env);
   const user = await findUserByEmail(c.env.DB, prefix, email);
-  if (!user || !user.is_active) {
+  if (!user?.is_active) {
     return c.json({ error: "Invalid or expired code" }, 400);
   }
 

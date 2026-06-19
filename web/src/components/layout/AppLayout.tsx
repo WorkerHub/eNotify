@@ -129,13 +129,13 @@ export function AppLayout() {
   );
 
   useEffect(() => {
-    if (TAB_PATHS.includes(location.pathname)) {
+    if (isTabPath) {
       setVisitedTabs((prev) => {
         if (prev.has(location.pathname)) return prev;
         return new Set(prev).add(location.pathname);
       });
     }
-  }, [location.pathname]);
+  }, [isTabPath, location.pathname]);
 
   useEffect(() => {
     api

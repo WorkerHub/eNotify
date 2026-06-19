@@ -87,7 +87,7 @@ function DaysBadge({ days }: { days: number }) {
 }
 
 function HelpIcon({ tooltip }: { tooltip: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   const updatePos = () => {
@@ -97,7 +97,9 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
   };
 
   return (
-    <span
+    <button
+      type="button"
+      aria-label="Help"
       ref={ref}
       className="inline-flex ml-0.5"
       onMouseEnter={updatePos}
@@ -107,23 +109,18 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
       {pos && (
         <Portal>
           <div
-            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
+            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
             style={{
               left: pos.x,
               top: pos.y,
               transform: "translate(-50%, calc(-100% - 8px))",
             }}
           >
-            {tooltip.split("\n").map((line, i) => (
-              <span key={`${line}-${i + 1}`}>
-                {i > 0 && <br />}
-                {line}
-              </span>
-            ))}
+            {tooltip}
           </div>
         </Portal>
       )}
-    </span>
+    </button>
   );
 }
 
@@ -139,7 +136,7 @@ function FilterIcon({
   allLabel: string;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   const toggle = (e: React.MouseEvent) => {
@@ -156,17 +153,26 @@ function FilterIcon({
   if (options.length === 0) return null;
 
   return (
-    <span ref={ref} className="inline-flex">
-      <Filter
-        className={cn(
-          "w-3.5 h-3.5 cursor-pointer",
-          selected ? "text-primary" : "text-muted-foreground opacity-40",
-        )}
+    <span className="inline-flex">
+      <button
+        type="button"
+        ref={ref}
+        className="inline-flex"
         onClick={toggle}
-      />
+        aria-label="Filter"
+      >
+        <Filter
+          className={cn(
+            "w-3.5 h-3.5 cursor-pointer",
+            selected ? "text-primary" : "text-muted-foreground opacity-40",
+          )}
+        />
+      </button>
       {open && pos && (
         <Portal>
-          <div
+          <button
+            type="button"
+            aria-label="Close filter"
             className="fixed inset-0 z-[100]"
             onClick={() => setOpen(false)}
           />
@@ -461,7 +467,8 @@ export function ItemListPage() {
                     <HelpIcon tooltip={t("items.mode.tooltip")} />
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
-                    <span
+                    <button
+                      type="button"
                       className="inline-flex items-center gap-1 cursor-pointer select-none"
                       onClick={() =>
                         setSortOrder((prev) =>
@@ -481,7 +488,7 @@ export function ItemListPage() {
                       ) : (
                         <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
                       )}
-                    </span>
+                    </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
                     {t("common.status")}
@@ -758,7 +765,9 @@ export function ItemListPage() {
               </button>
               {/* Dropdown panel */}
               {openDropdown && (
-                <div
+                <button
+                  type="button"
+                  aria-label="Close dropdown"
                   className="fixed inset-0 z-10"
                   onClick={() => setOpenDropdown(null)}
                 />

@@ -76,7 +76,8 @@ export function TagCombobox({
             </ul>
           )}
           {showCreate && (
-            <div
+            <button
+              type="button"
               className={cn(
                 "px-3 py-2 text-sm cursor-pointer text-primary hover:bg-accent transition-colors flex items-center gap-1.5",
                 filtered.length > 0 && "border-t",
@@ -89,7 +90,7 @@ export function TagCombobox({
             >
               <span>+</span>
               <span>{t("items.tagCreate", { value: value.trim() })}</span>
-            </div>
+            </button>
           )}
         </div>
       )}

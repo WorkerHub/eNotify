@@ -136,7 +136,8 @@ export function ChannelSelector({
               </div>
             ) : (
               <>
-                <div
+                <button
+                  type="button"
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-accent",
                     selected.length === 0 && "bg-accent",
@@ -152,10 +153,11 @@ export function ChannelSelector({
                   {selected.length === 0 && (
                     <Check className="w-4 h-4 text-primary" />
                   )}
-                </div>
+                </button>
 
                 {availableChannels.map((channel) => (
-                  <div
+                  <button
+                    type="button"
                     key={channel.id}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded cursor-pointer hover:bg-accent",
@@ -172,7 +174,7 @@ export function ChannelSelector({
                     {selected.includes(channel.id) && (
                       <Check className="w-4 h-4 text-primary" />
                     )}
-                  </div>
+                  </button>
                 ))}
               </>
             )}

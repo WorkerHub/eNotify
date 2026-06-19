@@ -24,14 +24,14 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-card border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        className="absolute inset-0 bg-black/40"
+        onClick={onCancel}
+      />
+      <div className="relative bg-card border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 shadow-lg">
         <div className="flex items-start gap-3">
           <AlertTriangle
             className={cn(
