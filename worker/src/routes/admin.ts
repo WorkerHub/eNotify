@@ -419,6 +419,17 @@ adminRoutes.put("/system/settings", async (c) => {
   for (const [key, value] of Object.entries(body)) {
     if (!allowedKeys.includes(key)) continue;
 
+    if (
+      [
+        "email_verification_enabled",
+        "require_2fa",
+        "registration_enabled",
+      ].includes(key) &&
+      !["true", "false"].includes(value)
+    ) {
+      continue;
+    }
+
     // Don't overwrite secrets with redacted values
     if (key === "smtp_config") {
       let newConfig: Record<string, any>;

@@ -188,7 +188,8 @@ export async function verifyJWT(
   if (typeof payload.exp === "number" && Date.now() / 1000 > payload.exp)
     return null;
 
-  if (!payload.sub || !payload.role || !payload.jti) return null;
+  if (!payload.sub || !payload.role || !payload.jti || !payload.sid)
+    return null;
 
   return payload;
 }

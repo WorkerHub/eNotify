@@ -7,9 +7,9 @@ type HonoEnv = { Bindings: Env };
 export const setupRoutes = new Hono<HonoEnv>();
 
 const DEFAULT_SETTINGS: Record<string, string> = {
-  email_verification_enabled: "0",
-  require_2fa: "0",
-  registration_enabled: "1",
+  email_verification_enabled: "false",
+  require_2fa: "false",
+  registration_enabled: "true",
   smtp_config: "{}",
   resend_config: "{}",
   email_provider: "none",

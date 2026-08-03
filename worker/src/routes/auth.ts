@@ -169,7 +169,7 @@ authRoutes.post("/login", async (c) => {
     prefix,
     "email_verification_enabled",
   );
-  if (emailVerificationEnabled === "1" && !user.email_verified) {
+  if (emailVerificationEnabled === "true" && !user.email_verified) {
     return c.json(
       { error: "Email not verified", requiresVerification: true },
       403,
@@ -225,6 +225,7 @@ authRoutes.post("/logout", async (c) => {
     const payload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET);
     if (payload) {
       await c.env.KV.delete(`rt:${payload.jti}`);
+      await c.env.KV.delete(`ss:${payload.sid}`);
       // Remove from session index
       if (payload.sub) {
         await removeSessionIndex(c.env.KV, payload.sub, payload.jti);
@@ -249,12 +250,18 @@ authRoutes.post("/refresh", async (c) => {
     return c.json({ error: "Invalid refresh token" }, 401);
   }
 
+  const sessionOwner = await c.env.KV.get(`ss:${payload.sid}`);
+  if (!sessionOwner || sessionOwner !== payload.sub) {
+    return c.json({ error: "Session revoked" }, 401);
+  }
+
   const stored = await c.env.KV.get(`rt:${payload.jti}`);
   if (!stored) {
     return c.json({ error: "Refresh token revoked" }, 401);
   }
 
   await c.env.KV.delete(`rt:${payload.jti}`);
+  await removeSessionIndex(c.env.KV, payload.sub, payload.jti);
 
   const prefix = getTablePrefix(c.env);
   const user = await findUserById(c.env.DB, prefix, payload.sub);
@@ -262,7 +269,7 @@ authRoutes.post("/refresh", async (c) => {
     return c.json({ error: "User not found or disabled" }, 401);
   }
 
-  await issueTokens(c, user.id, user.role);
+  await issueTokens(c, user.id, user.role, false, payload.sid);
   return c.json({ success: true });
 });
 
@@ -373,8 +380,10 @@ async function issueTokens(
   userId: string,
   role: string,
   needs2faSetup = false,
+  existingSid?: string,
 ) {
   const now = Math.floor(Date.now() / 1000);
+  const sid = existingSid || generateId();
   const accessJti = generateJti();
   const refreshJti = generateJti();
 
@@ -382,6 +391,7 @@ async function issueTokens(
     sub: userId,
     role,
     jti: accessJti,
+    sid,
     iat: now,
     exp: now + 86400, // 24h
     ...(needs2faSetup ? { needs_2fa_setup: true } : {}),
@@ -391,6 +401,7 @@ async function issueTokens(
     sub: userId,
     role,
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800, // 7d
   };
@@ -399,6 +410,7 @@ async function issueTokens(
   const refreshTokenStr = await signJWT(refreshPayload, c.env.JWT_SECRET);
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 });
+  await c.env.KV.put(`ss:${sid}`, userId, { expirationTtl: 604800 });
 
   // Track session in KV index
   const ip =
@@ -408,6 +420,7 @@ async function issueTokens(
   const ua = c.req.header("user-agent") || "unknown";
   await addSessionIndex(c.env.KV, userId, {
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
     ip,
@@ -435,6 +448,7 @@ async function issueTokens(
 
 interface SessionEntry {
   jti: string;
+  sid: string;
   iat: number;
   exp: number;
   ip?: string;

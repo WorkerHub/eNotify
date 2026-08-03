@@ -100,6 +100,7 @@ export interface JWTPayload {
   sub: string;
   role: string;
   jti: string;
+  sid: string;
   exp: number;
   iat: number;
   needs_2fa_setup?: boolean;

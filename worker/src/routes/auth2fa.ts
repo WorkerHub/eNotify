@@ -18,7 +18,7 @@ import {
   sendOTPEmail,
 } from "../services/twofa";
 import { getSetting } from "../db/queries/settings";
-import { signJWT, generateJti } from "../core/auth";
+import { signJWT, generateId, generateJti } from "../core/auth";
 import { addSessionIndex } from "./auth";
 import { setCookie } from "hono/cookie";
 import { rateLimit } from "../middleware/ratelimit";
@@ -82,6 +82,7 @@ auth2faRoutes.post("/verify", async (c) => {
 
   // Issue tokens
   const now = Math.floor(Date.now() / 1000);
+  const sid = generateId();
   const accessJti = generateJti();
   const refreshJti = generateJti();
 
@@ -89,6 +90,7 @@ auth2faRoutes.post("/verify", async (c) => {
     sub: userId,
     role: user.role,
     jti: accessJti,
+    sid,
     iat: now,
     exp: now + 86400,
   };
@@ -96,6 +98,7 @@ auth2faRoutes.post("/verify", async (c) => {
     sub: userId,
     role: user.role,
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
   };
@@ -104,6 +107,7 @@ auth2faRoutes.post("/verify", async (c) => {
   const refreshToken = await signJWT(refreshPayload, c.env.JWT_SECRET);
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 });
+  await c.env.KV.put(`ss:${sid}`, userId, { expirationTtl: 604800 });
 
   const ip =
     c.req.header("cf-connecting-ip") ||
@@ -112,6 +116,7 @@ auth2faRoutes.post("/verify", async (c) => {
   const ua = c.req.header("user-agent") || "unknown";
   await addSessionIndex(c.env.KV, userId, {
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
     ip,
@@ -464,6 +469,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
   if (!user.is_active) return c.json({ error: "Account is disabled" }, 403);
 
   const now = Math.floor(Date.now() / 1000);
+  const sid = generateId();
   const accessJti = generateJti();
   const refreshJti = generateJti();
 
@@ -471,6 +477,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
     sub: userId,
     role: user.role,
     jti: accessJti,
+    sid,
     iat: now,
     exp: now + 86400,
   };
@@ -478,6 +485,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
     sub: userId,
     role: user.role,
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
   };
@@ -486,6 +494,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
   const refreshTokenStr = await signJWT(refreshPayload, c.env.JWT_SECRET);
 
   await c.env.KV.put(`rt:${refreshJti}`, userId, { expirationTtl: 604800 });
+  await c.env.KV.put(`ss:${sid}`, userId, { expirationTtl: 604800 });
 
   const ip =
     c.req.header("cf-connecting-ip") ||
@@ -494,6 +503,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
   const ua = c.req.header("user-agent") || "unknown";
   await addSessionIndex(c.env.KV, userId, {
     jti: refreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
     ip,

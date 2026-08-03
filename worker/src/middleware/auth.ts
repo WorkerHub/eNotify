@@ -22,6 +22,11 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     return c.json({ error: "Token revoked" }, 401);
   }
 
+  const sessionOwner = await c.env.KV.get(`ss:${payload.sid}`);
+  if (!sessionOwner || sessionOwner !== payload.sub) {
+    return c.json({ error: "Session revoked" }, 401);
+  }
+
   c.set("userId", payload.sub);
   c.set("role", payload.role);
 

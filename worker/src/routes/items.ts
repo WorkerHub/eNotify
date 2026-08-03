@@ -85,6 +85,12 @@ itemRoutes.post("/", async (c) => {
   if (body.item_mode && !["cycle", "reset"].includes(body.item_mode)) {
     return c.json({ error: "Invalid item mode" }, 400);
   }
+  if (
+    body.calendar_mode &&
+    !["solar", "lunar", "both"].includes(body.calendar_mode)
+  ) {
+    return c.json({ error: "Invalid calendar_mode" }, 400);
+  }
   if (body.item_kind && !["regular", "subscription"].includes(body.item_kind)) {
     return c.json({ error: "Invalid item_kind" }, 400);
   }

@@ -17,6 +17,7 @@ import { get2FAConfig } from "../db/queries/twofa";
 import {
   hashPassword,
   verifyPassword,
+  generateId,
   generateJti,
   signJWT,
   verifyJWT,
@@ -130,12 +131,14 @@ meRoutes.put("/password", async (c) => {
     const rtPayload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET);
     if (rtPayload) {
       await c.env.KV.delete(`rt:${rtPayload.jti}`);
+      await c.env.KV.delete(`ss:${rtPayload.sid}`);
       await removeSessionIndex(c.env.KV, userId, rtPayload.jti);
     }
   }
 
   // Issue new tokens
   const now = Math.floor(Date.now() / 1000);
+  const sid = generateId();
   const newAccessJti = generateJti();
   const newRefreshJti = generateJti();
 
@@ -143,6 +146,7 @@ meRoutes.put("/password", async (c) => {
     sub: userId,
     role: user.role,
     jti: newAccessJti,
+    sid,
     iat: now,
     exp: now + 86400,
   };
@@ -150,6 +154,7 @@ meRoutes.put("/password", async (c) => {
     sub: userId,
     role: user.role,
     jti: newRefreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
   };
@@ -158,6 +163,7 @@ meRoutes.put("/password", async (c) => {
   const newRefreshToken = await signJWT(refreshPayload, c.env.JWT_SECRET);
 
   await c.env.KV.put(`rt:${newRefreshJti}`, userId, { expirationTtl: 604800 });
+  await c.env.KV.put(`ss:${sid}`, userId, { expirationTtl: 604800 });
   // Track new session in KV index
   const ip =
     c.req.header("cf-connecting-ip") ||
@@ -166,6 +172,7 @@ meRoutes.put("/password", async (c) => {
   const ua = c.req.header("user-agent") || "unknown";
   await addSessionIndex(c.env.KV, userId, {
     jti: newRefreshJti,
+    sid,
     iat: now,
     exp: now + 604800,
     ip,
@@ -424,8 +431,9 @@ meRoutes.get("/sessions", async (c) => {
   // Verify each session's refresh token still exists in KV (may have been revoked)
   const validSessions = [];
   for (const s of sessions) {
-    const exists = await c.env.KV.get(`rt:${s.jti}`);
-    if (exists) {
+    const refreshOwner = await c.env.KV.get(`rt:${s.jti}`);
+    const sessionOwner = await c.env.KV.get(`ss:${s.sid}`);
+    if (refreshOwner === userId && sessionOwner === userId) {
       validSessions.push({
         jti: s.jti,
         iat: s.iat,
@@ -475,15 +483,7 @@ meRoutes.delete("/sessions/:jti", async (c) => {
 
   // Revoke: delete refresh token from KV
   await c.env.KV.delete(`rt:${jti}`);
-
-  // Blacklist the access token associated with this session
-  const now = Math.floor(Date.now() / 1000);
-  const remaining = target.exp - now;
-  if (remaining > 0) {
-    await c.env.KV.put(`bl:${jti}`, "1", {
-      expirationTtl: Math.min(remaining, 86400),
-    });
-  }
+  await c.env.KV.delete(`ss:${target.sid}`);
 
   // Remove from session index
   await removeSessionIndex(c.env.KV, userId, jti);
