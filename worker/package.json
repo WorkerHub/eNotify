@@ -15,7 +15,7 @@
     "otpauth": "^9.4.2"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250508.0",
+    "@cloudflare/workers-types": "^5.0.0",
     "wrangler": "^4.14.1",
     "typescript": "^6.0.0"
   }
