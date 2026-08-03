@@ -19,7 +19,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
     "concurrently": "^10.0.3",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.0"
   },
   "engines": {
     "node": ">=22.0.0"
