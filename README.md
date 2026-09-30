@@ -104,7 +104,9 @@ pnpm dev:worker
 
 ## 环境变量
 
-### Worker 环境变量（wrangler.toml，部署时由 GitHub Actions 注入）
+### Worker 环境变量
+
+`JWT_SECRET` 和 `SETUP_SECRET` 是 Secret，由 GitHub Actions 通过 `wrangler deploy --secrets-file` 上传；本地部署请先执行 `wrangler secret put JWT_SECRET`（`SETUP_SECRET` 同理）。`TABLE_PREFIX` 在 wrangler.toml 中注入。
 
 | 变量           | 说明                                 |
 | -------------- | ------------------------------------ |

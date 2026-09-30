@@ -104,7 +104,9 @@ pnpm dev:worker
 
 ## Environment Variables
 
-### Worker Environment Variables (wrangler.toml, injected by GitHub Actions during deployment)
+### Worker Environment Variables
+
+`JWT_SECRET` and `SETUP_SECRET` are Secrets, uploaded by GitHub Actions via `wrangler deploy --secrets-file`. For local deploys, run `wrangler secret put JWT_SECRET` (and `SETUP_SECRET`) first. `TABLE_PREFIX` is injected into wrangler.toml.
 
 | Variable       | Description                                             |
 | -------------- | ------------------------------------------------------- |
