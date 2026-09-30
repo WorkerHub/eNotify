@@ -255,11 +255,13 @@ export function ItemDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     Promise.all([
       api.get<Item>(`/items/${id}`),
       api.get<Payment[]>(`/items/${id}/payments`),
     ])
       .then(([s, p]) => {
+        if (cancelled) return;
         setItem(s);
         setPayments(p);
         setRenewAmount(String(s.amount ?? ""));
@@ -279,8 +281,15 @@ export function ItemDetailPage() {
           setNotificationHours([]);
         }
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {

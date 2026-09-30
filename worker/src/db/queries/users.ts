@@ -16,6 +16,23 @@ export async function createUser(
     .run();
 }
 
+// Single statement so "first user becomes admin" is decided atomically.
+export async function createUserFirstIsAdmin(
+  db: D1Database,
+  prefix: string,
+  data: { id: string; email: string; password_hash: string },
+): Promise<void> {
+  const table = `${prefix}users`;
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO ${table} (id, email, password_hash, role, is_active, email_verified, base_currency, timezone, language, theme, created_at, updated_at)
+       SELECT ?, ?, ?, CASE WHEN (SELECT COUNT(*) FROM ${table}) = 0 THEN 'admin' ELSE 'user' END, 1, 0, 'CNY', 'UTC', 'zh', 'system', ?, ?`,
+    )
+    .bind(data.id, data.email, data.password_hash, now, now)
+    .run();
+}
+
 export async function findUserByEmail(
   db: D1Database,
   prefix: string,

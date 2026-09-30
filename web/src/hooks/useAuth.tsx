@@ -95,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // clear local state even if API fails
     }
     sessionStorage.removeItem("impersonate_user_id");
+    window.dispatchEvent(new Event("impersonation-change"));
     setUser(null);
   };
 

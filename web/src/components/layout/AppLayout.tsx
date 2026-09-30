@@ -151,11 +151,9 @@ export function AppLayout() {
       setImpersonating(!!sessionStorage.getItem("impersonate_user_id"));
     window.addEventListener("storage", check);
     window.addEventListener("impersonation-change", check);
-    const id = setInterval(check, 3000);
     return () => {
       window.removeEventListener("storage", check);
       window.removeEventListener("impersonation-change", check);
-      clearInterval(id);
     };
   }, []);
 

@@ -11,9 +11,8 @@ import {
   generateJti,
 } from "../core/auth";
 import {
-  createUser,
+  createUserFirstIsAdmin,
   findUserByEmail,
-  countUsers,
   findUserById,
   updateUser,
 } from "../db/queries/users";
@@ -86,26 +85,21 @@ authRoutes.post("/register", async (c) => {
     return c.json({ error: "Email already registered" }, 409);
   }
 
-  const userCount = await countUsers(c.env.DB, prefix);
-  let role = "user";
-  if (userCount === 0) {
-    const lockAcquired = await c.env.KV.get("first_user_lock");
-    if (!lockAcquired) {
-      await c.env.KV.put("first_user_lock", "1", { expirationTtl: 60 });
-      const recheck = await countUsers(c.env.DB, prefix);
-      if (recheck === 0) role = "admin";
-    }
-  }
-
   const id = generateId();
   const passwordHash = await hashPassword(password);
 
-  await createUser(c.env.DB, prefix, {
-    id,
-    email,
-    password_hash: passwordHash,
-    role,
-  });
+  try {
+    await createUserFirstIsAdmin(c.env.DB, prefix, {
+      id,
+      email,
+      password_hash: passwordHash,
+    });
+  } catch (err) {
+    if (err instanceof Error && /UNIQUE/i.test(err.message)) {
+      return c.json({ error: "Email already registered" }, 409);
+    }
+    throw err;
+  }
   await upsertNotificationConfig(c.env.DB, prefix, id, {});
 
   const emailVerificationEnabled = await getSetting(
@@ -259,7 +253,8 @@ authRoutes.post("/refresh", async (c) => {
     return c.json({ error: "Refresh token revoked" }, 401);
   }
 
-  await c.env.KV.delete(`rt:${payload.jti}`);
+  // Short grace period so concurrent refreshes (multiple tabs) don't log the user out.
+  await c.env.KV.put(`rt:${payload.jti}`, stored, { expirationTtl: 60 });
   await removeSessionIndex(c.env.KV, payload.sub, payload.jti);
 
   const prefix = getTablePrefix(c.env);
