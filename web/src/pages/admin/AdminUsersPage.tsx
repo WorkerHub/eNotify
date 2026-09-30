@@ -13,6 +13,7 @@ import {
   X,
   Users,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,6 +57,11 @@ export function AdminUsersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editing, setEditing] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    message: string;
+    danger?: boolean;
+    run: () => Promise<void>;
+  } | null>(null);
 
   useEffect(() => {
     const load = () => {
@@ -83,31 +89,34 @@ export function AdminUsersPage() {
 
   const handleChangeRole = async (u: AdminUser) => {
     const newRole = u.role === "admin" ? "user" : "admin";
-    if (
-      !window.confirm(
-        t("admin.confirmRoleChange", { email: u.email, role: newRole }),
-      )
-    )
-      return;
-    try {
-      await api.put(`/admin/users/${u.id}`, { role: newRole });
-      setUsers((prev) =>
-        prev.map((x) => (x.id === u.id ? { ...x, role: newRole } : x)),
-      );
-    } catch (e: any) {
-      setError(e.message);
-    }
+    setPendingAction({
+      message: t("admin.confirmRoleChange", { email: u.email, role: newRole }),
+      run: async () => {
+        try {
+          await api.put(`/admin/users/${u.id}`, { role: newRole });
+          setUsers((prev) =>
+            prev.map((x) => (x.id === u.id ? { ...x, role: newRole } : x)),
+          );
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
   };
 
   const handleDelete = async (u: AdminUser) => {
-    if (!window.confirm(t("admin.confirmDeleteUser", { email: u.email })))
-      return;
-    try {
-      await api.delete(`/admin/users/${u.id}`);
-      setUsers((prev) => prev.filter((x) => x.id !== u.id));
-    } catch (e: any) {
-      setError(e.message);
-    }
+    setPendingAction({
+      message: t("admin.confirmDeleteUser", { email: u.email }),
+      danger: true,
+      run: async () => {
+        try {
+          await api.delete(`/admin/users/${u.id}`);
+          setUsers((prev) => prev.filter((x) => x.id !== u.id));
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
   };
 
   const handleAddUser = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -167,16 +176,32 @@ export function AdminUsersPage() {
   };
 
   const handleImpersonate = async (u: AdminUser) => {
-    if (!window.confirm(t("admin.confirmImpersonate", { email: u.email })))
-      return;
-    sessionStorage.setItem("impersonate_user_id", u.id);
-    window.dispatchEvent(new Event("impersonation-change"));
-    await refreshUser();
-    navigate("/");
+    setPendingAction({
+      message: t("admin.confirmImpersonate", { email: u.email }),
+      run: async () => {
+        sessionStorage.setItem("impersonate_user_id", u.id);
+        window.dispatchEvent(new Event("impersonation-change"));
+        await refreshUser();
+        navigate("/");
+      },
+    });
   };
 
   return (
     <div className="space-y-5">
+      <ConfirmDialog
+        open={!!pendingAction}
+        message={pendingAction?.message ?? ""}
+        variant={pendingAction?.danger ? "danger" : "primary"}
+        confirmLabel={t("common.confirm")}
+        cancelLabel={t("common.cancel")}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => {
+          const action = pendingAction;
+          setPendingAction(null);
+          void action?.run();
+        }}
+      />
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
