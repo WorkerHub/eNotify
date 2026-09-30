@@ -10,12 +10,16 @@ import {
   deleteItem,
   toggleItemStatus,
 } from "../db/queries/items";
+import { prepareCreateItem, prepareUpdateItem } from "../db/queries/items";
 import {
   createPayment,
   listPaymentsByItem,
   updatePayment,
-  deletePayment,
   getPayment,
+} from "../db/queries/payments";
+import {
+  prepareCreatePayment,
+  prepareUpdatePayment,
 } from "../db/queries/payments";
 import { getNotificationConfig } from "../db/queries/notifications";
 import { findUserById } from "../db/queries/users";
@@ -211,21 +215,24 @@ itemRoutes.post("/", async (c) => {
     item_kind: body.item_kind || "regular",
   };
 
-  await createItem(c.env.DB, prefix, item);
-
   if (item.amount && item.start_date) {
-    await createPayment(c.env.DB, prefix, {
-      id: generateId(),
-      item_id: id,
-      user_id: userId,
-      date: item.start_date || now,
-      amount: item.amount,
-      currency: item.currency,
-      type: "initial",
-      note: "",
-      period_start: item.start_date,
-      period_end: item.expiry_date,
-    });
+    await c.env.DB.batch([
+      prepareCreateItem(c.env.DB, prefix, item),
+      prepareCreatePayment(c.env.DB, prefix, {
+        id: generateId(),
+        item_id: id,
+        user_id: userId,
+        date: item.start_date || now,
+        amount: item.amount,
+        currency: item.currency,
+        type: "initial",
+        note: "",
+        period_start: item.start_date,
+        period_end: item.expiry_date,
+      }),
+    ]);
+  } else {
+    await createItem(c.env.DB, prefix, item);
   }
 
   return c.json(item, 201);
@@ -489,26 +496,27 @@ itemRoutes.post("/:id/renew", async (c) => {
   const paymentDate = body.date || nowISO();
   const paymentAmount = body.amount ?? item.amount ?? 0;
 
-  await updateItem(c.env.DB, prefix, id, {
-    expiry_date: newExpiry,
-    ...(item.calendar_mode === "both"
-      ? { lunar_expiry_date: newLunarExpiry }
-      : {}),
-    last_payment_date: paymentDate,
-  });
-
-  await createPayment(c.env.DB, prefix, {
-    id: generateId(),
-    item_id: id,
-    user_id: userId,
-    date: paymentDate,
-    amount: paymentAmount,
-    currency: item.currency,
-    type: "manual",
-    note: body.note || "",
-    period_start: item.expiry_date,
-    period_end: newExpiry,
-  });
+  await c.env.DB.batch([
+    prepareUpdateItem(c.env.DB, prefix, id, {
+      expiry_date: newExpiry,
+      ...(item.calendar_mode === "both"
+        ? { lunar_expiry_date: newLunarExpiry }
+        : {}),
+      last_payment_date: paymentDate,
+    }) as D1PreparedStatement,
+    prepareCreatePayment(c.env.DB, prefix, {
+      id: generateId(),
+      item_id: id,
+      user_id: userId,
+      date: paymentDate,
+      amount: paymentAmount,
+      currency: item.currency,
+      type: "manual",
+      note: body.note || "",
+      period_start: item.expiry_date,
+      period_end: newExpiry,
+    }),
+  ]);
 
   return c.json({ success: true, new_expiry_date: newExpiry });
 });
@@ -546,6 +554,7 @@ itemRoutes.post("/:id/reset", async (c) => {
   const lastPayment = prevPayments.find(
     (p) => p.period_end === item.expiry_date,
   );
+  const resetStatements: D1PreparedStatement[] = [];
   if (lastPayment) {
     const dayBefore = addPeriod(today, -1, "day");
     // Clamp period_end so it never goes before period_start
@@ -553,9 +562,10 @@ itemRoutes.post("/:id/reset", async (c) => {
       lastPayment.period_start && dayBefore < lastPayment.period_start
         ? lastPayment.period_start
         : dayBefore;
-    await updatePayment(c.env.DB, prefix, lastPayment.id, {
+    const stmt = prepareUpdatePayment(c.env.DB, prefix, lastPayment.id, {
       period_end: clampedEnd,
     });
+    if (stmt) resetStatements.push(stmt);
   }
 
   let newExpiry: string;
@@ -578,26 +588,28 @@ itemRoutes.post("/:id/reset", async (c) => {
     newExpiry = addPeriod(today, item.period_value, item.period_unit);
   }
 
-  await updateItem(c.env.DB, prefix, id, {
-    expiry_date: newExpiry,
-    ...(item.calendar_mode === "both"
-      ? { lunar_expiry_date: newLunarExpiry }
-      : {}),
-    last_payment_date: now,
-  });
-
-  await createPayment(c.env.DB, prefix, {
-    id: generateId(),
-    item_id: id,
-    user_id: userId,
-    date: now,
-    amount: body.amount ?? item.amount ?? 0,
-    currency: item.currency,
-    type: "manual",
-    note: body.note || "",
-    period_start: today,
-    period_end: newExpiry,
-  });
+  resetStatements.push(
+    prepareUpdateItem(c.env.DB, prefix, id, {
+      expiry_date: newExpiry,
+      ...(item.calendar_mode === "both"
+        ? { lunar_expiry_date: newLunarExpiry }
+        : {}),
+      last_payment_date: now,
+    }) as D1PreparedStatement,
+    prepareCreatePayment(c.env.DB, prefix, {
+      id: generateId(),
+      item_id: id,
+      user_id: userId,
+      date: now,
+      amount: body.amount ?? item.amount ?? 0,
+      currency: item.currency,
+      type: "manual",
+      note: body.note || "",
+      period_start: today,
+      period_end: newExpiry,
+    }),
+  );
+  await c.env.DB.batch(resetStatements);
 
   return c.json({ success: true, new_expiry_date: newExpiry });
 });
@@ -770,12 +782,21 @@ itemRoutes.delete("/:id/payments/:pid", async (c) => {
     return c.json({ error: "Payment not found" }, 404);
   }
 
-  await deletePayment(c.env.DB, prefix, pid);
+  const statements: D1PreparedStatement[] = [
+    c.env.DB.prepare(`DELETE FROM ${prefix}payment_history WHERE id = ?`).bind(
+      pid,
+    ),
+  ];
+  const pushStmt = (stmt: D1PreparedStatement | null) => {
+    if (stmt) statements.push(stmt);
+  };
 
   let newExpiryDate: string | null = null;
 
   if (payment.period_start) {
-    const remaining = await listPaymentsByItem(c.env.DB, prefix, id);
+    const remaining = (await listPaymentsByItem(c.env.DB, prefix, id)).filter(
+      (p) => p.id !== pid,
+    );
     const hasLaterPayment = remaining.some(
       (p) => p.period_end && p.period_end > (payment.period_start as string),
     );
@@ -829,32 +850,42 @@ itemRoutes.delete("/:id/payments/:pid", async (c) => {
 
           // Restore the previous payment's period_end to the recalculated value
           if (prevPayment) {
-            await updatePayment(c.env.DB, prefix, prevPayment.id, {
-              period_end: newExpiry,
-            });
+            pushStmt(
+              prepareUpdatePayment(c.env.DB, prefix, prevPayment.id, {
+                period_end: newExpiry,
+              }),
+            );
           }
 
-          await updateItem(c.env.DB, prefix, id, {
-            expiry_date: newExpiry,
-            ...(item.calendar_mode === "both"
-              ? { lunar_expiry_date: newLunarExpiry }
-              : {}),
-          });
+          pushStmt(
+            prepareUpdateItem(c.env.DB, prefix, id, {
+              expiry_date: newExpiry,
+              ...(item.calendar_mode === "both"
+                ? { lunar_expiry_date: newLunarExpiry }
+                : {}),
+            }),
+          );
           newExpiryDate = newExpiry;
         } else {
           // No base date available, fall back
-          await updateItem(c.env.DB, prefix, id, {
-            expiry_date: payment.period_start,
-          });
+          pushStmt(
+            prepareUpdateItem(c.env.DB, prefix, id, {
+              expiry_date: payment.period_start,
+            }),
+          );
           newExpiryDate = payment.period_start;
         }
       } else {
-        await updateItem(c.env.DB, prefix, id, {
-          expiry_date: payment.period_start,
-        });
+        pushStmt(
+          prepareUpdateItem(c.env.DB, prefix, id, {
+            expiry_date: payment.period_start,
+          }),
+        );
       }
     }
   }
+
+  await c.env.DB.batch(statements);
 
   return c.json({
     success: true,

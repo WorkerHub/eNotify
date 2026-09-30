@@ -1,13 +1,13 @@
 import type { Item } from "../../types";
 
-export async function createItem(
+export function prepareCreateItem(
   db: D1Database,
   prefix: string,
   data: Omit<Item, "created_at" | "updated_at">,
-): Promise<void> {
+): D1PreparedStatement {
   const table = `${prefix}items`;
   const now = new Date().toISOString();
-  await db
+  return db
     .prepare(
       `INSERT INTO ${table}
          (id, user_id, name, item_mode, category, start_date, expiry_date,
@@ -40,8 +40,15 @@ export async function createItem(
       data.item_kind,
       now,
       now,
-    )
-    .run();
+    );
+}
+
+export async function createItem(
+  db: D1Database,
+  prefix: string,
+  data: Omit<Item, "created_at" | "updated_at">,
+): Promise<void> {
+  await prepareCreateItem(db, prefix, data).run();
 }
 
 export async function getItem(
@@ -71,12 +78,12 @@ export async function listItemsByUser(
   return result.results;
 }
 
-export async function updateItem(
+export function prepareUpdateItem(
   db: D1Database,
   prefix: string,
   id: string,
   data: Partial<Item>,
-): Promise<void> {
+): D1PreparedStatement | null {
   const table = `${prefix}items`;
   const now = new Date().toISOString();
   const allowedCols = new Set([
@@ -104,15 +111,23 @@ export async function updateItem(
   const entries = (Object.entries(data) as [string, unknown][]).filter(
     ([col]) => allowedCols.has(col),
   );
-  if (entries.length === 0) return;
+  if (entries.length === 0) return null;
 
   const setClauses = entries.map(([col]) => `${col} = ?`).join(", ");
   const values = entries.map(([, val]) => val);
 
-  await db
+  return db
     .prepare(`UPDATE ${table} SET ${setClauses}, updated_at = ? WHERE id = ?`)
-    .bind(...values, now, id)
-    .run();
+    .bind(...values, now, id);
+}
+
+export async function updateItem(
+  db: D1Database,
+  prefix: string,
+  id: string,
+  data: Partial<Item>,
+): Promise<void> {
+  await prepareUpdateItem(db, prefix, id, data)?.run();
 }
 
 export async function deleteItem(

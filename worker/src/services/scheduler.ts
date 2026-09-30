@@ -4,7 +4,7 @@ import { listActiveUsersForScheduler } from "../db/queries/users";
 import { getActiveItemsByUser } from "../db/queries/items";
 import { pruneNotificationHistory } from "../db/queries/notification-history";
 import { getNotificationConfig } from "../db/queries/notifications";
-import { createPayment } from "../db/queries/payments";
+import { prepareCreatePayment } from "../db/queries/payments";
 import { sendNotifications, type NotifyMessage } from "./notify/index";
 import {
   addPeriod,
@@ -177,34 +177,32 @@ async function processSubscription(
 
     const renewedAt = nowISOStr;
 
-    if (sub.calendar_mode === "both") {
-      await env.DB.prepare(
-        `UPDATE ${prefix}items SET expiry_date = ?, lunar_expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`,
-      )
-        .bind(newExpiry, newLunarExpiry, renewedAt, renewedAt, sub.id)
-        .run();
-    } else {
-      await env.DB.prepare(
-        `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`,
-      )
-        .bind(newExpiry, renewedAt, renewedAt, sub.id)
-        .run();
-    }
-
+    const renewStatements: D1PreparedStatement[] = [
+      sub.calendar_mode === "both"
+        ? env.DB.prepare(
+            `UPDATE ${prefix}items SET expiry_date = ?, lunar_expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`,
+          ).bind(newExpiry, newLunarExpiry, renewedAt, renewedAt, sub.id)
+        : env.DB.prepare(
+            `UPDATE ${prefix}items SET expiry_date = ?, last_payment_date = ?, updated_at = ? WHERE id = ?`,
+          ).bind(newExpiry, renewedAt, renewedAt, sub.id),
+    ];
     if (sub.amount) {
-      await createPayment(env.DB, prefix, {
-        id: generateId(),
-        item_id: sub.id,
-        user_id: userId,
-        date: renewedAt,
-        amount: sub.amount,
-        currency: sub.currency,
-        type: "auto",
-        note: "Auto-renewal",
-        period_start: prevExpiry,
-        period_end: newExpiry,
-      });
+      renewStatements.push(
+        prepareCreatePayment(env.DB, prefix, {
+          id: generateId(),
+          item_id: sub.id,
+          user_id: userId,
+          date: renewedAt,
+          amount: sub.amount,
+          currency: sub.currency,
+          type: "auto",
+          note: "Auto-renewal",
+          period_start: prevExpiry,
+          period_end: newExpiry,
+        }),
+      );
     }
+    await env.DB.batch(renewStatements);
 
     await kv.put(renewDedupeKey, "1", { expirationTtl: 3600 });
 

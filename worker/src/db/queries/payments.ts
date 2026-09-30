@@ -1,13 +1,13 @@
 import type { PaymentHistory } from "../../types";
 
-export async function createPayment(
+export function prepareCreatePayment(
   db: D1Database,
   prefix: string,
   data: Omit<PaymentHistory, "created_at">,
-): Promise<void> {
+): D1PreparedStatement {
   const table = `${prefix}payment_history`;
   const now = new Date().toISOString();
-  await db
+  return db
     .prepare(
       `INSERT INTO ${table} (id, item_id, user_id, date, amount, currency, type, note, period_start, period_end, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -24,8 +24,15 @@ export async function createPayment(
       data.period_start,
       data.period_end,
       now,
-    )
-    .run();
+    );
+}
+
+export async function createPayment(
+  db: D1Database,
+  prefix: string,
+  data: Omit<PaymentHistory, "created_at">,
+): Promise<void> {
+  await prepareCreatePayment(db, prefix, data).run();
 }
 
 export async function listPaymentsByItem(
@@ -64,7 +71,7 @@ export async function listPaymentsByUser(
   return result.results;
 }
 
-export async function updatePayment(
+export function prepareUpdatePayment(
   db: D1Database,
   prefix: string,
   id: string,
@@ -74,7 +81,7 @@ export async function updatePayment(
       "date" | "amount" | "currency" | "note" | "period_start" | "period_end"
     >
   >,
-): Promise<void> {
+): D1PreparedStatement | null {
   const table = `${prefix}payment_history`;
   const allowedCols = new Set([
     "date",
@@ -87,24 +94,23 @@ export async function updatePayment(
   const entries = (Object.entries(data) as [string, unknown][]).filter(
     ([col]) => allowedCols.has(col),
   );
-  if (entries.length === 0) return;
+  if (entries.length === 0) return null;
 
   const setClauses = entries.map(([col]) => `${col} = ?`).join(", ");
   const values = entries.map(([, val]) => val);
 
-  await db
+  return db
     .prepare(`UPDATE ${table} SET ${setClauses} WHERE id = ?`)
-    .bind(...values, id)
-    .run();
+    .bind(...values, id);
 }
 
-export async function deletePayment(
+export async function updatePayment(
   db: D1Database,
   prefix: string,
   id: string,
+  data: Parameters<typeof prepareUpdatePayment>[3],
 ): Promise<void> {
-  const table = `${prefix}payment_history`;
-  await db.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id).run();
+  await prepareUpdatePayment(db, prefix, id, data)?.run();
 }
 
 export async function listPaymentsByUserSince(
