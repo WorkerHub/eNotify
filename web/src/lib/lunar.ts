@@ -199,7 +199,6 @@ export function solarToLunar(
 
 /**
  * Convert a Chinese lunar date back to its Gregorian equivalent.
- * Searches solar dates in the range [lunarYear−1, lunarYear+1].
  */
 export function lunarToSolar(
   year: number,
@@ -207,31 +206,28 @@ export function lunarToSolar(
   day: number,
   isLeap: boolean,
 ): { year: number; month: number; day: number } | null {
-  for (let y = year - 1; y <= year + 1; y++) {
-    for (let m = 1; m <= 12; m++) {
-      for (let d = 1; d <= 31; d++) {
-        const probe = new Date(y, m - 1, d);
-        if (
-          probe.getFullYear() !== y ||
-          probe.getMonth() + 1 !== m ||
-          probe.getDate() !== d
-        )
-          continue;
+  if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1)
+    return null;
+  const leap = leapMonth(year);
+  if (isLeap && leap !== month) return null;
 
-        const lunar = solarToLunar(y, m, d);
-        if (
-          lunar &&
-          lunar.lunarYear === year &&
-          lunar.month === month &&
-          lunar.day === day &&
-          lunar.isLeap === isLeap
-        ) {
-          return { year: y, month: m, day: d };
-        }
-      }
-    }
+  let offset = 0;
+  for (let y = 1900; y < year; y++) offset += lunarYearDays(y);
+  for (let m = 1; m < month; m++) {
+    offset += monthDays(year, m);
+    if (m === leap) offset += leapDays(year);
   }
-  return null;
+  const target = isLeap ? leapDays(year) : monthDays(year, month);
+  if (day > target) return null;
+  if (isLeap) offset += monthDays(year, month);
+  offset += day - 1;
+
+  const d = new Date(Date.UTC(1900, 0, 31) + offset * 86_400_000);
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  };
 }
 
 /**
