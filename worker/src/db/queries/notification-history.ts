@@ -77,3 +77,15 @@ export async function deleteNotificationHistory(
     .run();
   return result.meta.changes > 0;
 }
+
+export async function pruneNotificationHistory(
+  db: D1Database,
+  prefix: string,
+  days: number,
+): Promise<void> {
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+  await db
+    .prepare(`DELETE FROM ${prefix}notification_history WHERE created_at < ?`)
+    .bind(cutoff)
+    .run();
+}

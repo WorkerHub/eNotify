@@ -56,10 +56,9 @@ authRoutes.use(
 
 authRoutes.post("/register", async (c) => {
   const prefix = getTablePrefix(c.env);
-  const { email, password } = await c.req.json<{
-    email: string;
-    password: string;
-  }>();
+  const body = await c.req.json<{ email: string; password: string }>();
+  const email = body.email?.trim().toLowerCase();
+  const password = body.password;
 
   if (!email || !password) {
     return c.json({ error: "Email and password required" }, 400);
@@ -177,20 +176,20 @@ authRoutes.post("/login", async (c) => {
   }
 
   const require2FA = await getSetting(c.env.DB, prefix, "require_2fa");
+  const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id);
+  const methods = getAvailable2FAMethods(twoFAConfig);
+
+  if (methods.length > 0) {
+    const tempToken = generateId();
+    await c.env.KV.put(`2fa:${tempToken}`, user.id, { expirationTtl: 300 });
+    return c.json({
+      requires2fa: true,
+      tempToken,
+      availableMethods: methods,
+    });
+  }
+
   if (require2FA === "true") {
-    const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id);
-    const methods = getAvailable2FAMethods(twoFAConfig);
-
-    if (methods.length > 0) {
-      const tempToken = generateId();
-      await c.env.KV.put(`2fa:${tempToken}`, user.id, { expirationTtl: 300 });
-      return c.json({
-        requires2fa: true,
-        tempToken,
-        availableMethods: methods,
-      });
-    }
-
     await issueTokens(c, user.id, user.role, true);
     return c.json({
       success: true,
@@ -246,7 +245,7 @@ authRoutes.post("/refresh", async (c) => {
   }
 
   const payload = await verifyJWT(refreshTokenStr, c.env.JWT_SECRET);
-  if (!payload) {
+  if (!payload || payload.typ === "access") {
     return c.json({ error: "Invalid refresh token" }, 401);
   }
 
@@ -269,7 +268,14 @@ authRoutes.post("/refresh", async (c) => {
     return c.json({ error: "User not found or disabled" }, 401);
   }
 
-  await issueTokens(c, user.id, user.role, false, payload.sid);
+  const require2FA = await getSetting(c.env.DB, prefix, "require_2fa");
+  let needs2faSetup = false;
+  if (require2FA === "true") {
+    const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id);
+    needs2faSetup = getAvailable2FAMethods(twoFAConfig).length === 0;
+  }
+
+  await issueTokens(c, user.id, user.role, needs2faSetup, payload.sid);
   return c.json({ success: true });
 });
 
@@ -330,8 +336,11 @@ authRoutes.post("/password/forgot", async (c) => {
   // Always return success to avoid email enumeration
   if (!user?.is_active) return c.json({ success: true });
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const rnd = new Uint32Array(1);
+  crypto.getRandomValues(rnd);
+  const code = String(100000 + (rnd[0] % 900000));
   await c.env.KV.put(`pwd_reset:${user.id}`, code, { expirationTtl: 900 }); // 15 min
+  await c.env.KV.delete(`pwd_reset_fail:${user.id}`);
 
   const appName = "eNotify";
   await sendEmail(c.env, {
@@ -365,12 +374,24 @@ authRoutes.post("/password/reset", async (c) => {
 
   const stored = await c.env.KV.get(`pwd_reset:${user.id}`);
   if (!stored || stored !== code) {
+    if (stored) {
+      const failKey = `pwd_reset_fail:${user.id}`;
+      const fails = Number((await c.env.KV.get(failKey)) || 0) + 1;
+      if (fails >= 5) {
+        await c.env.KV.delete(`pwd_reset:${user.id}`);
+        await c.env.KV.delete(failKey);
+      } else {
+        await c.env.KV.put(failKey, String(fails), { expirationTtl: 900 });
+      }
+    }
     return c.json({ error: "Invalid or expired code" }, 400);
   }
 
   await c.env.KV.delete(`pwd_reset:${user.id}`);
+  await c.env.KV.delete(`pwd_reset_fail:${user.id}`);
   const passwordHash = await hashPassword(new_password);
   await updateUser(c.env.DB, prefix, user.id, { password_hash: passwordHash });
+  await revokeAllSessions(c.env.KV, user.id);
 
   return c.json({ success: true });
 });
@@ -388,6 +409,7 @@ async function issueTokens(
   const refreshJti = generateJti();
 
   const accessPayload: JWTPayload = {
+    typ: "access",
     sub: userId,
     role,
     jti: accessJti,
@@ -398,6 +420,7 @@ async function issueTokens(
   };
 
   const refreshPayload: JWTPayload = {
+    typ: "refresh",
     sub: userId,
     role,
     jti: refreshJti,
@@ -483,6 +506,23 @@ export async function removeSessionIndex(
   } else {
     await kv.put(key, JSON.stringify(filtered), { expirationTtl: 604800 });
   }
+}
+
+export async function revokeAllSessions(
+  kv: KVNamespace,
+  userId: string,
+): Promise<void> {
+  const key = `sessions:${userId}`;
+  const raw = await kv.get(key);
+  if (!raw) return;
+  const sessions: SessionEntry[] = JSON.parse(raw);
+  await Promise.all(
+    sessions.flatMap((s) => [
+      kv.delete(`rt:${s.jti}`),
+      kv.delete(`ss:${s.sid}`),
+    ]),
+  );
+  await kv.delete(key);
 }
 
 export async function getSessionIndex(

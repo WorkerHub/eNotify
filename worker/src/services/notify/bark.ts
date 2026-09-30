@@ -1,5 +1,6 @@
 import type { NotifyMessage } from "./index";
 import type { Env } from "../../types";
+import { validateOutboundUrl, safeErrorText } from "./safe-fetch";
 
 interface BarkConfig {
   device_key: string;
@@ -20,7 +21,13 @@ export async function sendBark(
   const server = config.server || "https://api.day.app";
   const url = `${server.replace(/\/$/, "")}/${config.device_key}`;
 
+  const check = validateOutboundUrl(server, { allowPrivate: true });
+  if (check.error) {
+    return { success: false, error: `Bark: ${check.error}` };
+  }
+
   const response = await fetch(url, {
+    redirect: "manual",
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -32,7 +39,7 @@ export async function sendBark(
   });
 
   if (!response.ok) {
-    const err = await response.text();
+    const err = await safeErrorText(response);
     return { success: false, error: `Bark error: ${err}` };
   }
 

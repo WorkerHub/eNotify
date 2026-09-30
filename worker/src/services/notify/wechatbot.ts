@@ -1,5 +1,6 @@
 import type { NotifyMessage } from "./index";
 import type { Env } from "../../types";
+import { validateOutboundUrl, safeErrorText } from "./safe-fetch";
 
 interface WechatBotConfig {
   webhook: string;
@@ -15,6 +16,11 @@ export async function sendWechatBot(
   const config: WechatBotConfig = JSON.parse(configJson);
   if (!config.webhook) {
     return { success: false, error: "WeChat Bot webhook URL required" };
+  }
+
+  const check = validateOutboundUrl(config.webhook);
+  if (check.error) {
+    return { success: false, error: `WeChat Bot: ${check.error}` };
   }
 
   const atAll = config.at_all === true || config.at_all === "true";
@@ -38,10 +44,11 @@ export async function sendWechatBot(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    redirect: "manual",
   });
 
   if (!response.ok) {
-    const err = await response.text();
+    const err = await safeErrorText(response);
     return { success: false, error: `WeChat Bot error: ${err}` };
   }
 

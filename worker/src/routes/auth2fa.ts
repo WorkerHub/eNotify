@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { getTablePrefix } from "../types";
 import type { HonoEnv, JWTPayload } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -18,12 +18,33 @@ import {
   sendOTPEmail,
 } from "../services/twofa";
 import { getSetting } from "../db/queries/settings";
-import { signJWT, generateId, generateJti } from "../core/auth";
+import { signJWT, generateId, generateJti, verifyPassword } from "../core/auth";
 import { addSessionIndex } from "./auth";
 import { setCookie } from "hono/cookie";
 import { rateLimit } from "../middleware/ratelimit";
 
 export const auth2faRoutes = new Hono<HonoEnv>();
+
+// Sensitive 2FA changes require re-entering the account password.
+async function requirePassword(
+  c: Context<HonoEnv>,
+  password: unknown,
+): Promise<Response | null> {
+  if (typeof password !== "string" || !password) {
+    return c.json({ error: "Password required" }, 400);
+  }
+  const userId = c.get("userId");
+  const user = await findUserById(c.env.DB, getTablePrefix(c.env), userId);
+  if (!user) return c.json({ error: "User not found" }, 404);
+  const ok = await verifyPassword(password, user.password_hash);
+  if (!ok) return c.json({ error: "Password is incorrect" }, 403);
+  return null;
+}
+
+async function readPassword(c: Context<HonoEnv>): Promise<unknown> {
+  const body = await c.req.json<{ password?: string }>().catch(() => null);
+  return body?.password;
+}
 
 auth2faRoutes.use(
   "/verify",
@@ -71,10 +92,19 @@ auth2faRoutes.post("/verify", async (c) => {
   }
 
   if (!verified) {
+    const failKey = `2fa_fail:${tempToken}`;
+    const fails = Number((await c.env.KV.get(failKey)) || 0) + 1;
+    if (fails >= 5) {
+      await c.env.KV.delete(`2fa:${tempToken}`);
+      await c.env.KV.delete(failKey);
+    } else {
+      await c.env.KV.put(failKey, String(fails), { expirationTtl: 300 });
+    }
     return c.json({ error: "Invalid verification code" }, 401);
   }
 
   await c.env.KV.delete(`2fa:${tempToken}`);
+  await c.env.KV.delete(`2fa_fail:${tempToken}`);
 
   const user = await findUserById(c.env.DB, prefix, userId);
   if (!user) return c.json({ error: "User not found" }, 404);
@@ -87,6 +117,7 @@ auth2faRoutes.post("/verify", async (c) => {
   const refreshJti = generateJti();
 
   const accessPayload: JWTPayload = {
+    typ: "access",
     sub: userId,
     role: user.role,
     jti: accessJti,
@@ -95,6 +126,7 @@ auth2faRoutes.post("/verify", async (c) => {
     exp: now + 86400,
   };
   const refreshPayload: JWTPayload = {
+    typ: "refresh",
     sub: userId,
     role: user.role,
     jti: refreshJti,
@@ -188,6 +220,14 @@ auth2faRoutes.post("/totp/enable", async (c) => {
   const { code } = await c.req.json<{ code: string }>();
   if (!code) return c.json({ error: "Code required" }, 400);
 
+  const existingCfg = await get2FAConfig(
+    c.env.DB,
+    getTablePrefix(c.env),
+    userId,
+  );
+  if (existingCfg?.totp_enabled)
+    return c.json({ error: "TOTP already enabled; disable it first" }, 400);
+
   const secret = await c.env.KV.get(`totp_setup:${userId}`);
   if (!secret) return c.json({ error: "No pending TOTP setup" }, 400);
 
@@ -207,6 +247,8 @@ auth2faRoutes.post("/totp/enable", async (c) => {
 
 // TOTP delete
 auth2faRoutes.delete("/totp", authMiddleware, async (c) => {
+  const pwErr = await requirePassword(c, await readPassword(c));
+  if (pwErr) return pwErr;
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
 
@@ -220,6 +262,8 @@ auth2faRoutes.delete("/totp", authMiddleware, async (c) => {
 
 // TOTP disable (POST alias)
 auth2faRoutes.post("/totp/disable", async (c) => {
+  const pwErr = await requirePassword(c, await readPassword(c));
+  if (pwErr) return pwErr;
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
 
@@ -269,6 +313,8 @@ auth2faRoutes.post("/email-otp/enable", async (c) => {
 
 // Email OTP disable
 auth2faRoutes.post("/email-otp/disable", async (c) => {
+  const pwErr = await requirePassword(c, await readPassword(c));
+  if (pwErr) return pwErr;
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
 
@@ -279,6 +325,8 @@ auth2faRoutes.post("/email-otp/disable", async (c) => {
 
 // Passkey disable (removes all passkeys)
 auth2faRoutes.post("/passkey/disable", async (c) => {
+  const pwErr = await requirePassword(c, await readPassword(c));
+  if (pwErr) return pwErr;
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
 
@@ -474,6 +522,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
   const refreshJti = generateJti();
 
   const accessPayload: JWTPayload = {
+    typ: "access",
     sub: userId,
     role: user.role,
     jti: accessJti,
@@ -482,6 +531,7 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
     exp: now + 86400,
   };
   const refreshPayload: JWTPayload = {
+    typ: "refresh",
     sub: userId,
     role: user.role,
     jti: refreshJti,
@@ -533,6 +583,8 @@ auth2faRoutes.post("/passkey/authenticate/verify", async (c) => {
 
 // Delete passkey
 auth2faRoutes.delete("/passkey/:credentialId", authMiddleware, async (c) => {
+  const pwErr = await requirePassword(c, await readPassword(c));
+  if (pwErr) return pwErr;
   const userId = c.get("userId");
   const credentialId = c.req.param("credentialId");
   const prefix = getTablePrefix(c.env);

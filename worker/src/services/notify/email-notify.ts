@@ -25,13 +25,17 @@ export async function sendNotifyEmail(
     return { success: false, error: "Email recipient required" };
   }
 
+  if (/[\r\n,;<>]/.test(config.to)) {
+    return { success: false, error: "Invalid email recipient" };
+  }
+
   const safeTitle = escapeHtml(message.title);
   const safeBody = escapeHtml(message.body).replace(/\n/g, "<br>");
 
   return sendEmail(env, {
     to: config.to,
-    subject: message.title,
+    subject: message.title.replace(/[\r\n]+/g, " "),
     html: `<h2>${safeTitle}</h2><p>${safeBody}</p>`,
-    fromName: config.from_name,
+    fromName: config.from_name?.replace(/[<>"\r\n]/g, "").trim() || undefined,
   });
 }

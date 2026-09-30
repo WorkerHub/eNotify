@@ -95,7 +95,7 @@ dashboardRoutes.get("/stats", async (c) => {
 
   const recentPayments = payments
     .filter((p) => {
-      const days = diffInDays(p.date, today);
+      const days = diffInDays(p.date.slice(0, 10), today);
       return days >= 0 && days <= 7;
     })
     .slice(0, 10);
@@ -110,9 +110,12 @@ dashboardRoutes.get("/stats", async (c) => {
         ? sub.amount
         : convertAmount(sub.amount, sub.currency, baseCurrency, rates);
 
+    const pv = sub.period_value > 0 ? sub.period_value : 1;
     let monthly = converted;
-    if (sub.period_unit === "year") monthly = converted / 12;
-    else if (sub.period_unit === "day") monthly = converted * 30;
+    if (sub.period_unit === "year") monthly = converted / (12 * pv);
+    else if (sub.period_unit === "month") monthly = converted / pv;
+    else if (sub.period_unit === "week") monthly = (converted * 52) / 12 / pv;
+    else if (sub.period_unit === "day") monthly = (converted * 30) / pv;
 
     if (sub.category) {
       const cats = sub.category.split(/[,/\s]+/).filter(Boolean);

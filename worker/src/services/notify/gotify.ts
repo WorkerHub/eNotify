@@ -1,5 +1,6 @@
 import type { NotifyMessage } from "./index";
 import type { Env } from "../../types";
+import { validateOutboundUrl, safeErrorText } from "./safe-fetch";
 
 interface GotifyConfig {
   server_url: string;
@@ -19,9 +20,15 @@ export async function sendGotify(
     };
   }
 
+  const check = validateOutboundUrl(config.server_url, { allowPrivate: true });
+  if (check.error) {
+    return { success: false, error: `Gotify: ${check.error}` };
+  }
+
   const url = `${config.server_url.replace(/\/$/, "")}/message?token=${config.app_token}`;
 
   const response = await fetch(url, {
+    redirect: "manual",
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -32,7 +39,7 @@ export async function sendGotify(
   });
 
   if (!response.ok) {
-    const err = await response.text();
+    const err = await safeErrorText(response);
     return { success: false, error: `Gotify error: ${err}` };
   }
 

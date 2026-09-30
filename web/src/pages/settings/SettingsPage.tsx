@@ -16,6 +16,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/ThemeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import {
   cn,
   serializeRegistrationCredential,
@@ -162,6 +163,10 @@ function SecurityTab() {
 
   const twofa = user?.twofa;
 
+  const [pendingDisable, setPendingDisable] = useState<
+    "totp" | "passkey" | "email_otp" | null
+  >(null);
+
   // TOTP setup state
   const [totpSetupData, setTotpSetupData] = useState<{
     qrCode: string;
@@ -213,10 +218,10 @@ function SecurityTab() {
     }
   };
 
-  const disableTotp = async () => {
+  const disableTotp = async (password: string) => {
     setTotpLoading(true);
     try {
-      await api.post("/auth/2fa/totp/disable");
+      await api.post("/auth/2fa/totp/disable", { password });
       await refreshUser();
     } catch (err: any) {
       setTotpError(err.message || t("common.error"));
@@ -246,10 +251,10 @@ function SecurityTab() {
     }
   };
 
-  const disablePasskey = async () => {
+  const disablePasskey = async (password: string) => {
     setPasskeyLoading(true);
     try {
-      await api.post("/auth/2fa/passkey/disable");
+      await api.post("/auth/2fa/passkey/disable", { password });
       await refreshUser();
     } catch (err: any) {
       setPasskeyError(err.message || t("common.error"));
@@ -290,11 +295,11 @@ function SecurityTab() {
     }
   };
 
-  const disableEmailOtp = async () => {
+  const disableEmailOtp = async (password: string) => {
     setEmailOtpError("");
     setEmailOtpLoading(true);
     try {
-      await api.post("/auth/2fa/email-otp/disable");
+      await api.post("/auth/2fa/email-otp/disable", { password });
       await refreshUser();
     } catch (err: any) {
       setEmailOtpError(err.message || t("common.error"));
@@ -303,8 +308,22 @@ function SecurityTab() {
     }
   };
 
+  const submitDisable = async (password: string) => {
+    const which = pendingDisable;
+    setPendingDisable(null);
+    if (which === "totp") await disableTotp(password);
+    else if (which === "passkey") await disablePasskey(password);
+    else if (which === "email_otp") await disableEmailOtp(password);
+  };
+
   return (
     <div className="space-y-4">
+      <PasswordPromptDialog
+        open={pendingDisable !== null}
+        title={t("settings.confirmPasswordTitle")}
+        onSubmit={submitDisable}
+        onCancel={() => setPendingDisable(null)}
+      />
       {/* TOTP */}
       <div className="bg-card border rounded-lg p-5">
         <div className="flex items-center justify-between mb-1">
@@ -373,7 +392,7 @@ function SecurityTab() {
         {twofa?.totp_enabled && (
           <button
             type="button"
-            onClick={disableTotp}
+            onClick={() => setPendingDisable("totp")}
             disabled={totpLoading}
             className="py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
           >
@@ -456,7 +475,7 @@ function SecurityTab() {
         {twofa?.email_otp_enabled && (
           <button
             type="button"
-            onClick={disableEmailOtp}
+            onClick={() => setPendingDisable("email_otp")}
             disabled={emailOtpLoading}
             className="py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
           >
@@ -498,7 +517,7 @@ function SecurityTab() {
         ) : (
           <button
             type="button"
-            onClick={disablePasskey}
+            onClick={() => setPendingDisable("passkey")}
             disabled={passkeyLoading}
             className="py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
           >

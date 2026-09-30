@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getTablePrefix } from "../types";
 import type { Env } from "../types";
+import { safeEqual } from "../core/auth";
 
 type HonoEnv = { Bindings: Env };
 
@@ -19,7 +20,10 @@ const DEFAULT_SETTINGS: Record<string, string> = {
 setupRoutes.get("/:secret", async (c) => {
   const secret = c.req.param("secret");
 
-  if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
+  if (
+    !c.env.SETUP_SECRET ||
+    !(await safeEqual(secret ?? "", c.env.SETUP_SECRET))
+  ) {
     return c.json({ error: "Invalid setup secret" }, 403);
   }
 
@@ -29,7 +33,10 @@ setupRoutes.get("/:secret", async (c) => {
 setupRoutes.post("/", async (c) => {
   const secret = c.req.header("X-Setup-Secret");
 
-  if (!c.env.SETUP_SECRET || secret !== c.env.SETUP_SECRET) {
+  if (
+    !c.env.SETUP_SECRET ||
+    !(await safeEqual(secret ?? "", c.env.SETUP_SECRET))
+  ) {
     return c.json({ error: "Invalid setup secret" }, 403);
   }
 
@@ -53,119 +60,43 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
     // ignore
   }
 
-  // Migration: drop type column from items + convert use_lunar to calendar_mode
-  // SQLite doesn't support DROP COLUMN before 3.35.0, so we recreate the table
+  // Migration: items table columns (type/use_lunar -> calendar_mode, lunar_expiry_date).
+  // Uses ALTER TABLE instead of recreating the table: DROP TABLE would cascade-delete payment_history.
   try {
     const colCheck = await db
       .prepare(`PRAGMA table_info(${prefix}items)`)
       .all<{ name: string }>();
-    const hasType = colCheck.results.some((c) => c.name === "type");
-    const hasUseLunar = colCheck.results.some((c) => c.name === "use_lunar");
-    if (hasType || hasUseLunar) {
+    const cols = new Set(colCheck.results.map((c) => c.name));
+
+    if (!cols.has("calendar_mode")) {
       await db
         .prepare(
-          `
-        CREATE TABLE ${prefix}items_new (
-          id          TEXT PRIMARY KEY,
-          user_id     TEXT NOT NULL REFERENCES ${prefix}users(id) ON DELETE CASCADE,
-          name        TEXT NOT NULL,
-          item_mode   TEXT NOT NULL DEFAULT 'cycle',
-          category    TEXT NOT NULL DEFAULT '',
-          start_date  TEXT,
-          expiry_date TEXT NOT NULL,
-          period_value  INTEGER NOT NULL DEFAULT 1,
-          period_unit   TEXT NOT NULL DEFAULT 'month',
-          reminder_unit  TEXT NOT NULL DEFAULT 'day',
-          reminder_value INTEGER NOT NULL DEFAULT 7,
-          notes             TEXT NOT NULL DEFAULT '',
-          amount            REAL,
-          currency          TEXT NOT NULL DEFAULT 'CNY',
-          last_payment_date TEXT,
-          is_active         INTEGER NOT NULL DEFAULT 1,
-          auto_renew        INTEGER NOT NULL DEFAULT 1,
-          calendar_mode     TEXT NOT NULL DEFAULT 'solar',
-          channels          TEXT NOT NULL DEFAULT '[]',
-          notification_hours TEXT NOT NULL DEFAULT '[]',
-          item_kind         TEXT NOT NULL DEFAULT 'regular',
-          created_at        TEXT NOT NULL,
-          updated_at        TEXT NOT NULL
-        )
-      `,
+          `ALTER TABLE ${prefix}items ADD COLUMN calendar_mode TEXT NOT NULL DEFAULT 'solar'`,
         )
         .run();
-      // Map use_lunar → calendar_mode: use_lunar=1 → 'lunar', use_lunar=0 → 'solar'
-      // If use_lunar column doesn't exist yet (fresh from type migration), default to 'solar'
-      const useLunarExpr = hasUseLunar
-        ? `CASE WHEN use_lunar = 1 THEN 'lunar' ELSE 'solar' END`
-        : `'solar'`;
-      // Build column lists for INSERT...SELECT
-      const srcCols = [
-        "id",
-        "user_id",
-        "name",
-        "item_mode",
-        "category",
-        "start_date",
-        "expiry_date",
-        "period_value",
-        "period_unit",
-        "reminder_unit",
-        "reminder_value",
-        "notes",
-        "amount",
-        "currency",
-        "last_payment_date",
-        "is_active",
-        "auto_renew",
-        useLunarExpr,
-        "channels",
-        "notification_hours",
-        "item_kind",
-        "created_at",
-        "updated_at",
-      ].join(", ");
-      const dstCols = [
-        "id",
-        "user_id",
-        "name",
-        "item_mode",
-        "category",
-        "start_date",
-        "expiry_date",
-        "period_value",
-        "period_unit",
-        "reminder_unit",
-        "reminder_value",
-        "notes",
-        "amount",
-        "currency",
-        "last_payment_date",
-        "is_active",
-        "auto_renew",
-        "calendar_mode",
-        "channels",
-        "notification_hours",
-        "item_kind",
-        "created_at",
-        "updated_at",
-      ].join(", ");
+      if (cols.has("use_lunar")) {
+        await db
+          .prepare(
+            `UPDATE ${prefix}items SET calendar_mode = CASE WHEN use_lunar = 1 THEN 'lunar' ELSE 'solar' END`,
+          )
+          .run();
+      }
+    }
+    if (!cols.has("lunar_expiry_date")) {
       await db
-        .prepare(
-          `INSERT INTO ${prefix}items_new (${dstCols}) SELECT ${srcCols} FROM ${prefix}items`,
-        )
-        .run();
-      await db.prepare(`DROP TABLE ${prefix}items`).run();
-      await db
-        .prepare(`ALTER TABLE ${prefix}items_new RENAME TO ${prefix}items`)
-        .run();
-      await db
-        .prepare(
-          `CREATE INDEX IF NOT EXISTS idx_${prefix}items_user_id ON ${prefix}items(user_id)`,
-        )
+        .prepare(`ALTER TABLE ${prefix}items ADD COLUMN lunar_expiry_date TEXT`)
         .run();
     }
-  } catch {
-    // Migration failed — ignore
+    if (cols.has("use_lunar")) {
+      await db
+        .prepare(`ALTER TABLE ${prefix}items DROP COLUMN use_lunar`)
+        .run();
+    }
+    if (cols.has("type")) {
+      await db.prepare(`ALTER TABLE ${prefix}items DROP COLUMN type`).run();
+    }
+  } catch (err) {
+    console.error("Migration failed for items table:", err);
   }
 }
 
@@ -255,6 +186,7 @@ CREATE TABLE IF NOT EXISTS {prefix}items (
   is_active         INTEGER NOT NULL DEFAULT 1,
   auto_renew        INTEGER NOT NULL DEFAULT 1,
   calendar_mode     TEXT NOT NULL DEFAULT 'solar',
+  lunar_expiry_date TEXT,
   channels          TEXT NOT NULL DEFAULT '[]',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   item_kind         TEXT NOT NULL DEFAULT 'regular',

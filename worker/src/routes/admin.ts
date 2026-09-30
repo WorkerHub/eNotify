@@ -22,6 +22,7 @@ import { getAllSettings, setSetting } from "../db/queries/settings";
 import { upsertNotificationConfig } from "../db/queries/notifications";
 import { generateId, hashPassword } from "../core/auth";
 import { sendEmail } from "../services/email";
+import { revokeAllSessions } from "./auth";
 
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -40,14 +41,15 @@ adminRoutes.post("/users", async (c) => {
     role?: string;
   }>();
 
-  if (!body.email || !body.password)
+  const email = body.email?.trim().toLowerCase();
+  if (!email || !body.password)
     return c.json({ error: "Email and password required" }, 400);
-  if (!EMAIL_RE.test(body.email))
+  if (!EMAIL_RE.test(email))
     return c.json({ error: "Invalid email format" }, 400);
   if (body.password.length < 8)
     return c.json({ error: "Password must be at least 8 characters" }, 400);
 
-  const existing = await findUserByEmail(c.env.DB, prefix, body.email);
+  const existing = await findUserByEmail(c.env.DB, prefix, email);
   if (existing) return c.json({ error: "Email already registered" }, 409);
 
   const id = generateId();
@@ -56,7 +58,7 @@ adminRoutes.post("/users", async (c) => {
 
   await createUser(c.env.DB, prefix, {
     id,
-    email: body.email,
+    email,
     password_hash: passwordHash,
     role,
   });
@@ -125,17 +127,25 @@ adminRoutes.put("/users/:uid", async (c) => {
   const user = await findUserById(c.env.DB, prefix, uid);
   if (!user) return c.json({ error: "User not found" }, 404);
 
+  if (uid === c.get("userId")) {
+    if (body.role !== undefined && body.role !== "admin")
+      return c.json({ error: "Cannot change your own role" }, 400);
+    if (body.is_active !== undefined && !body.is_active)
+      return c.json({ error: "Cannot disable yourself" }, 400);
+  }
+
   const updates: Record<string, any> = {};
   if (body.role !== undefined && ["admin", "user"].includes(body.role))
     updates.role = body.role;
   if (body.is_active !== undefined) updates.is_active = body.is_active ? 1 : 0;
   if (body.email !== undefined) {
-    if (!EMAIL_RE.test(body.email))
+    const newEmail = body.email.trim().toLowerCase();
+    if (!EMAIL_RE.test(newEmail))
       return c.json({ error: "Invalid email format" }, 400);
-    const existing = await findUserByEmail(c.env.DB, prefix, body.email);
+    const existing = await findUserByEmail(c.env.DB, prefix, newEmail);
     if (existing && existing.id !== uid)
       return c.json({ error: "Email already in use" }, 409);
-    updates.email = body.email;
+    updates.email = newEmail;
   }
   if (body.password !== undefined) {
     if (body.password.length < 8)
@@ -144,6 +154,12 @@ adminRoutes.put("/users/:uid", async (c) => {
   }
 
   await updateUser(c.env.DB, prefix, uid, updates);
+
+  const roleChanged = updates.role !== undefined && updates.role !== user.role;
+  const deactivated = updates.is_active === 0 && user.is_active;
+  if (roleChanged || deactivated || updates.password_hash) {
+    await revokeAllSessions(c.env.KV, uid);
+  }
   return c.json({ success: true });
 });
 
@@ -160,6 +176,7 @@ adminRoutes.delete("/users/:uid", async (c) => {
   if (!user) return c.json({ error: "User not found" }, 404);
 
   await deleteUser(c.env.DB, prefix, uid);
+  await revokeAllSessions(c.env.KV, uid);
   return c.json({ success: true });
 });
 
@@ -214,6 +231,51 @@ adminRoutes.post("/users/:uid/items", async (c) => {
     (typeof body.amount !== "number" || body.amount < 0)
   ) {
     return c.json({ error: "Amount must be a non-negative number" }, 400);
+  }
+  if (body.item_mode && !["cycle", "reset"].includes(body.item_mode)) {
+    return c.json({ error: "Invalid item mode" }, 400);
+  }
+  if (body.item_kind && !["regular", "subscription"].includes(body.item_kind)) {
+    return c.json({ error: "Invalid item_kind" }, 400);
+  }
+  if (
+    body.calendar_mode &&
+    !["solar", "lunar", "both"].includes(body.calendar_mode)
+  ) {
+    return c.json({ error: "Invalid calendar_mode" }, 400);
+  }
+  if (
+    body.reminder_value !== undefined &&
+    (typeof body.reminder_value !== "number" || body.reminder_value < 0)
+  ) {
+    return c.json(
+      { error: "reminder_value must be a non-negative number" },
+      400,
+    );
+  }
+  if (body.is_active !== undefined && ![0, 1].includes(body.is_active)) {
+    return c.json({ error: "is_active must be 0 or 1" }, 400);
+  }
+  if (body.auto_renew !== undefined && ![0, 1].includes(body.auto_renew)) {
+    return c.json({ error: "auto_renew must be 0 or 1" }, 400);
+  }
+  if (body.channels !== undefined) {
+    if (
+      !Array.isArray(body.channels) ||
+      body.channels.some((ch: string) => !VALID_CHANNELS.includes(ch))
+    ) {
+      return c.json({ error: "Invalid channels" }, 400);
+    }
+  }
+  if (body.notification_hours !== undefined) {
+    if (
+      !Array.isArray(body.notification_hours) ||
+      body.notification_hours.some(
+        (h: number) => !Number.isInteger(h) || h < 0 || h > 23,
+      )
+    ) {
+      return c.json({ error: "notification_hours must be integers 0-23" }, 400);
+    }
   }
 
   const id = generateId();

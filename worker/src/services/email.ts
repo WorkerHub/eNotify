@@ -120,7 +120,7 @@ async function sendViaSMTP(
   const isImplicitTls = config.port === 465;
 
   const socket: any = connect({ hostname: config.host, port: config.port }, {
-    secureTransport: isImplicitTls ? "on" : "off",
+    secureTransport: isImplicitTls ? "on" : "starttls",
   } as any);
 
   try {
@@ -131,7 +131,12 @@ async function sendViaSMTP(
     await session.expect(250);
 
     if (!isImplicitTls) {
-      await session.tryStartTls();
+      const upgraded = await session.tryStartTls();
+      if (!upgraded && config.username && config.password) {
+        throw new Error(
+          "Server does not support STARTTLS; refusing to send credentials in plaintext",
+        );
+      }
     }
 
     if (config.username && config.password) {
@@ -171,10 +176,10 @@ class SmtpSession {
     this.writer = socket.writable.getWriter();
   }
 
-  async tryStartTls(): Promise<void> {
+  async tryStartTls(): Promise<boolean> {
     await this.cmd("STARTTLS");
     const resp = await this.readResponse();
-    if (resp.code !== 220) return;
+    if (resp.code !== 220) return false;
 
     this.reader.releaseLock();
     this.writer.releaseLock();
@@ -187,6 +192,7 @@ class SmtpSession {
 
     await this.cmd("EHLO enotify");
     await this.expect(250);
+    return true;
   }
 
   async authLogin(user: string, pass: string): Promise<void> {

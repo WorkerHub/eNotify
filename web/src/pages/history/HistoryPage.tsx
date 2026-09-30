@@ -94,16 +94,16 @@ export function HistoryPage() {
           );
           return timeDiff < 120_000;
         });
+        const deletedIds = new Set<string>();
         for (const r of groupRecords) {
           try {
             await api.delete(`/me/notification-history/${r.id}`);
+            deletedIds.add(r.id);
           } catch {
-            /* ignore individual errors */
+            /* keep failed records visible */
           }
         }
-        setHistory((prev) =>
-          prev.filter((r) => !groupRecords.some((gr) => gr.id === r.id)),
-        );
+        setHistory((prev) => prev.filter((r) => !deletedIds.has(r.id)));
       },
     });
   };

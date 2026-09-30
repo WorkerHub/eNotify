@@ -104,6 +104,7 @@ export interface JWTPayload {
   exp: number;
   iat: number;
   needs_2fa_setup?: boolean;
+  typ?: "access" | "refresh";
 }
 
 export type HonoEnv = {

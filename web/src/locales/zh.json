@@ -193,6 +193,8 @@
     "security": "安全",
     "notifications": "通知",
     "preferences": "偏好",
+    "confirmPasswordTitle": "确认密码",
+    "confirmPasswordHint": "请输入账户密码以继续。",
     "changePassword": "修改密码",
     "currentPassword": "当前密码",
     "newPassword": "新密码",

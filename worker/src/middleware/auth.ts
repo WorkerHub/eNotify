@@ -17,6 +17,10 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     return c.json({ error: "Invalid or expired token" }, 401);
   }
 
+  if (payload.typ === "refresh") {
+    return c.json({ error: "Invalid or expired token" }, 401);
+  }
+
   const blacklisted = await c.env.KV.get(`bl:${payload.jti}`);
   if (blacklisted) {
     return c.json({ error: "Token revoked" }, 401);
@@ -32,17 +36,11 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
 
   if (payload.needs_2fa_setup) {
     const path = new URL(c.req.url).pathname;
-    const allowed2faPaths = [
-      "/api/me",
-      "/api/auth/2fa/totp/",
-      "/api/auth/2fa/passkey/",
-      "/api/auth/logout",
-    ];
-    if (
-      !allowed2faPaths.some(
-        (p) => path.startsWith(p) || path === p.replace(/\/$/, ""),
-      )
-    ) {
+    const exactPaths = ["/api/me", "/api/auth/logout"];
+    const prefixPaths = ["/api/auth/2fa/totp/", "/api/auth/2fa/passkey/"];
+    const allowed =
+      exactPaths.includes(path) || prefixPaths.some((p) => path.startsWith(p));
+    if (!allowed) {
       return c.json({ error: "2FA setup required", needs2faSetup: true }, 403);
     }
   }
@@ -56,6 +54,11 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
       return c.json({ error: "Impersonation target not found" }, 404);
     }
     c.set("impersonating", impersonateHeader);
+    if (c.req.method !== "GET") {
+      console.log(
+        `[audit] admin ${payload.sub} impersonating ${impersonateHeader}: ${c.req.method} ${new URL(c.req.url).pathname}`,
+      );
+    }
   }
 
   await next();

@@ -193,6 +193,8 @@
     "security": "Security",
     "notifications": "Notifications",
     "preferences": "Preferences",
+    "confirmPasswordTitle": "Confirm your password",
+    "confirmPasswordHint": "Enter your account password to continue.",
     "changePassword": "Change Password",
     "currentPassword": "Current Password",
     "newPassword": "New Password",

@@ -22,7 +22,12 @@ import {
   signJWT,
   verifyJWT,
 } from "../core/auth";
-import { getSessionIndex, removeSessionIndex, addSessionIndex } from "./auth";
+import {
+  getSessionIndex,
+  removeSessionIndex,
+  addSessionIndex,
+  revokeAllSessions,
+} from "./auth";
 import { sendToChannel, type NotifyMessage } from "../services/notify/index";
 import { getCookie, setCookie } from "hono/cookie";
 
@@ -73,9 +78,25 @@ meRoutes.put("/", async (c) => {
   }>();
 
   const updates: Record<string, any> = {};
-  if (body.base_currency) updates.base_currency = body.base_currency;
-  if (body.timezone) updates.timezone = body.timezone;
-  if (body.language) updates.language = body.language;
+  if (body.base_currency) {
+    const cur = String(body.base_currency).toUpperCase();
+    if (!/^[A-Z]{3}$/.test(cur))
+      return c.json({ error: "Invalid base_currency" }, 400);
+    updates.base_currency = cur;
+  }
+  if (body.timezone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: String(body.timezone) });
+    } catch {
+      return c.json({ error: "Invalid timezone" }, 400);
+    }
+    updates.timezone = body.timezone;
+  }
+  if (body.language) {
+    if (!["zh", "en"].includes(body.language))
+      return c.json({ error: "Invalid language" }, 400);
+    updates.language = body.language;
+  }
   if (body.theme && ["light", "dark", "system"].includes(body.theme))
     updates.theme = body.theme;
   if (Object.keys(updates).length === 0) {
@@ -137,12 +158,14 @@ meRoutes.put("/password", async (c) => {
   }
 
   // Issue new tokens
+  await revokeAllSessions(c.env.KV, userId);
   const now = Math.floor(Date.now() / 1000);
   const sid = generateId();
   const newAccessJti = generateJti();
   const newRefreshJti = generateJti();
 
   const accessPayload: JWTPayload = {
+    typ: "access",
     sub: userId,
     role: user.role,
     jti: newAccessJti,
@@ -151,6 +174,7 @@ meRoutes.put("/password", async (c) => {
     exp: now + 86400,
   };
   const refreshPayload: JWTPayload = {
+    typ: "refresh",
     sub: userId,
     role: user.role,
     jti: newRefreshJti,
@@ -254,6 +278,7 @@ meRoutes.get("/notifications", async (c) => {
           "app_token",
           "password",
           "device_key",
+          "headers",
         ].some((s) => k.includes(s))
       ) {
         redacted[k] = v ? "••••••" : "";
@@ -318,6 +343,7 @@ meRoutes.put("/notifications", async (c) => {
         "app_token",
         "password",
         "device_key",
+        "headers",
       ];
       for (const [k, v] of Object.entries(newConfig)) {
         if (secretFields.some((s) => k.includes(s)) && (!v || v === "••••••")) {

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import type { Env, HonoEnv } from "./types";
 import { getTablePrefix } from "./types";
 import { authRoutes } from "./routes/auth";
@@ -16,7 +17,28 @@ import { getAllSettings } from "./db/queries/settings";
 
 const app = new Hono<HonoEnv>();
 
-app.use("*", logger());
+const redactSecrets = (line: string) =>
+  line.replace(/(\/api\/(?:setup|notify)\/)[^\s/?]+/g, "$1[redacted]");
+app.use(
+  "*",
+  logger((line, ...rest) => console.log(redactSecrets(line), ...rest)),
+);
+app.use("*", secureHeaders());
+app.onError((err, c) => {
+  console.error("Unhandled error:", err);
+  if (err instanceof SyntaxError) {
+    return c.json({ error: "Invalid request body" }, 400);
+  }
+  return c.json({ error: "Internal server error" }, 500);
+});
+app.use("/api/*", async (c, next) => {
+  const secret = c.env.JWT_SECRET;
+  if (!secret || secret.length < 16 || secret.endsWith("_PLACEHOLDER")) {
+    console.error("JWT_SECRET is missing, too short, or still a placeholder");
+    return c.json({ error: "Server misconfigured" }, 500);
+  }
+  await next();
+});
 app.use("*", async (c, next) => {
   const prefix = c.env.TABLE_PREFIX || "";
   if (prefix && !/^[a-zA-Z0-9_]+$/.test(prefix)) {

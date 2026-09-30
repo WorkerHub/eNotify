@@ -37,6 +37,54 @@ export const itemRoutes = new Hono<HonoEnv>();
 
 itemRoutes.use("*", authMiddleware);
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}([T ].*)?$/;
+
+function isValidDate(v: unknown): boolean {
+  return (
+    typeof v === "string" && DATE_RE.test(v) && !Number.isNaN(Date.parse(v))
+  );
+}
+
+function validateCommonFields(body: Record<string, any>): string | null {
+  for (const key of ["category", "notes", "currency"]) {
+    if (body[key] !== undefined && typeof body[key] !== "string")
+      return `${key} must be a string`;
+  }
+  if (typeof body.currency === "string" && body.currency !== "") {
+    if (!/^[A-Za-z]{3}$/.test(body.currency)) return "Invalid currency";
+  }
+  if (typeof body.name === "string" && body.name.length > 200)
+    return "Name too long";
+  if (typeof body.notes === "string" && body.notes.length > 2000)
+    return "Notes too long";
+  if (typeof body.category === "string" && body.category.length > 200)
+    return "Category too long";
+  return null;
+}
+
+function validateActionBody(body: Record<string, any>): string | null {
+  if (
+    body.amount !== undefined &&
+    body.amount !== null &&
+    (typeof body.amount !== "number" ||
+      !Number.isFinite(body.amount) ||
+      body.amount < 0)
+  )
+    return "Amount must be a non-negative number";
+  if (body.date !== undefined && !isValidDate(body.date)) return "Invalid date";
+  if (
+    body.note !== undefined &&
+    (typeof body.note !== "string" || body.note.length > 2000)
+  )
+    return "Invalid note";
+  if (
+    body.multiplier !== undefined &&
+    (typeof body.multiplier !== "number" || !Number.isFinite(body.multiplier))
+  )
+    return "Invalid multiplier";
+  return null;
+}
+
 itemRoutes.get("/", async (c) => {
   const userId = getEffectiveUserId(c);
   const prefix = getTablePrefix(c.env);
@@ -55,17 +103,31 @@ itemRoutes.post("/", async (c) => {
   if (!body.expiry_date || typeof body.expiry_date !== "string") {
     return c.json({ error: "Expiry date is required" }, 400);
   }
-  if (Number.isNaN(Date.parse(body.expiry_date))) {
+  if (!isValidDate(body.expiry_date)) {
     return c.json({ error: "Invalid expiry date" }, 400);
   }
-  if (body.start_date && Number.isNaN(Date.parse(body.start_date))) {
+  if (body.start_date && !isValidDate(body.start_date)) {
     return c.json({ error: "Invalid start date" }, 400);
   }
-  if (
-    body.lunar_expiry_date &&
-    Number.isNaN(Date.parse(body.lunar_expiry_date))
-  ) {
+  if (body.lunar_expiry_date && !isValidDate(body.lunar_expiry_date)) {
     return c.json({ error: "Invalid lunar expiry date" }, 400);
+  }
+  const fieldError = validateCommonFields(body);
+  if (fieldError) return c.json({ error: fieldError }, 400);
+  if (
+    body.reminder_value !== undefined &&
+    (typeof body.reminder_value !== "number" || body.reminder_value < 0)
+  ) {
+    return c.json(
+      { error: "reminder_value must be a non-negative number" },
+      400,
+    );
+  }
+  if (body.is_active !== undefined && ![0, 1].includes(body.is_active)) {
+    return c.json({ error: "is_active must be 0 or 1" }, 400);
+  }
+  if (body.auto_renew !== undefined && ![0, 1].includes(body.auto_renew)) {
+    return c.json({ error: "auto_renew must be 0 or 1" }, 400);
   }
   if (
     body.period_value !== undefined &&
@@ -216,12 +278,21 @@ itemRoutes.put("/:id", async (c) => {
   ) {
     return c.json({ error: "Period value must be >= 1" }, 400);
   }
-  if (body.expiry_date && Number.isNaN(Date.parse(body.expiry_date))) {
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string" || body.name.trim() === "")
+      return c.json({ error: "Name is required" }, 400);
+  }
+  if (body.expiry_date && !isValidDate(body.expiry_date)) {
     return c.json({ error: "Invalid expiry date" }, 400);
   }
-  if (body.start_date && Number.isNaN(Date.parse(body.start_date))) {
+  if (body.start_date && !isValidDate(body.start_date)) {
     return c.json({ error: "Invalid start date" }, 400);
   }
+  if (body.lunar_expiry_date && !isValidDate(body.lunar_expiry_date)) {
+    return c.json({ error: "Invalid lunar expiry date" }, 400);
+  }
+  const putFieldError = validateCommonFields(body);
+  if (putFieldError) return c.json({ error: putFieldError }, 400);
   if (
     body.period_unit &&
     !["day", "week", "month", "year"].includes(body.period_unit)
@@ -382,7 +453,12 @@ itemRoutes.post("/:id/renew", async (c) => {
   } catch {
     // Allow empty request body for manual renew calls.
   }
-  const multiplier = Math.min(Math.max(body.multiplier || 1, 1), 120);
+  const renewError = validateActionBody(body ?? {});
+  if (renewError) return c.json({ error: renewError }, 400);
+  const multiplier = Math.min(
+    Math.max(Math.floor(body.multiplier || 1), 1),
+    120,
+  );
   let newExpiry = item.expiry_date;
   let newLunarExpiry = item.lunar_expiry_date;
 
@@ -400,7 +476,11 @@ itemRoutes.post("/:id/renew", async (c) => {
             ? addLunarYears(newLunarExpiry, item.period_value)
             : addPeriod(newLunarExpiry, item.period_value, item.period_unit);
       newLunarExpiry = nextLunar;
-      newExpiry = nextSolar;
+      newExpiry = nextSolar <= nextLunar ? nextSolar : nextLunar;
+    } else if (item.calendar_mode === "lunar" && item.period_unit === "month") {
+      newExpiry = addLunarMonths(newExpiry, item.period_value);
+    } else if (item.calendar_mode === "lunar" && item.period_unit === "year") {
+      newExpiry = addLunarYears(newExpiry, item.period_value);
     } else {
       newExpiry = addPeriod(newExpiry, item.period_value, item.period_unit);
     }
@@ -456,6 +536,8 @@ itemRoutes.post("/:id/reset", async (c) => {
   } catch {
     // Allow empty request body for reset action triggered from list page.
   }
+  const resetError = validateActionBody(body ?? {});
+  if (resetError) return c.json({ error: resetError }, 400);
   const now = nowISO();
   const today = body.date || now.split("T")[0];
 

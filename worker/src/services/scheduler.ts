@@ -2,6 +2,7 @@ import { getTablePrefix } from "../types";
 import type { Env, Item, NotificationConfig } from "../types";
 import { listActiveUsersForScheduler } from "../db/queries/users";
 import { getActiveItemsByUser } from "../db/queries/items";
+import { pruneNotificationHistory } from "../db/queries/notification-history";
 import { getNotificationConfig } from "../db/queries/notifications";
 import { createPayment } from "../db/queries/payments";
 import { sendNotifications, type NotifyMessage } from "./notify/index";
@@ -19,6 +20,14 @@ export async function handleScheduled(env: Env): Promise<void> {
   const prefix = getTablePrefix(env);
   const db = env.DB;
   const kv = env.KV;
+
+  if (new Date().getUTCHours() === 3) {
+    try {
+      await pruneNotificationHistory(db, prefix, 90);
+    } catch (err) {
+      console.error("Failed to prune notification history:", err);
+    }
+  }
 
   const activeUsers = await listActiveUsersForScheduler(db, prefix);
 
@@ -64,16 +73,20 @@ async function processUser(
       if (effectiveHours.length > 0 && !effectiveHours.includes(currentHour))
         continue;
 
-      await processSubscription(
-        env,
-        prefix,
-        user.id,
-        sub,
-        notifyConfig,
-        kv,
-        lang,
-        user.timezone || "UTC",
-      );
+      try {
+        await processSubscription(
+          env,
+          prefix,
+          user.id,
+          sub,
+          notifyConfig,
+          kv,
+          lang,
+          user.timezone || "UTC",
+        );
+      } catch (err) {
+        console.error(`Scheduler error for item ${sub.id}:`, err);
+      }
     }
 
     await kv.put(
@@ -239,10 +252,14 @@ async function processSubscription(
 
     if (!shouldNotify) continue;
 
-    // Dedup: include label in key so solar and lunar reminders are deduplicated independently
-    // If they happen on the same day, the hour-bucket dedup will naturally merge them
-    const hourBucket = Math.floor(now.getTime() / 3600000);
-    const dedupeKey = `notify_dedupe:${userId}:${sub.id}:${label}:${hourBucket}`;
+    // Dedup: one reminder per local day (per hour for hour-based reminders),
+    // keyed by expiry date so a renewed item can be reminded again.
+    // Label keeps solar and lunar reminders independent in "both" mode.
+    const dedupeBucket =
+      sub.reminder_unit === "hour"
+        ? `h${Math.floor(now.getTime() / 3600000)}`
+        : `d${formatUserTime(timezone).slice(0, 10)}`;
+    const dedupeKey = `notify_dedupe:${userId}:${sub.id}:${label}:${checkDate}:${dedupeBucket}`;
     const existing = await kv.get(dedupeKey);
     if (existing) continue;
 

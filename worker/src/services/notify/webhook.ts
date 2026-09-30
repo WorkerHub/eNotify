@@ -1,35 +1,12 @@
 import type { NotifyMessage } from "./index";
 import type { Env } from "../../types";
+import { validateOutboundUrl, safeErrorText } from "./safe-fetch";
 
 interface WebhookConfig {
   url: string;
   method?: string;
   headers?: string;
   template?: string;
-}
-
-function isPrivateHostname(hostname: string): boolean {
-  if (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1"
-  )
-    return true;
-  if (hostname.endsWith(".local") || hostname.endsWith(".internal"))
-    return true;
-
-  const parts = hostname.split(".");
-  if (parts.length === 4 && parts.every((p) => /^\d+$/.test(p))) {
-    const octets = parts.map(Number);
-    if (octets[0] === 10) return true;
-    if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
-    if (octets[0] === 192 && octets[1] === 168) return true;
-    if (octets[0] === 169 && octets[1] === 254) return true;
-    if (octets[0] === 127) return true;
-    if (octets[0] === 0) return true;
-  }
-
-  return false;
 }
 
 export async function sendWebhook(
@@ -42,22 +19,9 @@ export async function sendWebhook(
     return { success: false, error: "Webhook URL required" };
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(config.url);
-  } catch {
-    return { success: false, error: "Invalid webhook URL" };
-  }
-
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return { success: false, error: "Only HTTP(S) URLs are allowed" };
-  }
-
-  if (isPrivateHostname(parsed.hostname)) {
-    return {
-      success: false,
-      error: "Webhook URL must not point to private/internal addresses",
-    };
+  const check = validateOutboundUrl(config.url);
+  if (check.error) {
+    return { success: false, error: `Webhook: ${check.error}` };
   }
 
   const method = config.method || "POST";
@@ -85,10 +49,15 @@ export async function sendWebhook(
     });
   }
 
-  const response = await fetch(config.url, { method, headers, body });
+  const response = await fetch(config.url, {
+    method,
+    headers,
+    body,
+    redirect: "manual",
+  });
 
   if (!response.ok) {
-    const err = await response.text();
+    const err = await safeErrorText(response);
     return {
       success: false,
       error: `Webhook error (${response.status}): ${err}`,

@@ -161,12 +161,17 @@ export async function verifyJWT(
     ["verify"],
   );
 
-  const valid = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    base64urlDecodeToBuffer(encodedSignature),
-    new TextEncoder().encode(signingInput),
-  );
+  let valid: boolean;
+  try {
+    valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      base64urlDecodeToBuffer(encodedSignature),
+      new TextEncoder().encode(signingInput),
+    );
+  } catch {
+    return null;
+  }
 
   if (!valid) return null;
 
@@ -195,6 +200,19 @@ export async function verifyJWT(
 }
 
 // ─── ID generation ────────────────────────────────────────────────────────────
+
+export async function safeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ha);
+  const vb = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
+}
 
 export function generateId(): string {
   return crypto.randomUUID();

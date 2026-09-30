@@ -50,6 +50,20 @@ const CHANNEL_SENDERS: Record<
   notifyx: sendNotifyX,
 };
 
+const SEND_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, channel: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(new Error(`${channel} timed out after ${SEND_TIMEOUT_MS}ms`)),
+      SEND_TIMEOUT_MS,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function recordHistory(
   context: NotifyContext,
   channel: string,
@@ -81,7 +95,12 @@ export async function sendNotifications(
   context?: NotifyContext,
   channels?: string[],
 ): Promise<NotifyResult[]> {
-  let enabledChannels: string[] = JSON.parse(config.enabled_channels || "[]");
+  let enabledChannels: string[];
+  try {
+    enabledChannels = JSON.parse(config.enabled_channels || "[]");
+  } catch {
+    enabledChannels = [];
+  }
 
   // If specific channels are requested, intersect with enabled channels
   if (channels && channels.length > 0) {
@@ -112,7 +131,7 @@ export async function sendNotifications(
 
     let result: { success: boolean; error?: string };
     try {
-      result = await sender(channelConfig, message, env);
+      result = await withTimeout(sender(channelConfig, message, env), channel);
     } catch (err) {
       result = {
         success: false,
@@ -146,7 +165,7 @@ export async function sendToChannel(
   const sender = CHANNEL_SENDERS[channel];
   if (!sender) return { success: false, error: "Unknown channel" };
   try {
-    return await sender(configJson, message, env);
+    return await withTimeout(sender(configJson, message, env), channel);
   } catch (err) {
     return {
       success: false,

@@ -23,8 +23,8 @@ export async function findUserByEmail(
 ): Promise<User | null> {
   const table = `${prefix}users`;
   return db
-    .prepare(`SELECT * FROM ${table} WHERE email = ?`)
-    .bind(email)
+    .prepare(`SELECT * FROM ${table} WHERE email = ? COLLATE NOCASE`)
+    .bind(email.trim())
     .first<User>();
 }
 
