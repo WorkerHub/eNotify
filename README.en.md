@@ -102,6 +102,40 @@ pnpm dev:web
 pnpm dev:worker
 ```
 
+## API Keys (for external programs)
+
+External programs (AI assistants, scripts) can call the item management API `/api/items/*` with an API key instead of a cookie session. A key has the same permissions as the user who created it. Only `/api/items` accepts API keys for now; every other endpoint (including key management itself) still requires a login session.
+
+**1. Create** (requires a logged-in cookie session)
+
+```bash
+curl -X POST https://your-worker.workers.dev/api/me/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Cookie: access_token=<access_token after login>" \
+  -d '{"name": "my-assistant", "expires_in_days": 90}'
+```
+
+`name` is required (1-50 chars); `expires_in_days` is optional, 1-3650, default 365. At most 20 keys per user. The `key` in the response (`enk_...`) is shown **only once**; the server stores just its SHA-256 hash, so a lost key must be regenerated.
+
+**2. Use**
+
+```bash
+curl https://your-worker.workers.dev/api/items \
+  -H "Authorization: Bearer enk_xxxxxxxx"
+```
+
+Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled.
+
+**3. List and revoke** (also requires a login session)
+
+```bash
+# List (no plaintext; includes last_used_at, updated at most every ~5 minutes)
+curl https://your-worker.workers.dev/api/me/api-keys -H "Cookie: access_token=..."
+
+# Revoke, effective immediately
+curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: access_token=..."
+```
+
 ## Environment Variables
 
 ### Worker Environment Variables

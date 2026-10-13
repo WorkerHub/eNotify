@@ -28,6 +28,19 @@ import {
   addSessionIndex,
   revokeAllSessions,
 } from "./auth";
+import {
+  API_KEY_SCOPES_ALL,
+  DEFAULT_API_KEY_DAYS,
+  MAX_API_KEYS_PER_USER,
+  MAX_API_KEY_DAYS,
+  type ApiKeyIndexRecord,
+  type ApiKeyRecord,
+  apiKeyIndexKey,
+  apiKeyIndexPrefix,
+  apiKeyKvKey,
+  generateApiKey,
+  sha256Hex,
+} from "../core/apiKey";
 import { sendToChannel, type NotifyMessage } from "../services/notify/index";
 import { getCookie, setCookie } from "hono/cookie";
 
@@ -437,6 +450,114 @@ meRoutes.delete("/notifications/token/:token", async (c) => {
   const owner = await c.env.KV.get(`notify_token:${token}`);
   if (owner !== userId) return c.json({ error: "Not found" }, 404);
   await c.env.KV.delete(`notify_token:${token}`);
+  return c.json({ success: true });
+});
+
+// ── API keys ──────────────────────────────────────────────────────────────
+
+async function listApiKeyIndex(kv: KVNamespace, userId: string) {
+  const { keys } = await kv.list({ prefix: apiKeyIndexPrefix(userId) });
+  const records = await Promise.all(
+    keys.map((k) => kv.get<ApiKeyIndexRecord>(k.name, "json")),
+  );
+  return records.filter((r): r is ApiKeyIndexRecord => r !== null);
+}
+
+meRoutes.post("/api-keys", async (c) => {
+  const userId = getEffectiveUserId(c);
+  const body = await c.req
+    .json<{ name?: unknown; expires_in_days?: unknown }>()
+    .catch(() => null);
+  if (!body) return c.json({ error: "Invalid JSON" }, 400);
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (name.length < 1 || name.length > 50) {
+    return c.json({ error: "name must be 1-50 characters" }, 400);
+  }
+  const days = body.expires_in_days ?? DEFAULT_API_KEY_DAYS;
+  if (
+    typeof days !== "number" ||
+    !Number.isInteger(days) ||
+    days < 1 ||
+    days > MAX_API_KEY_DAYS
+  ) {
+    return c.json(
+      { error: `expires_in_days must be an integer 1-${MAX_API_KEY_DAYS}` },
+      400,
+    );
+  }
+
+  const existing = await c.env.KV.list({ prefix: apiKeyIndexPrefix(userId) });
+  if (existing.keys.length >= MAX_API_KEYS_PER_USER) {
+    return c.json(
+      { error: `At most ${MAX_API_KEYS_PER_USER} API keys per user` },
+      400,
+    );
+  }
+
+  const key = generateApiKey();
+  const hash = await sha256Hex(key);
+  const id = generateId();
+  const now = new Date();
+  const created_at = now.toISOString();
+  const expiresMs = now.getTime() + days * 86400 * 1000;
+  const expires_at = new Date(expiresMs).toISOString();
+  const expiration = Math.floor(expiresMs / 1000);
+
+  const record: ApiKeyRecord = {
+    id,
+    user_id: userId,
+    name,
+    created_at,
+    expires_at,
+    scopes: API_KEY_SCOPES_ALL,
+  };
+  const index: ApiKeyIndexRecord = {
+    id,
+    hash,
+    name,
+    created_at,
+    expires_at,
+    last_used_at: null,
+    scopes: API_KEY_SCOPES_ALL,
+  };
+  await Promise.all([
+    c.env.KV.put(apiKeyKvKey(hash), JSON.stringify(record), { expiration }),
+    c.env.KV.put(apiKeyIndexKey(userId, id), JSON.stringify(index), {
+      expiration,
+    }),
+  ]);
+
+  // The plaintext key is only ever returned here.
+  return c.json({ id, name, key, created_at, expires_at }, 201);
+});
+
+meRoutes.get("/api-keys", async (c) => {
+  const userId = getEffectiveUserId(c);
+  const records = await listApiKeyIndex(c.env.KV, userId);
+  records.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return c.json({
+    keys: records.map(
+      ({ id, name, created_at, expires_at, last_used_at }) => ({
+        id,
+        name,
+        created_at,
+        expires_at,
+        last_used_at,
+      }),
+    ),
+  });
+});
+
+meRoutes.delete("/api-keys/:id", async (c) => {
+  const userId = getEffectiveUserId(c);
+  const idxKey = apiKeyIndexKey(userId, c.req.param("id"));
+  const index = await c.env.KV.get<ApiKeyIndexRecord>(idxKey, "json");
+  if (!index) return c.json({ error: "Not found" }, 404);
+  await Promise.all([
+    c.env.KV.delete(apiKeyKvKey(index.hash)),
+    c.env.KV.delete(idxKey),
+  ]);
   return c.json({ success: true });
 });
 

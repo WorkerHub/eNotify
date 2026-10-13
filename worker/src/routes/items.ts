@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { getTablePrefix, VALID_CHANNELS } from "../types";
 import type { Item, HonoEnv } from "../types";
-import { authMiddleware, getEffectiveUserId } from "../middleware/auth";
+import { apiKeyOrCookieAuth } from "../middleware/apiKey";
+import { getEffectiveUserId } from "../middleware/auth";
 import {
   createItem,
   getItem,
@@ -39,7 +40,7 @@ import {
 
 export const itemRoutes = new Hono<HonoEnv>();
 
-itemRoutes.use("*", authMiddleware);
+itemRoutes.use("*", apiKeyOrCookieAuth);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}([T ].*)?$/;
 

@@ -1,20 +1,21 @@
 import type { Context, Next } from "hono";
-import type { Env } from "../types";
-
-type HonoEnv = { Bindings: Env; Variables: Record<string, any> };
+import type { HonoEnv } from "../types";
 
 export function rateLimit(opts: {
   max: number;
   window: number;
   keyPrefix: string;
+  /** Identify the caller; defaults to the client IP. */
+  keyFn?: (c: Context<HonoEnv>) => string;
 }) {
   return async (c: Context<HonoEnv>, next: Next) => {
     const forwarded = c.req.header("x-forwarded-for");
-    const ip =
+    const id =
+      opts.keyFn?.(c) ||
       c.req.header("cf-connecting-ip") ||
       (forwarded ? forwarded.split(",")[0].trim() : "") ||
       "unknown";
-    const key = `rl:${opts.keyPrefix}:${ip}`;
+    const key = `rl:${opts.keyPrefix}:${id}`;
 
     const current = await c.env.KV.get(key);
     const count = current ? Number.parseInt(current.split(":")[0], 10) : 0;

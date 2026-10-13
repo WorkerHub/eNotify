@@ -102,6 +102,45 @@ pnpm dev:web
 pnpm dev:worker
 ```
 
+## API Key（外部程序调用）
+
+外部程序（如 AI 助手、脚本）可以用 API Key 调用事项管理接口 `/api/items/*`，无需 cookie 登录。API Key 的权限与创建它的用户自己的登录态一致；目前仅 `/api/items` 支持 API Key，其余接口（含 key 管理本身）仍只认登录会话。
+
+**1. 生成**（需先登录，使用 cookie 会话）
+
+```bash
+curl -X POST https://your-worker.workers.dev/api/me/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Cookie: access_token=<登录后的 access_token>" \
+  -d '{"name": "my-assistant", "expires_in_days": 90}'
+```
+
+`name` 必填（1-50 字符）；`expires_in_days` 可选，1-3650，默认 365。每个用户最多 20 个 key。响应中的 `key`（形如 `enk_...`）**只会出现这一次**，服务端只保存其 SHA-256 哈希，丢失后只能重新生成。
+
+**2. 使用**
+
+```bash
+curl https://your-worker.workers.dev/api/items \
+  -H "Authorization: Bearer enk_xxxxxxxx"
+
+curl -X POST https://your-worker.workers.dev/api/items \
+  -H "Authorization: Bearer enk_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。
+
+**3. 查看与吊销**（同样需要登录会话）
+
+```bash
+# 列出（不含明文，含 last_used_at，最多约 5 分钟延迟）
+curl https://your-worker.workers.dev/api/me/api-keys -H "Cookie: access_token=..."
+
+# 吊销，立即生效
+curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: access_token=..."
+```
+
 ## 环境变量
 
 ### Worker 环境变量

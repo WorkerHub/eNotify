@@ -109,7 +109,12 @@ export interface JWTPayload {
 
 export type HonoEnv = {
   Bindings: Env;
-  Variables: { userId: string; role: string; impersonating?: string };
+  Variables: {
+    userId: string;
+    role: string;
+    impersonating?: string;
+    apiKeyId?: string;
+  };
 };
 
 export function getTablePrefix(env: Env): string {
