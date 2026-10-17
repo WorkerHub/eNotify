@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "hono": "^4.7.9",
-    "@simplewebauthn/server": "^13.1.1",
+    "@simplewebauthn/server": "^14.0.0",
     "@hexagon/base64": "^2.0.2",
     "otpauth": "^9.4.2"
   },
