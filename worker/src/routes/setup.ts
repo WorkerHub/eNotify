@@ -17,17 +17,18 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   app_name: "eNotify",
 };
 
-setupRoutes.get("/:secret", async (c) => {
-  const secret = c.req.param("secret");
-
-  if (
-    !c.env.SETUP_SECRET ||
-    !(await safeEqual(secret ?? "", c.env.SETUP_SECRET))
-  ) {
-    return c.json({ error: "Invalid setup secret" }, 403);
-  }
-
-  return runSetup(c);
+// GET /api/setup/* is deprecated for security: the secret must never appear in
+// the URL (browser history, access logs, Referer, link previews). Use
+// POST /api/setup with the X-Setup-Secret header instead.
+setupRoutes.get("*", (c) => {
+  c.header("Allow", "POST");
+  return c.json(
+    {
+      error:
+        "GET setup is deprecated. Use POST /api/setup with the X-Setup-Secret header.",
+    },
+    405,
+  );
 });
 
 setupRoutes.post("/", async (c) => {

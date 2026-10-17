@@ -76,11 +76,16 @@ npx wrangler kv namespace create ENOTIFY_KV
 
 ### 4. 初始化数据库
 
-部署完成后，访问以下 URL 初始化数据库：
+部署完成后，使用 curl 发送 POST 请求初始化数据库（secret 放在请求头，避免出现在 URL / 浏览器历史 / 访问日志中）：
 
+```bash
+curl -X POST https://your-worker.workers.dev/api/setup \
+  -H "X-Setup-Secret: <SETUP_SECRET>"
 ```
-https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
-```
+
+每次升级部署后可再次调用一次，以执行数据库迁移（数据库已初始化时会自动运行迁移）。
+
+> 旧的 `GET /api/setup/<SETUP_SECRET>` 地址已废弃（返回 405）。如果你曾通过旧 GET 地址访问过部署，建议轮换 `SETUP_SECRET`，因为 secret 可能已泄露到浏览器历史或访问日志中。
 
 ### 5. 注册管理员
 
