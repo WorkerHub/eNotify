@@ -435,22 +435,17 @@ meRoutes.delete("/notification-history/:id", async (c) => {
   return c.json({ success: true });
 });
 
+// Notify tokens are retired in favour of API keys. Both endpoints return 410
+// without generating, looking up, or deleting any KV token record.
+const NOTIFY_TOKEN_DEPRECATED =
+  "Notify tokens are deprecated. Use POST /api/notify with an API key (Authorization: Bearer enk_...) instead; create a key in Settings → API Keys.";
+
 meRoutes.post("/notifications/token", async (c) => {
-  const userId = getEffectiveUserId(c);
-  const token = generateJti();
-  await c.env.KV.put(`notify_token:${token}`, userId, {
-    expirationTtl: 31536000,
-  });
-  return c.json({ token });
+  return c.json({ error: NOTIFY_TOKEN_DEPRECATED }, 410);
 });
 
 meRoutes.delete("/notifications/token/:token", async (c) => {
-  const userId = getEffectiveUserId(c);
-  const token = c.req.param("token");
-  const owner = await c.env.KV.get(`notify_token:${token}`);
-  if (owner !== userId) return c.json({ error: "Not found" }, 404);
-  await c.env.KV.delete(`notify_token:${token}`);
-  return c.json({ success: true });
+  return c.json({ error: NOTIFY_TOKEN_DEPRECATED }, 410);
 });
 
 // ── API keys ──────────────────────────────────────────────────────────────
