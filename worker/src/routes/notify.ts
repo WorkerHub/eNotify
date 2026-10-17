@@ -1,6 +1,5 @@
-import { Hono } from "hono";
-import { getTablePrefix } from "../types";
-import type { Env } from "../types";
+import { Hono, type Context } from "hono";
+import { getTablePrefix, type HonoEnv } from "../types";
 import { getNotificationConfig } from "../db/queries/notifications";
 import { findUserById } from "../db/queries/users";
 import {
@@ -8,8 +7,7 @@ import {
   type NotifyMessage,
 } from "../services/notify/index";
 import { rateLimit } from "../middleware/ratelimit";
-
-type HonoEnv = { Bindings: Env; Variables: Record<string, any> };
+import { apiKeyOrCookieAuth } from "../middleware/apiKey";
 
 export const notifyRoutes = new Hono<HonoEnv>();
 
@@ -17,6 +15,20 @@ notifyRoutes.use(
   "/:token",
   rateLimit({ max: 30, window: 60, keyPrefix: "notify_trigger" }),
 );
+
+// API-key or logged-in session trigger — exact POST /api/notify (no :token).
+// The enk_... bearer is validated by apiKeyOrCookieAuth (its own 120/min per-key
+// limit); the 30/min notify_trigger limit below is the second layer against spam.
+notifyRoutes.use("/", apiKeyOrCookieAuth);
+notifyRoutes.use(
+  "/",
+  rateLimit({ max: 30, window: 60, keyPrefix: "notify_trigger" }),
+);
+
+notifyRoutes.post("/", async (c) => {
+  const userId = c.get("userId");
+  return notifyByUserId(c, userId);
+});
 
 // Third-party trigger — authenticate via token in URL, header, or query param
 notifyRoutes.post("/:token", async (c) => {
@@ -34,6 +46,16 @@ notifyRoutes.post("/:token", async (c) => {
   if (!user?.is_active) {
     return c.json({ error: "User not found or disabled" }, 401);
   }
+
+  return notifyByUserId(c, userId);
+});
+
+/** Shared helper: resolve the user's notification config and dispatch the message. */
+async function notifyByUserId(
+  c: Context<HonoEnv>,
+  userId: string,
+): Promise<Response> {
+  const prefix = getTablePrefix(c.env);
 
   const notifyConfig = await getNotificationConfig(c.env.DB, prefix, userId);
   if (!notifyConfig) {
@@ -54,4 +76,4 @@ notifyRoutes.post("/:token", async (c) => {
 
   const results = await sendNotifications(notifyConfig, message, c.env);
   return c.json({ success: true, results });
-});
+}

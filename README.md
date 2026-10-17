@@ -104,7 +104,7 @@ pnpm dev:worker
 
 ## API Key（外部程序调用）
 
-外部程序（如 AI 助手、脚本）可以用 API Key 调用事项管理接口 `/api/items/*`，无需 cookie 登录。API Key 的权限与创建它的用户自己的登录态一致；目前仅 `/api/items` 支持 API Key，其余接口（含 key 管理本身）仍只认登录会话。
+外部程序（如 AI 助手、脚本）可以用 API Key 调用事项管理接口 `/api/items/*` 与推送触发接口 `/api/notify`，无需 cookie 登录。API Key 的权限与创建它的用户自己的登录态一致；目前仅 `/api/items` 与 `/api/notify` 支持 API Key，其余接口（含 key 管理本身）仍只认登录会话。
 
 > 日常管理可直接在网页的 **设置 → API 密钥** 里完成：生成、复制、查看和吊销。下面的 curl 示例适合脚本化或排查问题。
 
@@ -129,9 +129,16 @@ curl -X POST https://your-worker.workers.dev/api/items \
   -H "Authorization: Bearer enk_xxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{...}'
+
+curl -X POST https://your-worker.workers.dev/api/notify \
+  -H "Authorization: Bearer enk_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "提醒", "body": "内容", "url": "https://example.com"}'
 ```
 
-每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。
+`POST /api/notify` 会向该用户已启用的通知渠道发送推送；`title` 省略时默认为 `Notification`。该接口除了 API Key 也接受 cookie 登录态。
+
+每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。`/api/notify`（含老的三方 token 路由 `/api/notify/:token`）另有一层按 IP 的 30 次/分钟限流，两条路由共享同一额度。
 
 **3. 查看与吊销**（同样需要登录会话）
 
