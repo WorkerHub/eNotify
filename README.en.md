@@ -76,11 +76,16 @@ Push to `main` branch to trigger automatic deployment.
 
 ### 4. Initialize Database
 
-After deployment, visit the following URL to initialize the database:
+After deployment, initialize the database with a POST request (the secret goes in a header so it never appears in the URL, browser history, or access logs):
 
+```bash
+curl -X POST https://your-worker.workers.dev/api/setup \
+  -H "X-Setup-Secret: <SETUP_SECRET>"
 ```
-https://your-worker.workers.dev/api/setup/<SETUP_SECRET>
-```
+
+You can call it again after each upgrade/deploy to run database migrations (migrations run automatically when the database is already initialized).
+
+> The old `GET /api/setup/<SETUP_SECRET>` URL is deprecated and returns 405. If you ever visited that URL against a deployment, rotate `SETUP_SECRET`, since the secret may have leaked into browser history or access logs.
 
 ### 5. Register Admin
 
