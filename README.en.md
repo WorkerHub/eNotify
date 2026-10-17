@@ -106,6 +106,8 @@ pnpm dev:worker
 
 External programs (AI assistants, scripts) can call the item management API `/api/items/*` with an API key instead of a cookie session. A key has the same permissions as the user who created it. Only `/api/items` accepts API keys for now; every other endpoint (including key management itself) still requires a login session.
 
+> Day-to-day management is available in the web UI under **Settings → API Keys**: create, copy, list and revoke. The curl examples below are for scripting and troubleshooting.
+
 **1. Create** (requires a logged-in cookie session)
 
 ```bash

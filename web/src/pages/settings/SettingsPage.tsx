@@ -9,13 +9,18 @@ import {
   CheckCircle,
   QrCode,
   Key,
+  KeyRound,
   ChevronRight,
+  Copy,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/ThemeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import {
   cn,
@@ -27,7 +32,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type TabId = "account" | "security" | "sessions" | "preferences";
+type TabId = "account" | "security" | "sessions" | "apiKeys" | "preferences";
 
 function StatusBadge({ ok }: { ok: boolean }) {
   const { t } = useTranslation();
@@ -671,6 +676,400 @@ function SessionsTab() {
 }
 
 // ---------------------------------------------------------------------------
+// API Keys Tab
+// ---------------------------------------------------------------------------
+
+interface ApiKeyInfo {
+  id: string;
+  name: string;
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
+}
+
+const MAX_API_KEYS = 20;
+const MAX_API_KEY_DAYS = 3650;
+const API_KEY_EXPIRY_PRESETS = [30, 90, 365] as const;
+
+function ApiKeysTab() {
+  const { t } = useTranslation();
+
+  const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const [name, setName] = useState("");
+  const [expiry, setExpiry] = useState<string>("365");
+  const [customDays, setCustomDays] = useState("365");
+  const [creating, setCreating] = useState(false);
+
+  const [createdKey, setCreatedKey] = useState<{
+    name: string;
+    key: string;
+    expires_at: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const [pendingRevoke, setPendingRevoke] = useState<ApiKeyInfo | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  const formatDate = (value: string) => new Date(value).toLocaleString();
+
+  const fetchKeys = useCallback(async () => {
+    try {
+      const data = await api.get<{ keys: ApiKeyInfo[] }>("/me/api-keys");
+      setKeys(data.keys ?? []);
+    } catch (err: any) {
+      setError(err.message || t("common.error"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchKeys();
+  }, [fetchKeys]);
+
+  const describeCreateError = (err: any) => {
+    const msg = String(err?.message ?? "");
+    if (/at most \d+ api keys/i.test(msg)) {
+      return t("settings.apiKeysLimitError");
+    }
+    if (/expires_in_days/i.test(msg)) {
+      return t("settings.apiKeysExpiryError");
+    }
+    if (/name must be/i.test(msg)) {
+      return t("settings.apiKeysNameError");
+    }
+    return msg || t("common.error");
+  };
+
+  const handleCreate = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMsg("");
+    setCopied(false);
+
+    const trimmed = name.trim();
+    if (trimmed.length < 1 || trimmed.length > 50) {
+      setError(t("settings.apiKeysNameError"));
+      return;
+    }
+
+    const days = expiry === "custom" ? Number(customDays) : Number(expiry);
+    if (!Number.isInteger(days) || days < 1 || days > MAX_API_KEY_DAYS) {
+      setError(t("settings.apiKeysExpiryError"));
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const created = await api.post<{
+        id: string;
+        name: string;
+        key: string;
+        created_at: string;
+        expires_at: string;
+      }>("/me/api-keys", { name: trimmed, expires_in_days: days });
+      setCreatedKey({
+        name: created.name,
+        key: created.key,
+        expires_at: created.expires_at,
+      });
+      setName("");
+      setSuccessMsg(t("settings.apiKeysCreateSuccess"));
+      setTimeout(() => setSuccessMsg(""), 3000);
+      await fetchKeys();
+    } catch (err: any) {
+      setError(describeCreateError(err));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRevoke = async (key: ApiKeyInfo) => {
+    setPendingRevoke(null);
+    setRevoking(key.id);
+    setError("");
+    setSuccessMsg("");
+    try {
+      await api.delete(`/me/api-keys/${key.id}`);
+      setKeys((prev) => prev.filter((k) => k.id !== key.id));
+      setSuccessMsg(t("settings.apiKeysRevokeSuccess"));
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setError(err.message || t("common.error"));
+    } finally {
+      setRevoking(null);
+    }
+  };
+
+  const copyCreatedKey = async () => {
+    if (!createdKey) return;
+    try {
+      await navigator.clipboard.writeText(createdKey.key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError(t("settings.apiKeysCopyFailed"));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-20 bg-muted rounded-lg" />
+        <div className="h-20 bg-muted rounded-lg" />
+      </div>
+    );
+  }
+
+  const limitReached = keys.length >= MAX_API_KEYS;
+  const inputCls =
+    "w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+  return (
+    <div className="space-y-4">
+      <ConfirmDialog
+        open={!!pendingRevoke}
+        title={t("settings.apiKeysRevokeTitle")}
+        message={t("settings.apiKeysRevokeConfirm", {
+          name: pendingRevoke?.name ?? "",
+        })}
+        variant="danger"
+        confirmLabel={t("settings.revoke")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={() => {
+          if (pendingRevoke) void handleRevoke(pendingRevoke);
+        }}
+        onCancel={() => setPendingRevoke(null)}
+      />
+
+      <p className="text-xs text-muted-foreground">
+        {t("settings.apiKeysDescription")}
+      </p>
+
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+          {error}
+        </p>
+      )}
+      {successMsg && (
+        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+          {successMsg}
+        </p>
+      )}
+
+      {/* Newly created key - shown exactly once */}
+      {createdKey && (
+        <div className="border border-primary/40 bg-primary/5 rounded-lg p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {t("settings.apiKeysCreatedTitle", { name: createdKey.name })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("settings.apiKeysOnceWarning")}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <code className="flex-1 min-w-0 px-3 py-2 rounded-md border bg-background font-mono text-xs break-all select-all">
+              {createdKey.key}
+            </code>
+            <button
+              type="button"
+              onClick={copyCreatedKey}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+              {copied ? t("settings.apiKeysCopied") : t("settings.apiKeysCopy")}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {t("settings.apiKeysCreatedExpires", {
+                date: formatDate(createdKey.expires_at),
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCreatedKey(null)}
+              className="py-1.5 px-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-md transition-colors"
+            >
+              {t("settings.apiKeysSaved")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create key */}
+      <div className="bg-card border rounded-lg p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-1">
+          {t("settings.apiKeysCreate")}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t("settings.apiKeysCreateDescription")}
+        </p>
+
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div>
+            <label
+              htmlFor="api-key-name"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
+              {t("settings.apiKeysName")}
+            </label>
+            <input
+              id="api-key-name"
+              type="text"
+              required
+              maxLength={50}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("settings.apiKeysNamePlaceholder")}
+              className={inputCls}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("settings.apiKeysNameHint")}
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="api-key-expiry"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
+              {t("settings.apiKeysExpiry")}
+            </label>
+            <select
+              id="api-key-expiry"
+              value={expiry}
+              onChange={(e) => setExpiry(e.target.value)}
+              className={inputCls}
+            >
+              {API_KEY_EXPIRY_PRESETS.map((days) => (
+                <option key={days} value={String(days)}>
+                  {t("settings.apiKeysDays", { days })}
+                </option>
+              ))}
+              <option value="custom">
+                {t("settings.apiKeysExpiryCustom")}
+              </option>
+            </select>
+            {expiry === "custom" && (
+              <div className="mt-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_API_KEY_DAYS}
+                  step={1}
+                  value={customDays}
+                  onChange={(e) => setCustomDays(e.target.value)}
+                  aria-label={t("settings.apiKeysExpiryCustom")}
+                  className={inputCls}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("settings.apiKeysExpiryCustomHint")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {limitReached && (
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+              {t("settings.apiKeysLimitReached", { max: MAX_API_KEYS })}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={creating || limitReached}
+            className="w-full sm:w-auto py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+          >
+            {creating ? t("common.loading") : t("settings.apiKeysCreate")}
+          </button>
+        </form>
+      </div>
+
+      {/* Existing keys */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("settings.apiKeysExisting")}
+          </h3>
+          <span className="text-xs text-muted-foreground">
+            {keys.length} / {MAX_API_KEYS}
+          </span>
+        </div>
+
+        {keys.length === 0 ? (
+          <div className="bg-card border rounded-lg p-5 text-center text-sm text-muted-foreground">
+            {t("settings.apiKeysEmpty")}
+          </div>
+        ) : (
+          keys.map((k) => {
+            const expired = new Date(k.expires_at).getTime() <= Date.now();
+            return (
+              <div key={k.id} className="bg-card border rounded-lg p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <KeyRound className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <p className="text-sm font-medium text-foreground break-all">
+                        {k.name}
+                      </p>
+                      {expired && (
+                        <span className="inline-flex items-center text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">
+                          {t("settings.apiKeysExpired")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>
+                        {t("settings.apiKeysCreatedAt")}:{" "}
+                        {formatDate(k.created_at)}
+                      </p>
+                      <p>
+                        {t("settings.apiKeysExpiresAt")}:{" "}
+                        {formatDate(k.expires_at)}
+                      </p>
+                      <p>
+                        {t("settings.apiKeysLastUsed")}:{" "}
+                        {k.last_used_at
+                          ? formatDate(k.last_used_at)
+                          : t("settings.apiKeysNeverUsed")}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingRevoke(k)}
+                    disabled={revoking === k.id}
+                    className="shrink-0 py-1.5 px-3 bg-destructive/10 hover:bg-destructive/20 disabled:opacity-50 text-destructive text-xs font-medium rounded-md transition-colors"
+                  >
+                    {revoking === k.id
+                      ? t("common.loading")
+                      : t("settings.revoke")}
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Preferences Tab
 // ---------------------------------------------------------------------------
 
@@ -898,7 +1297,13 @@ export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
 
-  const validTabs: TabId[] = ["account", "security", "sessions", "preferences"];
+  const validTabs: TabId[] = [
+    "account",
+    "security",
+    "apiKeys",
+    "sessions",
+    "preferences",
+  ];
   const rawTab = searchParams.get("tab") as TabId | null;
   const hasExplicitTab = rawTab && validTabs.includes(rawTab);
   const showMenu = !hasExplicitTab && isMobile;
@@ -920,6 +1325,11 @@ export function SettingsPage() {
       icon: <Shield className="w-4 h-4" />,
     },
     {
+      id: "apiKeys",
+      label: t("settings.apiKeys"),
+      icon: <KeyRound className="w-4 h-4" />,
+    },
+    {
       id: "sessions",
       label: t("settings.sessions"),
       icon: <Monitor className="w-4 h-4" />,
@@ -934,6 +1344,7 @@ export function SettingsPage() {
   const menuItems = [
     { id: "account" as TabId, label: t("settings.account"), icon: User },
     { id: "security" as TabId, label: t("settings.security"), icon: Shield },
+    { id: "apiKeys" as TabId, label: t("settings.apiKeys"), icon: KeyRound },
     { id: "sessions" as TabId, label: t("settings.sessions"), icon: Monitor },
     {
       id: "preferences" as TabId,
@@ -1000,6 +1411,7 @@ export function SettingsPage() {
         {/* Tab content */}
         {activeTab === "account" && <AccountTab />}
         {activeTab === "security" && <SecurityTab />}
+        {activeTab === "apiKeys" && <ApiKeysTab />}
         {activeTab === "sessions" && <SessionsTab />}
         {activeTab === "preferences" && <PreferencesTab />}
       </div>
