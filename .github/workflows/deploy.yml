@@ -46,7 +46,7 @@ jobs:
             s/D1_DATABASE_ID_PLACEHOLDER/$ENV{D1_DATABASE_ID}/g;
             s/KV_NAMESPACE_ID_PLACEHOLDER/$ENV{KV_NAMESPACE_ID}/g;
             s/TABLE_PREFIX_PLACEHOLDER/$ENV{TABLE_PREFIX}/g;
-            s/__APP_VERSION__/$ENV{APP_VERSION}/g;
+            s/__APP_VERSION__/'\''$ENV{APP_VERSION}'\''/g;
           ' wrangler.toml
 
       - name: Write secrets file

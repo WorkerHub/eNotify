@@ -537,15 +537,13 @@ meRoutes.get("/api-keys", async (c) => {
   const records = await listApiKeyIndex(c.env.KV, userId);
   records.sort((a, b) => b.created_at.localeCompare(a.created_at));
   return c.json({
-    keys: records.map(
-      ({ id, name, created_at, expires_at, last_used_at }) => ({
-        id,
-        name,
-        created_at,
-        expires_at,
-        last_used_at,
-      }),
-    ),
+    keys: records.map(({ id, name, created_at, expires_at, last_used_at }) => ({
+      id,
+      name,
+      created_at,
+      expires_at,
+      last_used_at,
+    })),
   });
 });
 
