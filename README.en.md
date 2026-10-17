@@ -104,7 +104,7 @@ pnpm dev:worker
 
 ## API Keys (for external programs)
 
-External programs (AI assistants, scripts) can call the item management API `/api/items/*` with an API key instead of a cookie session. A key has the same permissions as the user who created it. Only `/api/items` accepts API keys for now; every other endpoint (including key management itself) still requires a login session.
+External programs (AI assistants, scripts) can call the item management API `/api/items/*` and the push trigger endpoint `/api/notify` with an API key instead of a cookie session. A key has the same permissions as the user who created it. Only `/api/items` and `/api/notify` accept API keys for now; every other endpoint (including key management itself) still requires a login session.
 
 > Day-to-day management is available in the web UI under **Settings → API Keys**: create, copy, list and revoke. The curl examples below are for scripting and troubleshooting.
 
@@ -124,9 +124,16 @@ curl -X POST https://your-worker.workers.dev/api/me/api-keys \
 ```bash
 curl https://your-worker.workers.dev/api/items \
   -H "Authorization: Bearer enk_xxxxxxxx"
+
+curl -X POST https://your-worker.workers.dev/api/notify \
+  -H "Authorization: Bearer enk_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Reminder", "body": "Content", "url": "https://example.com"}'
 ```
 
-Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled.
+`POST /api/notify` sends a push to the user's enabled notification channels; `title` defaults to `Notification` when omitted. Besides the API key, it also accepts a cookie login session.
+
+Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled. `/api/notify` (including the legacy third-party token route `/api/notify/:token`) has an additional per-IP limit of 30 requests/minute, shared across both routes.
 
 **3. List and revoke** (also requires a login session)
 
