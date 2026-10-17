@@ -1,7 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { getTablePrefix, type HonoEnv } from "../types";
 import { getNotificationConfig } from "../db/queries/notifications";
-import { findUserById } from "../db/queries/users";
 import {
   sendNotifications,
   type NotifyMessage,
@@ -11,10 +10,8 @@ import { apiKeyOrCookieAuth } from "../middleware/apiKey";
 
 export const notifyRoutes = new Hono<HonoEnv>();
 
-notifyRoutes.use(
-  "/:token",
-  rateLimit({ max: 30, window: 60, keyPrefix: "notify_trigger" }),
-);
+const NOTIFY_TOKEN_DEPRECATED =
+  "Notify tokens are deprecated. Use POST /api/notify with an API key (Authorization: Bearer enk_...) instead; create a key in Settings → API Keys.";
 
 // API-key or logged-in session trigger — exact POST /api/notify (no :token).
 // The enk_... bearer is validated by apiKeyOrCookieAuth (its own 120/min per-key
@@ -27,34 +24,6 @@ notifyRoutes.use(
 
 notifyRoutes.post("/", async (c) => {
   const userId = c.get("userId");
-  return notifyByUserId(c, userId);
-});
-
-// Third-party trigger — authenticate via token in URL, header, or query param
-notifyRoutes.post("/:token", async (c) => {
-  const token = c.req.param("token");
-  const prefix = getTablePrefix(c.env);
-
-  // Find user by their third-party API token stored in notification_configs
-  // Token format: userId:secret stored in KV
-  const userId = await c.env.KV.get(`notify_token:${token}`);
-  if (!userId) {
-    return c.json({ error: "Invalid token" }, 401);
-  }
-
-  const user = await findUserById(c.env.DB, prefix, userId);
-  if (!user?.is_active) {
-    return c.json({ error: "User not found or disabled" }, 401);
-  }
-
-  return notifyByUserId(c, userId);
-});
-
-/** Shared helper: resolve the user's notification config and dispatch the message. */
-async function notifyByUserId(
-  c: Context<HonoEnv>,
-  userId: string,
-): Promise<Response> {
   const prefix = getTablePrefix(c.env);
 
   const notifyConfig = await getNotificationConfig(c.env.DB, prefix, userId);
@@ -76,4 +45,10 @@ async function notifyByUserId(
 
   const results = await sendNotifications(notifyConfig, message, c.env);
   return c.json({ success: true, results });
-}
+});
+
+// Third-party token trigger — deprecated in favour of API keys. Return 410
+// without touching KV or the DB; legacy clients must migrate to POST /api/notify.
+notifyRoutes.post("/:token", async (c) => {
+  return c.json({ error: NOTIFY_TOKEN_DEPRECATED }, 410);
+});

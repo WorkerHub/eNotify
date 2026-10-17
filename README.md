@@ -143,7 +143,9 @@ curl -X POST https://your-worker.workers.dev/api/notify \
 
 `POST /api/notify` 会向该用户已启用的通知渠道发送推送；`title` 省略时默认为 `Notification`。该接口除了 API Key 也接受 cookie 登录态。
 
-每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。`/api/notify`（含老的三方 token 路由 `/api/notify/:token`）另有一层按 IP 的 30 次/分钟限流，两条路由共享同一额度。
+每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。`/api/notify` 另有一层按 IP 的 30 次/分钟限流。
+
+旧的 notify token（`/api/notify/<token>`）已下线，返回 `410`，请改用 API Key 调用 `POST /api/notify`。
 
 **3. 查看与吊销**（同样需要登录会话）
 

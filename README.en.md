@@ -138,7 +138,9 @@ curl -X POST https://your-worker.workers.dev/api/notify \
 
 `POST /api/notify` sends a push to the user's enabled notification channels; `title` defaults to `Notification` when omitted. Besides the API key, it also accepts a cookie login session.
 
-Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled. `/api/notify` (including the legacy third-party token route `/api/notify/:token`) has an additional per-IP limit of 30 requests/minute, shared across both routes.
+Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled. `/api/notify` has an additional per-IP limit of 30 requests/minute.
+
+The legacy notify token (`/api/notify/<token>`) is retired and returns `410`; use an API key with `POST /api/notify` instead.
 
 **3. List and revoke** (also requires a login session)
 
