@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
-import { api } from "@/lib/api";
+import { AlertCircle, Database } from "lucide-react";
+import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SystemSettings } from "@/types";
 
@@ -50,11 +50,16 @@ export function AdminSecurityPage() {
   const [emailVerification, setEmailVerification] = useState(false);
   const [require2fa, setRequire2fa] = useState(false);
   const [registration, setRegistration] = useState(true);
+  const [setupPageEnabled, setSetupPageEnabled] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
+
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeResult, setUpgradeResult] = useState("");
+  const [upgradeError, setUpgradeError] = useState("");
 
   useEffect(() => {
     api
@@ -63,6 +68,7 @@ export function AdminSecurityPage() {
         setEmailVerification(s.email_verification_enabled === "true");
         setRequire2fa(s.require_2fa === "true");
         setRegistration(s.registration_enabled !== "false");
+        setSetupPageEnabled((s.setup_page_enabled ?? "1") !== "0");
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -78,6 +84,7 @@ export function AdminSecurityPage() {
         email_verification_enabled: String(emailVerification),
         require_2fa: String(require2fa),
         registration_enabled: String(registration),
+        setup_page_enabled: setupPageEnabled ? "1" : "0",
       });
       setSaveMsg(t("common.success"));
       setTimeout(() => setSaveMsg(""), 3000);
@@ -85,6 +92,37 @@ export function AdminSecurityPage() {
       setError(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    setUpgradeError("");
+    setUpgradeResult("");
+    try {
+      const res = await api.post<{
+        success: boolean;
+        alreadyInitialized?: boolean;
+      }>("/admin/setup");
+      setUpgradeResult(
+        res.alreadyInitialized
+          ? t("admin.dbUpToDate")
+          : t("admin.dbInitialized"),
+      );
+    } catch (e: any) {
+      if (e instanceof ApiError) {
+        setUpgradeError(
+          e.status === 401
+            ? t("admin.dbUpgradeUnauthorized")
+            : e.status === 403
+              ? t("admin.dbUpgradeForbidden")
+              : t("admin.dbUpgradeFailed"),
+        );
+      } else {
+        setUpgradeError(t("admin.dbUpgradeFailed"));
+      }
+    } finally {
+      setUpgrading(false);
     }
   };
 
@@ -133,6 +171,15 @@ export function AdminSecurityPage() {
               description={t("admin.registrationDesc")}
             />
           </div>
+
+          <div className="border-t pt-4">
+            <Toggle
+              checked={setupPageEnabled}
+              onChange={setSetupPageEnabled}
+              label={t("admin.setupPage")}
+              description={t("admin.setupPageDesc")}
+            />
+          </div>
         </section>
 
         <div className="flex items-center gap-3">
@@ -146,6 +193,30 @@ export function AdminSecurityPage() {
           {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
         </div>
       </form>
+
+      <section className="bg-card rounded-xl border p-5 space-y-4">
+        <h2 className="font-semibold">{t("admin.dbMaintenance")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t("admin.dbMaintenanceDesc")}
+        </p>
+
+        {upgradeResult && (
+          <p className="text-sm text-green-600">{upgradeResult}</p>
+        )}
+        {upgradeError && (
+          <p className="text-sm text-destructive">{upgradeError}</p>
+        )}
+
+        <button
+          type="button"
+          disabled={upgrading}
+          onClick={handleUpgrade}
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+        >
+          <Database className="w-4 h-4" />
+          {upgrading ? t("admin.checkingDb") : t("admin.checkUpgradeDb")}
+        </button>
+      </section>
     </div>
   );
 }

@@ -74,11 +74,6 @@ const AdminSecurityPage = lazy(() =>
     default: m.AdminSecurityPage,
   })),
 );
-const AdminSystemPage = lazy(() =>
-  import("@/pages/admin/AdminSystemPage").then((m) => ({
-    default: m.AdminSystemPage,
-  })),
-);
 const AboutPage = lazy(() =>
   import("@/pages/about/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
@@ -179,7 +174,6 @@ export function App() {
                   <Route path="app" element={<AdminAppPage />} />
                   <Route path="email" element={<AdminEmailPage />} />
                   <Route path="security" element={<AdminSecurityPage />} />
-                  <Route path="system" element={<AdminSystemPage />} />
                 </Route>
               </Route>
 

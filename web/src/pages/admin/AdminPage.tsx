@@ -1,14 +1,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import {
-  Users,
-  Settings,
-  Mail,
-  ShieldCheck,
-  ChevronRight,
-  Database,
-} from "lucide-react";
+import { Users, Settings, Mail, ShieldCheck, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -28,11 +21,6 @@ export function AdminPage() {
       to: "/admin/security",
       label: t("admin.accessSecurity"),
       icon: ShieldCheck,
-    },
-    {
-      to: "/admin/system",
-      label: t("admin.system"),
-      icon: Database,
     },
   ];
 
