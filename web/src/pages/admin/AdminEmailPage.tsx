@@ -288,6 +288,17 @@ export function AdminEmailPage() {
           )}
         </section>
 
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {saving ? t("common.loading") : t("common.save")}
+          </button>
+          {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
+        </div>
+
         {emailProvider !== "none" && (
           <section className="bg-card rounded-xl border p-5 space-y-4">
             <h2 className="font-semibold">{t("admin.testEmail")}</h2>
@@ -319,17 +330,6 @@ export function AdminEmailPage() {
             </div>
           </section>
         )}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {saving ? t("common.loading") : t("common.save")}
-          </button>
-          {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
-        </div>
       </form>
     </div>
   );
