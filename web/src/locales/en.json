@@ -280,7 +280,6 @@
   "admin": {
     "title": "Admin Panel",
     "users": "User Management",
-    "system": "System Settings",
     "userCount": "Total Users",
     "emailProvider": "Email Provider",
     "emailVerification": "Email Verification",

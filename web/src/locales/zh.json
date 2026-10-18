@@ -280,7 +280,6 @@
   "admin": {
     "title": "管理后台",
     "users": "用户管理",
-    "system": "系统设置",
     "userCount": "用户总数",
     "emailProvider": "邮件服务",
     "emailVerification": "邮箱验证",
