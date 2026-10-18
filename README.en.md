@@ -87,6 +87,12 @@ You can call it again after each upgrade/deploy to run database migrations (migr
 
 > The old `GET /api/setup/<SETUP_SECRET>` URL is deprecated and returns 405. If you ever visited that URL against a deployment, rotate `SETUP_SECRET`, since the secret may have leaked into browser history or access logs.
 
+`POST /api/setup` is rate-limited per source IP: at most 3 requests per 10 minutes, returning `429` beyond that.
+
+The setup page is gated by the `setup_page_enabled` system setting (`'0'` disabled / `'1'` enabled, default `'1'`), editable from the admin panel. It **only affects the setup page** — `POST /api/setup` works regardless of the toggle. The frontend can query the public `GET /api/setup/state` endpoint (no auth) for `{"enabled": true|false}` (returns `true` when not initialized).
+
+A logged-in admin can also run initialization/migrations directly via `POST /api/admin/setup`, without `SETUP_SECRET` (the setup page is provided by the frontend).
+
 ### 5. Register Admin
 
 Visit the app homepage and register an account. The first registered user will automatically become the admin.

@@ -23,11 +23,12 @@ pnpm build:worker
 # Type checking
 pnpm typecheck    # Check both packages
 
+# Run worker tests (Vitest)
+pnpm test
+
 # Deploy (builds web, then deploys worker with assets)
 pnpm deploy
 ```
-
-No test suite exists in this project.
 
 ## Architecture
 
@@ -51,7 +52,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `dashboard.ts` — spending stats, expiry summary
 - `admin.ts` — user management, system settings; also manages items per user at `/api/admin/users/:uid/items`
 - `notify.ts` — manual notification test trigger
-- `setup.ts` — one-time DB initialization via `SETUP_SECRET`
+- `setup.ts` — one-time DB initialization via `SETUP_SECRET` (rate-limited, 3/10min per IP); also exposes `GET /api/setup/state` (public setup-page toggle) and `POST /api/admin/setup` (admin-only, no secret). Core setup/migration logic lives in `worker/src/lib/setup.ts`.
 
 **Database** (`worker/src/db/`):
 
