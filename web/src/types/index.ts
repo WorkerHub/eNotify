@@ -97,6 +97,7 @@ export interface SystemSettings {
   resend_config: string;
   email_provider: string;
   app_name?: string;
+  setup_page_enabled?: string;
 }
 
 export interface NotificationHistory {

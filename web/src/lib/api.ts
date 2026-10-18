@@ -130,4 +130,34 @@ export const api = {
     request<T>(path, { method: "DELETE", ...opts }),
 };
 
+// Public setup endpoints (no auth): use raw fetch because /api/setup requires the
+// X-Setup-Secret header and its errors are status-coded (403 wrong secret, 429 rate
+// limited), not the 401/session flow the generic `request` wrapper handles.
+export interface SetupResult {
+  success: boolean;
+  alreadyInitialized?: boolean;
+}
+
+export const setupApi = {
+  state: async (): Promise<{ enabled: boolean }> => {
+    const res = await fetch(`${BASE_URL}/setup/state`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Setup state unavailable");
+    return res.json();
+  },
+  run: async (secret: string): Promise<SetupResult> => {
+    const res = await fetch(`${BASE_URL}/setup`, {
+      method: "POST",
+      headers: { "X-Setup-Secret": secret },
+      credentials: "include",
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new ApiError(res.status, body.error || "Request failed");
+    }
+    return body as SetupResult;
+  },
+};
+
 export { ApiError };

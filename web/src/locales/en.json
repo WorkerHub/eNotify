@@ -324,7 +324,18 @@
     "testEmail": "Send Test Email",
     "testEmailAddress": "Test recipient address",
     "testEmailSent": "Test email sent successfully",
-    "testEmailFailed": "Failed to send test email"
+    "testEmailFailed": "Failed to send test email",
+    "setupPage": "Allow access to the setup page",
+    "setupPageDesc": "Allow access to the /setup page. Disabling only hides the page; POST /api/setup still works with the secret.",
+    "dbMaintenance": "Database Maintenance",
+    "dbMaintenanceDesc": "Check and upgrade the database structure directly, without SETUP_SECRET.",
+    "checkUpgradeDb": "Check and upgrade database",
+    "checkingDb": "Checking...",
+    "dbUpToDate": "The database is already up to date",
+    "dbInitialized": "Database initialized successfully",
+    "dbUpgradeFailed": "Upgrade failed, please try again later",
+    "dbUpgradeUnauthorized": "Please sign in again",
+    "dbUpgradeForbidden": "Administrator permission required"
   },
   "channels": {
     "title": "Channel Management",
@@ -364,5 +375,22 @@
     "notificationHoursHint": "Notifications are sent at most once per hour. Leave empty to allow every hour.",
     "notificationHoursClear": "Clear",
     "notificationHoursNoLimit": "No restriction"
+  },
+  "setup": {
+    "title": "Setup",
+    "desc": "Enter your SETUP_SECRET to initialize or upgrade the database.",
+    "disabled": "The setup page has been disabled by an administrator.",
+    "secretLabel": "SETUP_SECRET",
+    "submit": "Start initialization",
+    "submitting": "Initializing...",
+    "alreadyInitialized": "The database is already initialized — no need to run it again.",
+    "success": "Initialization successful!",
+    "successGuide": "The database is ready. You can log in or go to the home page.",
+    "goLogin": "Go to login",
+    "goHome": "Go to home",
+    "missingSecret": "Please enter the setup secret.",
+    "wrongSecret": "Incorrect setup secret.",
+    "rateLimited": "Too many requests, please try again later.",
+    "genericError": "Initialization failed, please try again later."
   }
 }
