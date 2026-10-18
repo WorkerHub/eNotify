@@ -87,6 +87,12 @@ curl -X POST https://your-worker.workers.dev/api/setup \
 
 > 旧的 `GET /api/setup/<SETUP_SECRET>` 地址已废弃（返回 405）。如果你曾通过旧 GET 地址访问过部署，建议轮换 `SETUP_SECRET`，因为 secret 可能已泄露到浏览器历史或访问日志中。
 
+`POST /api/setup` 按来源 IP 限流：每 10 分钟最多 3 次，超限返回 `429`。
+
+setup 页面开关由系统设置 `setup_page_enabled` 控制（`'0'` 关闭 / `'1'` 开启，默认 `'1'`），可在管理后台修改。它**只影响 setup 页面**，`POST /api/setup` 无论开关状态都照常工作。前端可调用无需鉴权的公开接口 `GET /api/setup/state` 获取 `{"enabled": true|false}`（未初始化时返回 `true`）。
+
+已登录的管理员也可以直接调用 `POST /api/admin/setup` 完成初始化/迁移，无需 `SETUP_SECRET`（setup 页面由前端提供）。
+
 ### 5. 注册管理员
 
 访问应用首页注册账号，第一个注册的用户将自动成为管理员。

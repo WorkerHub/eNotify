@@ -23,6 +23,7 @@ import { upsertNotificationConfig } from "../db/queries/notifications";
 import { generateId, hashPassword } from "../core/auth";
 import { sendEmail } from "../services/email";
 import { revokeAllSessions } from "./auth";
+import { runSetup } from "../lib/setup";
 
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -474,12 +475,17 @@ adminRoutes.put("/system/settings", async (c) => {
     "resend_config",
     "email_provider",
     "app_name",
+    "setup_page_enabled",
   ];
 
   const existingSettings = await getAllSettings(c.env.DB, prefix);
 
   for (const [key, value] of Object.entries(body)) {
     if (!allowedKeys.includes(key)) continue;
+
+    if (key === "setup_page_enabled" && !["0", "1"].includes(value)) {
+      return c.json({ error: "setup_page_enabled must be '0' or '1'" }, 400);
+    }
 
     if (
       [
@@ -537,6 +543,17 @@ adminRoutes.put("/system/settings", async (c) => {
   }
 
   return c.json({ success: true });
+});
+
+// Run database setup/migrations without the setup secret (admin only).
+adminRoutes.post("/setup", async (c) => {
+  try {
+    const result = await runSetup(c.env);
+    return c.json(result, 200);
+  } catch (err) {
+    console.error("Admin setup failed:", err);
+    return c.json({ error: "Setup failed" }, 500);
+  }
 });
 
 // Test email
