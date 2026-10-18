@@ -35,6 +35,9 @@ const ForgotPasswordPage = lazy(() =>
     default: m.ForgotPasswordPage,
   })),
 );
+const SetupPage = lazy(() =>
+  import("@/pages/setup/SetupPage").then((m) => ({ default: m.SetupPage })),
+);
 const ItemNewPage = lazy(() =>
   import("@/pages/items/ItemNewPage").then((m) => ({ default: m.ItemNewPage })),
 );
@@ -69,6 +72,11 @@ const AdminEmailPage = lazy(() =>
 const AdminSecurityPage = lazy(() =>
   import("@/pages/admin/AdminSecurityPage").then((m) => ({
     default: m.AdminSecurityPage,
+  })),
+);
+const AdminSystemPage = lazy(() =>
+  import("@/pages/admin/AdminSystemPage").then((m) => ({
+    default: m.AdminSystemPage,
   })),
 );
 const AboutPage = lazy(() =>
@@ -137,6 +145,7 @@ export function App() {
                   </PublicRoute>
                 }
               />
+              <Route path="/setup" element={<SetupPage />} />
 
               {/* Protected routes */}
               <Route
@@ -170,6 +179,7 @@ export function App() {
                   <Route path="app" element={<AdminAppPage />} />
                   <Route path="email" element={<AdminEmailPage />} />
                   <Route path="security" element={<AdminSecurityPage />} />
+                  <Route path="system" element={<AdminSystemPage />} />
                 </Route>
               </Route>
 

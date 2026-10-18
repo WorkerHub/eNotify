@@ -324,7 +324,18 @@
     "testEmail": "发送测试邮件",
     "testEmailAddress": "测试收件地址",
     "testEmailSent": "测试邮件发送成功",
-    "testEmailFailed": "测试邮件发送失败"
+    "testEmailFailed": "测试邮件发送失败",
+    "setupPage": "允许访问初始化页面",
+    "setupPageDesc": "允许访问 /setup 页面。关闭后页面显示禁用提示；POST /api/setup 仍可用密钥调用。",
+    "dbMaintenance": "数据库维护",
+    "dbMaintenanceDesc": "检查并升级数据库结构，无需 SETUP_SECRET。",
+    "checkUpgradeDb": "检查并升级数据库",
+    "checkingDb": "检查中...",
+    "dbUpToDate": "数据库已是最新",
+    "dbInitialized": "数据库初始化成功",
+    "dbUpgradeFailed": "升级失败，请稍后再试",
+    "dbUpgradeUnauthorized": "请重新登录",
+    "dbUpgradeForbidden": "需要管理员权限"
   },
   "channels": {
     "title": "通道管理",
@@ -364,5 +375,22 @@
     "notificationHoursHint": "每小时仅发送一次通知。不选则每小时都会发送通知。",
     "notificationHoursClear": "清空",
     "notificationHoursNoLimit": "不限制"
+  },
+  "setup": {
+    "title": "初始化",
+    "desc": "输入 SETUP_SECRET 密钥以初始化或升级数据库。",
+    "disabled": "初始化页面已被管理员关闭",
+    "secretLabel": "SETUP_SECRET 密钥",
+    "submit": "开始初始化",
+    "submitting": "初始化中...",
+    "alreadyInitialized": "数据库已初始化，不需要重复执行。",
+    "success": "初始化成功！",
+    "successGuide": "数据库已就绪，请前往登录或首页。",
+    "goLogin": "前往登录",
+    "goHome": "前往首页",
+    "missingSecret": "请输入密钥。",
+    "wrongSecret": "密钥错误，请检查后重试。",
+    "rateLimited": "请求过于频繁，请稍后再试。",
+    "genericError": "初始化失败，请稍后再试。"
   }
 }
