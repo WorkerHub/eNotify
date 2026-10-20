@@ -67,7 +67,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `lunar.ts` — Chinese lunar calendar support (1900–2100)
 - `currency.ts` — multi-currency / exchange rate conversion
 
-**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Gotify, ServerChan, PushPlus, NotifyX, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels, with optional per-item channel filtering via the `channels` parameter.
+**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Gotify, NotifyX, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels, with optional per-item channel filtering via the `channels` parameter.
 
 **Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly via Cloudflare Cron Trigger (`0 * * * *`). For each active user it:
 

@@ -4,8 +4,6 @@ import { sendWebhook } from "./webhook";
 import { sendWechatBot } from "./wechatbot";
 import { sendBark } from "./bark";
 import { sendGotify } from "./gotify";
-import { sendServerChan } from "./serverchan";
-import { sendPushPlus } from "./pushplus";
 import { sendNotifyX } from "./notifyx";
 import { sendSlack } from "./slack";
 import { sendNotifyEmail } from "./email-notify";
@@ -46,8 +44,6 @@ const CHANNEL_SENDERS: Record<
   email: sendNotifyEmail,
   bark: sendBark,
   gotify: sendGotify,
-  serverchan: sendServerChan,
-  pushplus: sendPushPlus,
   notifyx: sendNotifyX,
   slack: sendSlack,
 };

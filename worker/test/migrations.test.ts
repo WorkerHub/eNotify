@@ -1,7 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runSetup } from "../src/lib/setup";
-import type { Env } from "../src/types";
+import { sendNotifications } from "../src/services/notify/index";
+import type { Env, NotificationConfig } from "../src/types";
 
 /**
  * Minimal D1 stand-in backed by a real in-memory SQLite database. Unlike the
@@ -170,5 +171,137 @@ describe("notification_configs slack_config migration", () => {
       .all() as Record<string, unknown>[];
     expect(rows).toHaveLength(1);
     expect(rows[0].slack_config).toBe("{}");
+  });
+});
+
+/** Seed a legacy database whose enabled_channels still lists retired channels. */
+function seedLegacyChannels(d1: SqliteD1): void {
+  d1.db.exec(OLD_SCHEMA);
+  d1.db
+    .prepare(
+      `UPDATE ${PREFIX}notification_configs
+       SET enabled_channels = ?, telegram_config = ?
+       WHERE user_id = ?`,
+    )
+    .run(
+      '["telegram","serverchan","pushplus"]',
+      '{"bot_token":"secret","chat_id":"42"}',
+      "u1",
+    );
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}notification_configs (user_id, enabled_channels, updated_at)
+       VALUES (?, ?, ?)`,
+    )
+    .run("u2", '["bark"]', "2026-01-01T00:00:00.000Z");
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}users (id, email, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "u3",
+      "u3@example.com",
+      "hash",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    );
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}notification_configs (user_id, enabled_channels, updated_at)
+       VALUES (?, ?, ?)`,
+    )
+    .run("u3", "not-json", "2026-01-01T00:00:00.000Z");
+}
+
+function enabledChannelsOf(d1: SqliteD1, userId: string): unknown {
+  const row = d1.db
+    .prepare(
+      `SELECT enabled_channels FROM ${PREFIX}notification_configs WHERE user_id = ?`,
+    )
+    .get(userId) as Record<string, unknown>;
+  return row.enabled_channels;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("retired channel cleanup migration", () => {
+  it("strips serverchan and pushplus from enabled_channels", async () => {
+    const d1 = new SqliteD1();
+    seedLegacyChannels(d1);
+
+    await runSetup(makeEnv(d1));
+
+    expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
+    // Rows without retired channels are left untouched.
+    expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
+    // A malformed value is skipped without aborting the migration.
+    expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
+  });
+
+  it("is idempotent", async () => {
+    const d1 = new SqliteD1();
+    seedLegacyChannels(d1);
+
+    await runSetup(makeEnv(d1));
+    const second = await runSetup(makeEnv(d1));
+    expect(second).toEqual({ success: true, alreadyInitialized: true });
+
+    expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
+    expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
+    expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
+  });
+
+  it("no longer reports unknown channels after the migration", async () => {
+    const d1 = new SqliteD1();
+    seedLegacyChannels(d1);
+    await runSetup(makeEnv(d1));
+
+    const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const config = d1.db
+      .prepare(`SELECT * FROM ${PREFIX}notification_configs WHERE user_id = ?`)
+      .get("u1") as unknown as NotificationConfig;
+
+    const results = await sendNotifications(
+      config,
+      { title: "Renewal due", body: "Your plan expires soon." },
+      makeEnv(d1),
+      {
+        db: d1 as unknown as D1Database,
+        prefix: PREFIX,
+        userId: "u1",
+      },
+    );
+
+    expect(results).toEqual([{ channel: "telegram", success: true }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const history = d1.db
+      .prepare(`SELECT channel, error FROM ${PREFIX}notification_history`)
+      .all() as { channel: string; error: string | null }[];
+    expect(history).toHaveLength(1);
+    expect(history[0].channel).toBe("telegram");
+    expect(history[0].error).toBeNull();
+  });
+});
+
+describe("fresh install schema", () => {
+  it("creates notification_configs without the retired channel columns", async () => {
+    const d1 = new SqliteD1();
+
+    const result = await runSetup(makeEnv(d1));
+    expect(result).toEqual({ success: true });
+
+    const columns = d1.db
+      .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)
+      .all() as ColumnInfo[];
+    const names = columns.map((c) => c.name);
+    expect(names).not.toContain("serverchan_config");
+    expect(names).not.toContain("pushplus_config");
+    expect(names).toContain("slack_config");
   });
 });
