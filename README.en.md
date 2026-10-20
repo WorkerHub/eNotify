@@ -11,7 +11,7 @@ A smart notification management system that helps you track expiry dates and exp
 - **Auto-renewal** — Expired subscriptions are automatically renewed with payment history recorded
 - **Payment History** — Record every payment, multi-currency with real-time exchange rates
 - **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
-- **8 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Gotify, NotifyX, Slack
+- **8 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Slack, Feishu, Discord
 - **Channel Management** — Dedicated page to enable and configure notification channels
 - **Per-Item Channel Selection** — Each notification item can specify which channels to use; defaults to all enabled channels if unset
 - **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override

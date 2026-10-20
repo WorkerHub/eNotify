@@ -174,6 +174,43 @@ describe("notification_configs slack_config migration", () => {
   });
 });
 
+describe("notification_configs feishu/discord migration", () => {
+  it("adds feishu_config and discord_config with a '{}' default and keeps existing data", async () => {
+    const d1 = new SqliteD1();
+    d1.db.exec(OLD_SCHEMA);
+
+    await runSetup(makeEnv(d1));
+
+    const columns = d1.db
+      .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)
+      .all() as ColumnInfo[];
+    for (const name of ["feishu_config", "discord_config"]) {
+      const column = columns.find((c) => c.name === name);
+      expect(column).toBeDefined();
+      expect(column?.type).toBe("TEXT");
+      expect(column?.notnull).toBe(1);
+      expect(column?.dflt_value).toBe("'{}'");
+    }
+
+    // Retired channel columns stay in place for existing databases; only the
+    // type declarations and read/write code for them were removed.
+    const names = columns.map((c) => c.name);
+    expect(names).toContain("gotify_config");
+    expect(names).toContain("notifyx_config");
+
+    const row = d1.db
+      .prepare(`SELECT * FROM ${PREFIX}notification_configs WHERE user_id = ?`)
+      .get("u1") as Record<string, unknown>;
+    expect(row.enabled_channels).toBe('["telegram"]');
+    expect(row.telegram_config).toBe('{"bot_token":"secret"}');
+    expect(row.gotify_config).toBe(
+      '{"server_url":"https://gotify.example.com","app_token":"tok"}',
+    );
+    expect(row.feishu_config).toBe("{}");
+    expect(row.discord_config).toBe("{}");
+  });
+});
+
 /** Seed a legacy database whose enabled_channels still lists retired channels. */
 function seedLegacyChannels(d1: SqliteD1): void {
   d1.db.exec(OLD_SCHEMA);
@@ -184,7 +221,7 @@ function seedLegacyChannels(d1: SqliteD1): void {
        WHERE user_id = ?`,
     )
     .run(
-      '["telegram","serverchan","pushplus"]',
+      '["telegram","serverchan","pushplus","gotify","notifyx"]',
       '{"bot_token":"secret","chat_id":"42"}',
       "u1",
     );
@@ -233,6 +270,29 @@ function seedLegacyChannels(d1: SqliteD1): void {
        VALUES (?, ?, ?)`,
     )
     .run("u4", '["telegram","serverchan"]', "2026-01-01T00:00:00.000Z");
+  // Mixed row: only the retired IDs go, the remaining channels keep their order.
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}users (id, email, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "u5",
+      "u5@example.com",
+      "hash",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    );
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}notification_configs (user_id, enabled_channels, updated_at)
+       VALUES (?, ?, ?)`,
+    )
+    .run(
+      "u5",
+      '["bark","gotify","email","notifyx"]',
+      "2026-01-01T00:00:00.000Z",
+    );
 }
 
 function enabledChannelsOf(d1: SqliteD1, userId: string): unknown {
@@ -249,7 +309,7 @@ afterEach(() => {
 });
 
 describe("retired channel cleanup migration", () => {
-  it("strips serverchan and pushplus from enabled_channels", async () => {
+  it("strips serverchan, pushplus, gotify and notifyx from enabled_channels", async () => {
     const d1 = new SqliteD1();
     seedLegacyChannels(d1);
 
@@ -258,6 +318,8 @@ describe("retired channel cleanup migration", () => {
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
     // Rows without retired channels are left untouched.
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
+    // Only the retired IDs are removed; the remaining order is preserved.
+    expect(enabledChannelsOf(d1, "u5")).toBe('["bark","email"]');
     // A malformed value is skipped without aborting the migration: u4 comes
     // after the bad row, so it is only stripped if processing continued.
     expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
@@ -276,6 +338,7 @@ describe("retired channel cleanup migration", () => {
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
     expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
     expect(enabledChannelsOf(d1, "u4")).toBe('["telegram"]');
+    expect(enabledChannelsOf(d1, "u5")).toBe('["bark","email"]');
   });
 
   it("no longer reports unknown channels after the migration", async () => {
@@ -326,6 +389,10 @@ describe("fresh install schema", () => {
     const names = columns.map((c) => c.name);
     expect(names).not.toContain("serverchan_config");
     expect(names).not.toContain("pushplus_config");
+    expect(names).not.toContain("gotify_config");
+    expect(names).not.toContain("notifyx_config");
     expect(names).toContain("slack_config");
+    expect(names).toContain("feishu_config");
+    expect(names).toContain("discord_config");
   });
 });

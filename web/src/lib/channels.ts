@@ -4,7 +4,7 @@ export const CHANNELS = [
   { id: "wechatbot", label: "WeCom Bot" },
   { id: "email", label: "Email" },
   { id: "bark", label: "Bark" },
-  { id: "gotify", label: "Gotify" },
-  { id: "notifyx", label: "NotifyX" },
   { id: "slack", label: "Slack" },
+  { id: "feishu", label: "Feishu" },
+  { id: "discord", label: "Discord" },
 ] as const;

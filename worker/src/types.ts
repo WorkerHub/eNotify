@@ -82,9 +82,9 @@ export interface NotificationConfig {
   wechatbot_config: string;
   email_config: string;
   bark_config: string;
-  gotify_config: string;
-  notifyx_config: string;
   slack_config: string;
+  feishu_config: string;
+  discord_config: string;
   notification_hours: string;
   updated_at: string;
 }
@@ -128,7 +128,7 @@ export const VALID_CHANNELS: string[] = [
   "wechatbot",
   "email",
   "bark",
-  "gotify",
-  "notifyx",
   "slack",
+  "feishu",
+  "discord",
 ];

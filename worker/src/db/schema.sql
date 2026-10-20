@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   wechatbot_config  TEXT NOT NULL DEFAULT '{}',
   email_config      TEXT NOT NULL DEFAULT '{}',
   bark_config       TEXT NOT NULL DEFAULT '{}',
-  gotify_config     TEXT NOT NULL DEFAULT '{}',
-  notifyx_config    TEXT NOT NULL DEFAULT '{}',
   slack_config      TEXT NOT NULL DEFAULT '{}',
+  feishu_config     TEXT NOT NULL DEFAULT '{}',
+  discord_config    TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   updated_at        TEXT NOT NULL
 );

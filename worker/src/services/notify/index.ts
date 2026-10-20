@@ -3,9 +3,9 @@ import { sendTelegram } from "./telegram";
 import { sendWebhook } from "./webhook";
 import { sendWechatBot } from "./wechatbot";
 import { sendBark } from "./bark";
-import { sendGotify } from "./gotify";
-import { sendNotifyX } from "./notifyx";
 import { sendSlack } from "./slack";
+import { sendFeishu } from "./feishu";
+import { sendDiscord } from "./discord";
 import { sendNotifyEmail } from "./email-notify";
 import type { Env } from "../../types";
 import { insertNotificationHistory } from "../../db/queries/notification-history";
@@ -43,9 +43,9 @@ const CHANNEL_SENDERS: Record<
   wechatbot: sendWechatBot,
   email: sendNotifyEmail,
   bark: sendBark,
-  gotify: sendGotify,
-  notifyx: sendNotifyX,
   slack: sendSlack,
+  feishu: sendFeishu,
+  discord: sendDiscord,
 };
 
 const SEND_TIMEOUT_MS = 15000;

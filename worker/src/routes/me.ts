@@ -293,6 +293,7 @@ meRoutes.get("/notifications", async (c) => {
           "device_key",
           "headers",
           "webhook_url",
+          "secret",
         ].some((s) => k.includes(s))
       ) {
         redacted[k] = v ? "••••••" : "";
@@ -359,6 +360,7 @@ meRoutes.put("/notifications", async (c) => {
         "device_key",
         "headers",
         "webhook_url",
+        "secret",
       ];
       for (const [k, v] of Object.entries(newConfig)) {
         if (secretFields.some((s) => k.includes(s)) && (!v || v === "••••••")) {
