@@ -212,6 +212,27 @@ function seedLegacyChannels(d1: SqliteD1): void {
        VALUES (?, ?, ?)`,
     )
     .run("u3", "not-json", "2026-01-01T00:00:00.000Z");
+  // Inserted after the malformed row (SQLite returns rows in rowid order here),
+  // so this row is only cleaned if the migration skips bad rows one by one
+  // instead of aborting the whole loop on the first parse error.
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}users (id, email, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "u4",
+      "u4@example.com",
+      "hash",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    );
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}notification_configs (user_id, enabled_channels, updated_at)
+       VALUES (?, ?, ?)`,
+    )
+    .run("u4", '["telegram","serverchan"]', "2026-01-01T00:00:00.000Z");
 }
 
 function enabledChannelsOf(d1: SqliteD1, userId: string): unknown {
@@ -237,8 +258,10 @@ describe("retired channel cleanup migration", () => {
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
     // Rows without retired channels are left untouched.
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
-    // A malformed value is skipped without aborting the migration.
+    // A malformed value is skipped without aborting the migration: u4 comes
+    // after the bad row, so it is only stripped if processing continued.
     expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
+    expect(enabledChannelsOf(d1, "u4")).toBe('["telegram"]');
   });
 
   it("is idempotent", async () => {
@@ -252,6 +275,7 @@ describe("retired channel cleanup migration", () => {
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
     expect(enabledChannelsOf(d1, "u3")).toBe("not-json");
+    expect(enabledChannelsOf(d1, "u4")).toBe('["telegram"]');
   });
 
   it("no longer reports unknown channels after the migration", async () => {
