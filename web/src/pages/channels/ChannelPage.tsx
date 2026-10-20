@@ -120,20 +120,6 @@ const CHANNELS: ChannelDef[] = [
     ],
   },
   {
-    id: "serverchan",
-    label: "ServerChan",
-    fields: [{ key: "sendkey", label: "SendKey", type: "text" }],
-  },
-  {
-    id: "pushplus",
-    label: "PushPlus",
-    fields: [
-      { key: "token", label: "Token", type: "text" },
-      { key: "topic", label: "Topic (optional)", type: "text" },
-      { key: "channel", label: "Channel (optional)", type: "text" },
-    ],
-  },
-  {
     id: "notifyx",
     label: "NotifyX",
     fields: [{ key: "api_key", label: "API Key", type: "password" }],

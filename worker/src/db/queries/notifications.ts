@@ -36,8 +36,6 @@ export async function upsertNotificationConfig(
     "email_config",
     "bark_config",
     "gotify_config",
-    "serverchan_config",
-    "pushplus_config",
     "notifyx_config",
     "slack_config",
     "notification_hours",

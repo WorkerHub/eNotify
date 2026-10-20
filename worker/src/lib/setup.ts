@@ -49,6 +49,39 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
     console.error("Migration failed for notification_configs table:", err);
   }
 
+  // Migration: drop retired channels (serverchan/pushplus) from enabled_channels.
+  // Their sender code is gone, so a stale ID would make every push fail with
+  // "Unknown channel" and write a notification_history row. Idempotent: the
+  // second run finds nothing to strip and performs no UPDATE.
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT user_id, enabled_channels FROM ${prefix}notification_configs`,
+      )
+      .all<{ user_id: string; enabled_channels: string }>();
+    for (const row of rows.results) {
+      let channels: unknown;
+      try {
+        channels = JSON.parse(row.enabled_channels || "[]");
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(channels)) continue;
+      const filtered = channels.filter(
+        (ch) => ch !== "serverchan" && ch !== "pushplus",
+      );
+      if (filtered.length === channels.length) continue;
+      await db
+        .prepare(
+          `UPDATE ${prefix}notification_configs SET enabled_channels = ? WHERE user_id = ?`,
+        )
+        .bind(JSON.stringify(filtered), row.user_id)
+        .run();
+    }
+  } catch (err) {
+    console.error("Migration failed to drop retired channels:", err);
+  }
+
   // Migration: items table columns (type/use_lunar -> calendar_mode, lunar_expiry_date).
   // Uses ALTER TABLE instead of recreating the table: DROP TABLE would cascade-delete payment_history.
   try {
@@ -214,8 +247,6 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   email_config      TEXT NOT NULL DEFAULT '{}',
   bark_config       TEXT NOT NULL DEFAULT '{}',
   gotify_config     TEXT NOT NULL DEFAULT '{}',
-  serverchan_config TEXT NOT NULL DEFAULT '{}',
-  pushplus_config   TEXT NOT NULL DEFAULT '{}',
   notifyx_config    TEXT NOT NULL DEFAULT '{}',
   slack_config      TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',

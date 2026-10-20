@@ -83,8 +83,6 @@ export interface NotificationConfig {
   email_config: string;
   bark_config: string;
   gotify_config: string;
-  serverchan_config: string;
-  pushplus_config: string;
   notifyx_config: string;
   slack_config: string;
   notification_hours: string;
@@ -131,8 +129,6 @@ export const VALID_CHANNELS: string[] = [
   "email",
   "bark",
   "gotify",
-  "serverchan",
-  "pushplus",
   "notifyx",
   "slack",
 ];

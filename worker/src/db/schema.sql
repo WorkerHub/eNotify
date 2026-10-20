@@ -85,8 +85,6 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   email_config      TEXT NOT NULL DEFAULT '{}',
   bark_config       TEXT NOT NULL DEFAULT '{}',
   gotify_config     TEXT NOT NULL DEFAULT '{}',
-  serverchan_config TEXT NOT NULL DEFAULT '{}',
-  pushplus_config   TEXT NOT NULL DEFAULT '{}',
   notifyx_config    TEXT NOT NULL DEFAULT '{}',
   slack_config      TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',
