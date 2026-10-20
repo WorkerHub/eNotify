@@ -39,6 +39,7 @@ export async function upsertNotificationConfig(
     "serverchan_config",
     "pushplus_config",
     "notifyx_config",
+    "slack_config",
     "notification_hours",
   ];
 

@@ -348,6 +348,7 @@
     "serverchan": "ServerChan",
     "pushplus": "PushPlus",
     "notifyx": "NotifyX",
+    "slack": "Slack",
     "botToken": "Bot Token",
     "chatId": "Chat ID",
     "url": "URL",

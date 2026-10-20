@@ -138,6 +138,18 @@ const CHANNELS: ChannelDef[] = [
     label: "NotifyX",
     fields: [{ key: "api_key", label: "API Key", type: "password" }],
   },
+  {
+    id: "slack",
+    label: "Slack",
+    fields: [
+      {
+        key: "webhook_url",
+        label: "Webhook URL",
+        type: "password",
+        placeholder: "https://hooks.slack.com/services/...",
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------

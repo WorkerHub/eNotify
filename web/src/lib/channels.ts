@@ -8,4 +8,5 @@ export const CHANNELS = [
   { id: "serverchan", label: "ServerChan" },
   { id: "pushplus", label: "PushPlus" },
   { id: "notifyx", label: "NotifyX" },
+  { id: "slack", label: "Slack" },
 ] as const;
