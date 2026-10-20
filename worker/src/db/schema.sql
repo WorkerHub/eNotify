@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   serverchan_config TEXT NOT NULL DEFAULT '{}',
   pushplus_config   TEXT NOT NULL DEFAULT '{}',
   notifyx_config    TEXT NOT NULL DEFAULT '{}',
+  slack_config      TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   updated_at        TEXT NOT NULL
 );

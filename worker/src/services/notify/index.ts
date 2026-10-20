@@ -7,6 +7,7 @@ import { sendGotify } from "./gotify";
 import { sendServerChan } from "./serverchan";
 import { sendPushPlus } from "./pushplus";
 import { sendNotifyX } from "./notifyx";
+import { sendSlack } from "./slack";
 import { sendNotifyEmail } from "./email-notify";
 import type { Env } from "../../types";
 import { insertNotificationHistory } from "../../db/queries/notification-history";
@@ -48,6 +49,7 @@ const CHANNEL_SENDERS: Record<
   serverchan: sendServerChan,
   pushplus: sendPushPlus,
   notifyx: sendNotifyX,
+  slack: sendSlack,
 };
 
 const SEND_TIMEOUT_MS = 15000;

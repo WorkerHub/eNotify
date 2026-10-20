@@ -86,6 +86,7 @@ export interface NotificationConfig {
   serverchan_config: string;
   pushplus_config: string;
   notifyx_config: string;
+  slack_config: string;
   notification_hours: string;
   updated_at: string;
 }
@@ -133,4 +134,5 @@ export const VALID_CHANNELS: string[] = [
   "serverchan",
   "pushplus",
   "notifyx",
+  "slack",
 ];

@@ -33,6 +33,22 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
     // ignore
   }
 
+  // Migration: add slack_config column to notification_configs
+  try {
+    const notifCols = await db
+      .prepare(`PRAGMA table_info(${prefix}notification_configs)`)
+      .all<{ name: string }>();
+    if (!notifCols.results.some((c) => c.name === "slack_config")) {
+      await db
+        .prepare(
+          `ALTER TABLE ${prefix}notification_configs ADD COLUMN slack_config TEXT NOT NULL DEFAULT '{}'`,
+        )
+        .run();
+    }
+  } catch (err) {
+    console.error("Migration failed for notification_configs table:", err);
+  }
+
   // Migration: items table columns (type/use_lunar -> calendar_mode, lunar_expiry_date).
   // Uses ALTER TABLE instead of recreating the table: DROP TABLE would cascade-delete payment_history.
   try {
@@ -201,6 +217,7 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   serverchan_config TEXT NOT NULL DEFAULT '{}',
   pushplus_config   TEXT NOT NULL DEFAULT '{}',
   notifyx_config    TEXT NOT NULL DEFAULT '{}',
+  slack_config      TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   updated_at        TEXT NOT NULL
 );
