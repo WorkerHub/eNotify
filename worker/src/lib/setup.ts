@@ -16,6 +16,11 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   app_name: "eNotify",
 };
 
+// Channel IDs whose sender code has been removed. Their DB columns are kept
+// (dropping them would require rebuilding the table) but any stale ID left in
+// enabled_channels is stripped so it cannot fail every push.
+const RETIRED_CHANNELS = ["serverchan", "pushplus", "gotify", "notifyx"];
+
 async function runMigrations(db: D1Database, prefix: string): Promise<void> {
   // Migration: add body column to notification_history
   try {
@@ -49,10 +54,28 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
     console.error("Migration failed for notification_configs table:", err);
   }
 
-  // Migration: drop retired channels (serverchan/pushplus) from enabled_channels.
-  // Their sender code is gone, so a stale ID would make every push fail with
-  // "Unknown channel" and write a notification_history row. Idempotent: the
-  // second run finds nothing to strip and performs no UPDATE.
+  // Migration: add feishu_config / discord_config columns to notification_configs
+  try {
+    const notifCols = await db
+      .prepare(`PRAGMA table_info(${prefix}notification_configs)`)
+      .all<{ name: string }>();
+    for (const column of ["feishu_config", "discord_config"]) {
+      if (!notifCols.results.some((c) => c.name === column)) {
+        await db
+          .prepare(
+            `ALTER TABLE ${prefix}notification_configs ADD COLUMN ${column} TEXT NOT NULL DEFAULT '{}'`,
+          )
+          .run();
+      }
+    }
+  } catch (err) {
+    console.error("Migration failed for notification_configs table:", err);
+  }
+
+  // Migration: drop retired channels (serverchan/pushplus/gotify/notifyx) from
+  // enabled_channels. Their sender code is gone, so a stale ID would make every
+  // push fail with "Unknown channel" and write a notification_history row.
+  // Idempotent: the second run finds nothing to strip and performs no UPDATE.
   try {
     const rows = await db
       .prepare(
@@ -67,9 +90,7 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
         continue;
       }
       if (!Array.isArray(channels)) continue;
-      const filtered = channels.filter(
-        (ch) => ch !== "serverchan" && ch !== "pushplus",
-      );
+      const filtered = channels.filter((ch) => !RETIRED_CHANNELS.includes(ch));
       if (filtered.length === channels.length) continue;
       await db
         .prepare(
@@ -246,9 +267,9 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   wechatbot_config  TEXT NOT NULL DEFAULT '{}',
   email_config      TEXT NOT NULL DEFAULT '{}',
   bark_config       TEXT NOT NULL DEFAULT '{}',
-  gotify_config     TEXT NOT NULL DEFAULT '{}',
-  notifyx_config    TEXT NOT NULL DEFAULT '{}',
   slack_config      TEXT NOT NULL DEFAULT '{}',
+  feishu_config     TEXT NOT NULL DEFAULT '{}',
+  discord_config    TEXT NOT NULL DEFAULT '{}',
   notification_hours TEXT NOT NULL DEFAULT '[]',
   updated_at        TEXT NOT NULL
 );

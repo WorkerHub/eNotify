@@ -186,13 +186,17 @@ export function ChannelSelector({
         <div className="mt-2 flex flex-wrap gap-1">
           {selected.map((channelId) => {
             const channel = CHANNELS.find((ch) => ch.id === channelId);
-            if (!channel) return null;
+            // Unknown IDs are retired channels still stored on old items. They
+            // are not offered in the dropdown, but must stay removable here:
+            // otherwise the item could never be saved again (the API rejects
+            // retired IDs) and it would silently stop notifying.
             return (
               <span
                 key={channelId}
+                title={channel ? undefined : "Retired channel"}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs"
               >
-                {channel.label}
+                {channel?.label ?? channelId}
                 <button
                   type="button"
                   onClick={() => toggleChannel(channelId)}

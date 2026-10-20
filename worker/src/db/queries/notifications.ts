@@ -35,9 +35,9 @@ export async function upsertNotificationConfig(
     "wechatbot_config",
     "email_config",
     "bark_config",
-    "gotify_config",
-    "notifyx_config",
     "slack_config",
+    "feishu_config",
+    "discord_config",
     "notification_hours",
   ];
 

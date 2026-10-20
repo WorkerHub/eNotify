@@ -107,24 +107,6 @@ const CHANNELS: ChannelDef[] = [
     ],
   },
   {
-    id: "gotify",
-    label: "Gotify",
-    fields: [
-      {
-        key: "server_url",
-        label: "Server URL",
-        type: "text",
-        placeholder: "https://",
-      },
-      { key: "app_token", label: "App Token", type: "password" },
-    ],
-  },
-  {
-    id: "notifyx",
-    label: "NotifyX",
-    fields: [{ key: "api_key", label: "API Key", type: "password" }],
-  },
-  {
     id: "slack",
     label: "Slack",
     fields: [
@@ -133,6 +115,35 @@ const CHANNELS: ChannelDef[] = [
         label: "Webhook URL",
         type: "password",
         placeholder: "https://hooks.slack.com/services/...",
+      },
+    ],
+  },
+  {
+    id: "feishu",
+    label: "Feishu",
+    fields: [
+      {
+        key: "webhook_url",
+        label: "Webhook URL",
+        type: "password",
+        placeholder: "https://open.feishu.cn/open-apis/bot/v2/hook/...",
+      },
+      {
+        key: "secret",
+        label: "Sign Secret (optional)",
+        type: "password",
+      },
+    ],
+  },
+  {
+    id: "discord",
+    label: "Discord",
+    fields: [
+      {
+        key: "webhook_url",
+        label: "Webhook URL",
+        type: "password",
+        placeholder: "https://discord.com/api/webhooks/...",
       },
     ],
   },
