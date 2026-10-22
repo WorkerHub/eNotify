@@ -1,16 +1,16 @@
-import { getTablePrefix } from "../types";
-import type { Env } from "../types";
-import { getSetting } from "../db/queries/settings";
 import { connect } from "cloudflare:sockets";
+import { getSetting } from "../db/queries/settings";
+import type { Env } from "../types";
+import { getTablePrefix } from "../types";
 
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-function isValidEmail(email: string): boolean {
+export function isValidEmail(email: string): boolean {
   return EMAIL_RE.test(email) && !email.includes("\r") && !email.includes("\n");
 }
 
-interface EmailOptions {
+export interface EmailOptions {
   to: string;
   subject: string;
   html: string;
@@ -18,7 +18,7 @@ interface EmailOptions {
   fromName?: string;
 }
 
-interface SMTPConfig {
+export interface SMTPConfig {
   host: string;
   port: number;
   username: string;
@@ -112,6 +112,20 @@ async function sendViaSMTP(
   if (!config.host)
     return { success: false, error: "SMTP host not configured" };
 
+  return sendSmtpMail(config, options);
+}
+
+/**
+ * Send a single message through an explicit SMTP account.
+ *
+ * Shared by the system mailer (global `smtp_config` setting) and the per-user
+ * Email notification channel (`notification_configs.email_config`).
+ * Callers are responsible for validating the recipient and supplying a sender.
+ */
+export async function sendSmtpMail(
+  config: SMTPConfig,
+  options: EmailOptions,
+): Promise<{ success: boolean; error?: string }> {
   const from = options.from || config.from || "noreply@example.com";
   const fromName = (options.fromName || config.from_name || "eNotify").replace(
     /[\r\n]/g,
