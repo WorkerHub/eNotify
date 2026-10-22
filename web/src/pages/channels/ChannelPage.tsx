@@ -12,15 +12,25 @@ import type { NotificationConfig } from "@/types";
 
 interface ChannelFieldDef {
   key: string;
+  /** Fallback label, used when no i18n key is given. */
   label: string;
+  /** i18n key for the label (e.g. "channels.smtpHost"). */
+  labelKey?: string;
+  /** i18n key for a helper line rendered under the input. */
+  hintKey?: string;
   type: "text" | "password" | "textarea" | "select";
   options?: string[];
   placeholder?: string;
+  inputMode?: "text" | "numeric";
+  /** Trim surrounding whitespace before submitting (values stay strings). */
+  trim?: boolean;
 }
 
 interface ChannelDef {
   id: string;
   label: string;
+  /** i18n key for a helper line rendered above the fields. */
+  hintKey?: string;
   fields: ChannelFieldDef[];
 }
 
@@ -84,12 +94,64 @@ const CHANNELS: ChannelDef[] = [
   {
     id: "email",
     label: "Email",
+    hintKey: "channels.emailSmtpHint",
     fields: [
       {
         key: "to",
         label: "To Address",
+        labelKey: "channels.toAddress",
         type: "text",
         placeholder: "<EMAIL_ADDRESS>",
+        trim: true,
+      },
+      {
+        key: "from_name",
+        label: "From Name (optional)",
+        labelKey: "channels.fromName",
+        type: "text",
+        trim: true,
+      },
+      {
+        key: "smtp_host",
+        label: "SMTP Host",
+        labelKey: "channels.smtpHost",
+        type: "text",
+        placeholder: "smtp.example.com",
+        trim: true,
+      },
+      {
+        // Kept as a string end to end: the API contract takes smtp_port as a
+        // string and converts it to a number when sending.
+        key: "smtp_port",
+        label: "SMTP Port",
+        labelKey: "channels.smtpPort",
+        type: "text",
+        placeholder: "465",
+        inputMode: "numeric",
+        trim: true,
+      },
+      {
+        key: "smtp_username",
+        label: "SMTP Username",
+        labelKey: "channels.smtpUsername",
+        type: "text",
+        placeholder: "user@example.com",
+        trim: true,
+      },
+      {
+        key: "smtp_password",
+        label: "SMTP Password",
+        labelKey: "channels.smtpPassword",
+        type: "password",
+        hintKey: "channels.smtpPasswordHint",
+      },
+      {
+        key: "smtp_from",
+        label: "From Address",
+        labelKey: "channels.smtpFrom",
+        type: "text",
+        placeholder: "sender@example.com",
+        trim: true,
       },
     ],
   },
@@ -194,6 +256,7 @@ function FormField({
   return (
     <input
       type={def.type === "password" ? "password" : "text"}
+      inputMode={def.inputMode}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={base}
@@ -260,9 +323,16 @@ function ChannelCard({
     e.preventDefault();
     setSaving(true);
     setFeedback(null);
+    const payload: Record<string, string> = { ...localFields };
+    for (const field of channel.fields) {
+      if (field.trim && typeof payload[field.key] === "string") {
+        payload[field.key] = payload[field.key].trim();
+      }
+    }
     try {
-      await api.put("/me/notifications", { [configKey]: localFields });
-      const next: NotificationConfig = { ...config, [configKey]: localFields };
+      await api.put("/me/notifications", { [configKey]: payload });
+      setLocalFields(payload);
+      const next: NotificationConfig = { ...config, [configKey]: payload };
       onConfigChange(next);
       setFeedback({ ok: true, msg: t("common.success") });
     } catch (err: any) {
@@ -326,11 +396,16 @@ function ChannelCard({
 
       {expanded && (
         <div className="border-t px-4 py-4 space-y-3">
+          {channel.hintKey && (
+            <p className="text-xs text-muted-foreground">
+              {t(channel.hintKey)}
+            </p>
+          )}
           <form onSubmit={handleSave} className="space-y-3">
             {channel.fields.map((field) => (
               <div key={field.key}>
                 <label className="block text-xs font-medium text-foreground mb-1">
-                  {field.label}
+                  {field.labelKey ? t(field.labelKey) : field.label}
                 </label>
                 <FormField
                   def={field}
@@ -339,6 +414,11 @@ function ChannelCard({
                     setLocalFields((p) => ({ ...p, [field.key]: v }))
                   }
                 />
+                {field.hintKey && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t(field.hintKey)}
+                  </p>
+                )}
               </div>
             ))}
 
