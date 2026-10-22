@@ -74,7 +74,7 @@ const CHANNELS: ChannelDef[] = [
       {
         key: "webhook",
         label: "Webhook URL",
-        type: "text",
+        type: "password",
         placeholder: "https://",
       },
       {
@@ -182,7 +182,8 @@ const CHANNELS: ChannelDef[] = [
   },
   {
     id: "feishu",
-    label: "Feishu",
+    label: "Lark Bot",
+    hintKey: "channels.feishuHint",
     fields: [
       {
         key: "webhook_url",
