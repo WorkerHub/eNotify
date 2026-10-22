@@ -35,8 +35,22 @@ function parsePort(raw: string | number | undefined): number | null {
   return port;
 }
 
-function clean(value: string | undefined): string {
-  return (value ?? "").trim();
+function clean(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+/**
+ * Header/envelope injection guards. `to` and `from` both end up verbatim in
+ * `MAIL FROM:`/`RCPT TO:` and in message headers, so they are validated the
+ * same way.
+ */
+function hasInjectionChars(value: string): boolean {
+  return /[\r\n,;<>]/.test(value);
+}
+
+/** Conservative hostname / IPv4 / bracketed IPv6 check (no spaces, no userinfo). */
+function isValidSmtpHost(host: string): boolean {
+  return /^[A-Za-z0-9._\-:[\]]+$/.test(host);
 }
 
 export async function sendNotifyEmail(
@@ -56,7 +70,7 @@ export async function sendNotifyEmail(
     return { success: false, error: "Email recipient required" };
   }
 
-  if (/[\r\n,;<>]/.test(to)) {
+  if (hasInjectionChars(to)) {
     return { success: false, error: "Invalid email recipient" };
   }
 
@@ -67,6 +81,10 @@ export async function sendNotifyEmail(
   const host = clean(config.smtp_host);
   if (!host) {
     return { success: false, error: "Email channel SMTP not configured" };
+  }
+
+  if (!isValidSmtpHost(host)) {
+    return { success: false, error: "Invalid Email channel SMTP host" };
   }
 
   const port = parsePort(config.smtp_port);
@@ -83,6 +101,15 @@ export async function sendNotifyEmail(
       success: false,
       error:
         "Invalid Email channel SMTP sender (set smtp_from or smtp_username)",
+    };
+  }
+
+  // `from` lands in `MAIL FROM:<…>` and the `From:` header, so it gets the same
+  // injection + format validation as `to`.
+  if (hasInjectionChars(from) || !isValidEmail(from)) {
+    return {
+      success: false,
+      error: "Invalid Email channel SMTP sender address",
     };
   }
   const fromName = clean(config.from_name)

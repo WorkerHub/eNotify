@@ -188,3 +188,75 @@ describe("GET/PUT /api/me/notifications — per-user SMTP credentials", () => {
     ).toBe("s3cret-pass");
   });
 });
+
+describe("GET /api/me/notifications — email_configured", () => {
+  let db: ConfigDB;
+  let app: Hono;
+  let env: Record<string, unknown>;
+  let token: string;
+
+  beforeEach(async () => {
+    db = new ConfigDB();
+    app = makeApp();
+    env = await makeLoggedInEnv(db);
+    token = await makeToken("user", { sub: "user-1", sid: "session-1" });
+  });
+
+  async function configuredFor(emailConfig: Record<string, unknown>) {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["email"]),
+      notification_hours: JSON.stringify([]),
+      email_config: JSON.stringify(emailConfig),
+      updated_at: new Date().toISOString(),
+    });
+    const res = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(res.status).toBe(200);
+    return res.body;
+  }
+
+  it("is true only when both to and smtp_host are filled in", async () => {
+    const both = await configuredFor({
+      to: "user@example.com",
+      smtp_host: "smtp.example.com",
+    });
+    expect(both.email_configured).toBe(true);
+  });
+
+  it("is false when only the recipient is configured", async () => {
+    const onlyTo = await configuredFor({ to: "user@example.com" });
+    expect(onlyTo.email_configured).toBe(false);
+  });
+
+  it("is false when only the SMTP host is configured", async () => {
+    const onlyHost = await configuredFor({ smtp_host: "smtp.example.com" });
+    expect(onlyHost.email_configured).toBe(false);
+  });
+
+  it("is false for whitespace-only values and for an empty config", async () => {
+    const blank = await configuredFor({ to: "   ", smtp_host: "  " });
+    expect(blank.email_configured).toBe(false);
+
+    const empty = await configuredFor({});
+    expect(empty.email_configured).toBe(false);
+  });
+
+  it("does not tighten the heuristic for other channels", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["telegram", "email"]),
+      notification_hours: JSON.stringify([]),
+      telegram_config: JSON.stringify({ token: "123:abc", chat_id: "1" }),
+      email_config: JSON.stringify({ to: "user@example.com" }),
+      updated_at: new Date().toISOString(),
+    });
+    const res = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.telegram_configured).toBe(true);
+    expect(res.body.email_configured).toBe(false);
+  });
+});
