@@ -279,6 +279,14 @@ meRoutes.get("/notifications", async (c) => {
         typeof v === "string" &&
         v.length > 0,
     );
+    // Email needs both a recipient and its own SMTP host to be usable, so it
+    // gets a dedicated check instead of the "any field is filled" heuristic.
+    if (ch === "email") {
+      const to = typeof parsed.to === "string" ? parsed.to.trim() : "";
+      const host =
+        typeof parsed.smtp_host === "string" ? parsed.smtp_host.trim() : "";
+      safeConfig[`${ch}_configured`] = Boolean(to && host);
+    }
     // Return non-sensitive fields only
     const redacted: Record<string, any> = {};
     for (const [k, v] of Object.entries(parsed)) {

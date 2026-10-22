@@ -228,6 +228,114 @@ describe("sendNotifyEmail", () => {
     }
   });
 
+  it("rejects a smtp_host that is not a plain hostname/IP", async () => {
+    const env = makeEnvWithoutSettings();
+    for (const host of [
+      "smtp.example.com\r\nX-Injected: 1",
+      "smtp.example.com/evil",
+      "user@smtp.example.com",
+      "smtp example com",
+      "smtp.example.com;evil",
+    ]) {
+      const result = await sendNotifyEmail(
+        config({ smtp_host: host }),
+        MESSAGE,
+        env,
+      );
+      expect(result).toEqual({
+        success: false,
+        error: "Invalid Email channel SMTP host",
+      });
+    }
+  });
+
+  it("accepts a plain hostname, an IPv4 address and a bracketed IPv6 address", async () => {
+    const env = makeEnvWithoutSettings();
+    for (const host of ["smtp.example.com", "192.0.2.10", "[2001:db8::1]"]) {
+      const server = new FakeSmtpServer();
+      server.install();
+      const result = await sendNotifyEmail(
+        config({ smtp_host: host }),
+        MESSAGE,
+        env,
+      );
+      expect(result).toEqual({ success: true });
+      expect(server.connectCalls[0].address).toMatchObject({ hostname: host });
+    }
+  });
+
+  it("rejects a sender address that would inject headers or is malformed", async () => {
+    const env = makeEnvWithoutSettings();
+    for (const from of [
+      "notify@example.com\r\nBcc: victim@example.com",
+      "notify@example.com,eve@example.com",
+      "notify@example.com>",
+      "not-an-email",
+    ]) {
+      const server = new FakeSmtpServer();
+      server.install();
+      const result = await sendNotifyEmail(
+        config({ smtp_from: from }),
+        MESSAGE,
+        env,
+      );
+      expect(result).toEqual({
+        success: false,
+        error: "Invalid Email channel SMTP sender address",
+      });
+      // Nothing was ever sent, not even a connection attempt.
+      expect(server.connectCalls).toHaveLength(0);
+      expect(server.commands).toHaveLength(0);
+    }
+  });
+
+  it("rejects an injection attempt that comes in through smtp_username", async () => {
+    const env = makeEnvWithoutSettings();
+    const result = await sendNotifyEmail(
+      config({
+        smtp_from: "",
+        smtp_username: "login@example.com\r\nBcc: victim@example.com",
+      }),
+      MESSAGE,
+      env,
+    );
+    expect(result).toEqual({
+      success: false,
+      error: "Invalid Email channel SMTP sender address",
+    });
+  });
+
+  it("falls back to smtp_username as the sender when smtp_from is empty", async () => {
+    const server = new FakeSmtpServer();
+    server.install();
+
+    const result = await sendNotifyEmail(
+      config({ smtp_from: "" }),
+      MESSAGE,
+      makeEnvWithoutSettings(),
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(server.commands).toContain("MAIL FROM:<login@example.com>");
+    expect(server.message).toContain("From: eNotify <login@example.com>");
+  });
+
+  it("does not throw on non-string config values", async () => {
+    const env = makeEnvWithoutSettings();
+    await expect(
+      sendNotifyEmail(config({ to: 12345 }), MESSAGE, env),
+    ).resolves.toEqual({
+      success: false,
+      error: "Invalid recipient email address",
+    });
+    await expect(
+      sendNotifyEmail(config({ smtp_host: null }), MESSAGE, env),
+    ).resolves.toEqual({
+      success: false,
+      error: "Email channel SMTP not configured",
+    });
+  });
+
   it("uses implicit TLS on port 465 and authenticates in the TLS session", async () => {
     const server = new FakeSmtpServer();
     server.install();
