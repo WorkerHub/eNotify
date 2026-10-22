@@ -301,6 +301,7 @@ meRoutes.get("/notifications", async (c) => {
           "device_key",
           "headers",
           "webhook_url",
+          "webhook",
           "secret",
         ].some((s) => k.includes(s))
       ) {
@@ -368,6 +369,7 @@ meRoutes.put("/notifications", async (c) => {
         "device_key",
         "headers",
         "webhook_url",
+        "webhook",
         "secret",
       ];
       for (const [k, v] of Object.entries(newConfig)) {

@@ -260,3 +260,138 @@ describe("GET /api/me/notifications — email_configured", () => {
     expect(res.body.email_configured).toBe(false);
   });
 });
+
+describe("GET/PUT /api/me/notifications — wechatbot webhook masking", () => {
+  let db: ConfigDB;
+  let app: Hono;
+  let env: Record<string, unknown>;
+  let token: string;
+
+  beforeEach(async () => {
+    db = new ConfigDB();
+    app = makeApp();
+    env = await makeLoggedInEnv(db);
+    token = await makeToken("user", { sub: "user-1", sid: "session-1" });
+  });
+
+  it("masks wechatbot webhook on read and keeps other fields untouched", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["wechatbot"]),
+      notification_hours: JSON.stringify([]),
+      wechatbot_config: JSON.stringify({
+        webhook: "https://qyapi.example.com/cgi-bin/webhook/send?key=test",
+        msgtype: "markdown",
+      }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const got = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(got.status).toBe(200);
+    expect(got.body.wechatbot_config).toEqual({
+      webhook: "••••••",
+      msgtype: "markdown",
+    });
+    expect(got.body.wechatbot_configured).toBe(true);
+  });
+
+  it("leaves an empty wechatbot webhook as an empty string", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify([]),
+      notification_hours: JSON.stringify([]),
+      wechatbot_config: JSON.stringify({ webhook: "", msgtype: "text" }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const got = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(got.status).toBe(200);
+    expect(got.body.wechatbot_config.webhook).toBe("");
+  });
+
+  it("keeps the stored webhook when the mask is sent back", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["wechatbot"]),
+      notification_hours: JSON.stringify([]),
+      wechatbot_config: JSON.stringify({
+        webhook: "https://qyapi.example.com/cgi-bin/webhook/send?key=test",
+        msgtype: "text",
+      }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const got = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    const put = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wechatbot_config: { ...got.body.wechatbot_config, msgtype: "markdown" },
+      }),
+    });
+    expect(put.status).toBe(200);
+
+    const stored = JSON.parse(db.rows.get("user-1")?.wechatbot_config ?? "{}");
+    expect(stored.webhook).toBe(
+      "https://qyapi.example.com/cgi-bin/webhook/send?key=test",
+    );
+    expect(stored.msgtype).toBe("markdown");
+  });
+
+  it("keeps the stored webhook when an empty value is sent back", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["wechatbot"]),
+      notification_hours: JSON.stringify([]),
+      wechatbot_config: JSON.stringify({
+        webhook: "https://qyapi.example.com/cgi-bin/webhook/send?key=test",
+      }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const put = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ wechatbot_config: { webhook: "" } }),
+    });
+    expect(put.status).toBe(200);
+    expect(
+      JSON.parse(db.rows.get("user-1")?.wechatbot_config ?? "{}").webhook,
+    ).toBe("https://qyapi.example.com/cgi-bin/webhook/send?key=test");
+  });
+
+  it("still masks webhook_url, secret and token on other channels", async () => {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["feishu", "bark"]),
+      notification_hours: JSON.stringify([]),
+      feishu_config: JSON.stringify({
+        webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/test",
+        secret: "feishu-secret",
+        app_id: "cli_x",
+      }),
+      bark_config: JSON.stringify({ device_key: "dev-key", server: "s" }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const got = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(got.status).toBe(200);
+    expect(got.body.feishu_config).toEqual({
+      webhook_url: "••••••",
+      secret: "••••••",
+      app_id: "cli_x",
+    });
+    expect(got.body.bark_config).toEqual({
+      device_key: "••••••",
+      server: "s",
+    });
+  });
+});
