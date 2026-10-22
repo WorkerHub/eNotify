@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { meRoutes } from "../src/routes/me";
 import {
   cookieHeader,
@@ -40,6 +40,14 @@ class ConfigDB {
             this.rows.set(userId, row);
             return { success: true };
           },
+        }),
+      };
+    }
+
+    if (/^INSERT INTO .*notification_history/i.test(s)) {
+      return {
+        bind: (..._args: unknown[]) => ({
+          run: async () => ({ success: true }),
         }),
       };
     }
@@ -393,5 +401,186 @@ describe("GET/PUT /api/me/notifications — wechatbot webhook masking", () => {
       device_key: "••••••",
       server: "s",
     });
+  });
+
+  it("handles a complete roundtrip: PUT plain webhook -> GET masked -> PUT back masked preserving original value", async () => {
+    const rawWebhook =
+      "https://qyapi.example.com/cgi-bin/webhook/send?key=real-secret-key";
+
+    // 1. Initial configuration via PUT
+    const putRes = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enabled_channels: ["wechatbot"],
+        wechatbot_config: { webhook: rawWebhook, msgtype: "text" },
+      }),
+    });
+    expect(putRes.status).toBe(200);
+
+    // 2. Fetch via GET: must be masked
+    const getRes = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.wechatbot_config.webhook).toBe("••••••");
+    expect(getRes.body.wechatbot_config.msgtype).toBe("text");
+
+    // 3. User modifies only msgtype, sends back masked webhook
+    const updateRes = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wechatbot_config: { webhook: "••••••", msgtype: "markdown" },
+      }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    // 4. Stored row must retain the original raw webhook and updated msgtype
+    const stored = JSON.parse(db.rows.get("user-1")?.wechatbot_config ?? "{}");
+    expect(stored.webhook).toBe(rawWebhook);
+    expect(stored.msgtype).toBe("markdown");
+  });
+});
+
+describe("POST /api/me/notifications/test — Lark Bot (feishu channel) regression", () => {
+  let db: ConfigDB;
+  let app: Hono;
+  let env: Record<string, unknown>;
+  let token: string;
+
+  beforeEach(async () => {
+    db = new ConfigDB();
+    app = makeApp();
+    env = await makeLoggedInEnv(db);
+    token = await makeToken("user", { sub: "user-1", sid: "session-1" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("successfully sends test notification to open.feishu.cn", async () => {
+    const feishuUrl =
+      "https://open.feishu.cn/open-apis/bot/v2/hook/11111111-2222-3333-4444-555555555555";
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["feishu"]),
+      notification_hours: JSON.stringify([]),
+      feishu_config: JSON.stringify({ webhook_url: feishuUrl }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: 0, msg: "success" }), {
+          status: 200,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await request(app, env, "/api/me/notifications/test", {
+      method: "POST",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "feishu" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(feishuUrl);
+    expect(init.method).toBe("POST");
+    const payload = JSON.parse(String(init.body));
+    expect(payload.msg_type).toBe("text");
+    expect(payload.content.text).toContain("🔔 eNotify Test");
+  });
+
+  it("successfully sends test notification to open.larksuite.com (international Lark)", async () => {
+    const larkUrl =
+      "https://open.larksuite.com/open-apis/bot/v2/hook/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(["feishu"]),
+      notification_hours: JSON.stringify([]),
+      feishu_config: JSON.stringify({
+        webhook_url: larkUrl,
+        secret: "my-lark-secret",
+      }),
+      updated_at: new Date().toISOString(),
+    });
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: 0, msg: "success" }), {
+          status: 200,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await request(app, env, "/api/me/notifications/test", {
+      method: "POST",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "feishu" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(larkUrl);
+    const payload = JSON.parse(String(init.body));
+    expect(payload.timestamp).toBeDefined();
+    expect(payload.sign).toBeDefined();
+    expect(payload.content.text).toContain("🔔 eNotify Test");
+  });
+
+  it("stores and masks feishu credentials under feishu_config without data corruption", async () => {
+    const initialWebhook =
+      "https://open.feishu.cn/open-apis/bot/v2/hook/initial-hook-id";
+    const initialSecret = "initial-sign-secret";
+
+    // Save feishu config
+    const saveRes = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enabled_channels: ["feishu"],
+        feishu_config: {
+          webhook_url: initialWebhook,
+          secret: initialSecret,
+        },
+      }),
+    });
+    expect(saveRes.status).toBe(200);
+
+    // Verify GET masks both fields
+    const getRes = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.feishu_config).toEqual({
+      webhook_url: "••••••",
+      secret: "••••••",
+    });
+
+    // Update with masked webhook_url and new secret
+    const updateRes = await request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feishu_config: {
+          webhook_url: "••••••",
+          secret: "new-updated-secret",
+        },
+      }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    const stored = JSON.parse(db.rows.get("user-1")?.feishu_config ?? "{}");
+    expect(stored.webhook_url).toBe(initialWebhook);
+    expect(stored.secret).toBe("new-updated-secret");
   });
 });
