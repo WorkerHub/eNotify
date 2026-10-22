@@ -369,7 +369,15 @@
     "notificationHours": "Notification Hours",
     "notificationHoursHint": "Notifications are sent at most once per hour. Leave empty to allow every hour.",
     "notificationHoursClear": "Clear",
-    "notificationHoursNoLimit": "No restriction"
+    "notificationHoursNoLimit": "No restriction",
+    "fromName": "From Name (optional)",
+    "smtpHost": "SMTP Host",
+    "smtpPort": "SMTP Port",
+    "smtpUsername": "SMTP Username",
+    "smtpPassword": "SMTP Password",
+    "smtpFrom": "From Address",
+    "smtpPasswordHint": "Leave empty or keep the placeholder to retain the saved password.",
+    "emailSmtpHint": "Notification emails are sent through your own SMTP server, independently of the system email settings under Settings → Email Service. Port 465 uses SSL, other ports use STARTTLS."
   },
   "setup": {
     "title": "Setup",
