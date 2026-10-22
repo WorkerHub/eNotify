@@ -369,7 +369,12 @@
     "notificationHours": "通知时段",
     "notificationHoursHint": "每小时仅发送一次通知。不选则每小时都会发送通知。",
     "notificationHoursClear": "清空",
-    "notificationHoursNoLimit": "不限制"
+    "notificationHoursNoLimit": "不限制",
+    "smtpHost": "SMTP 主机",
+    "smtpPort": "SMTP 端口",
+    "smtpUsername": "SMTP 用户名",
+    "smtpPassword": "SMTP 密码",
+    "smtpFrom": "发件地址"
   },
   "setup": {
     "title": "初始化",

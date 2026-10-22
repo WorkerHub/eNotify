@@ -13,6 +13,8 @@ import type { NotificationConfig } from "@/types";
 interface ChannelFieldDef {
   key: string;
   label: string;
+  /** i18n key; preferred over `label` when present */
+  labelKey?: string;
   type: "text" | "password" | "textarea" | "select";
   options?: string[];
   placeholder?: string;
@@ -88,8 +90,42 @@ const CHANNELS: ChannelDef[] = [
       {
         key: "to",
         label: "To Address",
+        labelKey: "channels.toAddress",
         type: "text",
         placeholder: "<EMAIL_ADDRESS>",
+      },
+      {
+        key: "smtp_host",
+        label: "SMTP Host",
+        labelKey: "channels.smtpHost",
+        type: "text",
+        placeholder: "smtp.example.com",
+      },
+      {
+        key: "smtp_port",
+        label: "SMTP Port",
+        labelKey: "channels.smtpPort",
+        type: "text",
+        placeholder: "465",
+      },
+      {
+        key: "smtp_username",
+        label: "SMTP Username",
+        labelKey: "channels.smtpUsername",
+        type: "text",
+      },
+      {
+        key: "smtp_password",
+        label: "SMTP Password",
+        labelKey: "channels.smtpPassword",
+        type: "password",
+      },
+      {
+        key: "smtp_from",
+        label: "From Address",
+        labelKey: "channels.smtpFrom",
+        type: "text",
+        placeholder: "noreply@example.com",
       },
     ],
   },
@@ -330,7 +366,7 @@ function ChannelCard({
             {channel.fields.map((field) => (
               <div key={field.key}>
                 <label className="block text-xs font-medium text-foreground mb-1">
-                  {field.label}
+                  {field.labelKey ? t(field.labelKey) : field.label}
                 </label>
                 <FormField
                   def={field}
