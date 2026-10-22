@@ -369,7 +369,15 @@
     "notificationHours": "通知时段",
     "notificationHoursHint": "每小时仅发送一次通知。不选则每小时都会发送通知。",
     "notificationHoursClear": "清空",
-    "notificationHoursNoLimit": "不限制"
+    "notificationHoursNoLimit": "不限制",
+    "fromName": "发件人显示名（可选）",
+    "smtpHost": "SMTP 主机",
+    "smtpPort": "SMTP 端口",
+    "smtpUsername": "SMTP 用户名",
+    "smtpPassword": "SMTP 密码",
+    "smtpFrom": "发件地址",
+    "smtpPasswordHint": "留空或保留占位符即保持已保存的密码不变。",
+    "emailSmtpHint": "通知邮件通过你自己的 SMTP 服务器发送，与设置页「邮件服务」的系统邮件配置互不影响。端口 465 使用 SSL 加密，其他端口使用 STARTTLS。"
   },
   "setup": {
     "title": "初始化",
