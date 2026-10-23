@@ -37,7 +37,7 @@ type TabId = "account" | "security" | "sessions" | "apiKeys" | "preferences";
 function StatusBadge({ ok }: { ok: boolean }) {
   const { t } = useTranslation();
   return ok ? (
-    <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
       <CheckCircle className="w-3 h-3" />
       {t("common.enabled")}
     </span>
@@ -100,7 +100,7 @@ function AccountTab() {
             </p>
           </div>
           {user?.email_verified && (
-            <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+            <CheckCircle className="w-4 h-4 text-success ml-auto" />
           )}
         </div>
       </div>
@@ -141,7 +141,7 @@ function AccountTab() {
             </p>
           )}
           {pwSuccess && (
-            <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+            <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
               {t("common.success")}
             </p>
           )}
@@ -592,9 +592,21 @@ function SessionsTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-20 bg-muted rounded-lg" />
-        <div className="h-20 bg-muted rounded-lg" />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
       </div>
     );
   }
@@ -611,7 +623,7 @@ function SessionsTab() {
         </p>
       )}
       {revokeMsg && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {revokeMsg}
         </p>
       )}
@@ -631,7 +643,7 @@ function SessionsTab() {
                 <div className="flex items-center gap-2 mb-1">
                   <Monitor className="w-4 h-4 text-muted-foreground shrink-0" />
                   {s.current && (
-                    <span className="inline-flex items-center text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full font-medium">
+                    <span className="inline-flex items-center text-xs text-success bg-success/10 px-2 py-0.5 rounded-full font-medium">
                       {t("settings.currentSession")}
                     </span>
                   )}
@@ -818,9 +830,21 @@ function ApiKeysTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-20 bg-muted rounded-lg" />
-        <div className="h-20 bg-muted rounded-lg" />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
       </div>
     );
   }
@@ -856,7 +880,7 @@ function ApiKeysTab() {
         </p>
       )}
       {successMsg && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {successMsg}
         </p>
       )}
@@ -1272,7 +1296,7 @@ function PreferencesTab() {
         </p>
       )}
       {success && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {t("common.success")}
         </p>
       )}
@@ -1358,7 +1382,7 @@ export function SettingsPage() {
       {/* Mobile sub-menu */}
       {showMenu && (
         <div className="md:hidden">
-          <h1 className="text-xl font-bold text-foreground mb-6">
+          <h1 className="text-heading text-foreground mb-6">
             {t("settings.title")}
           </h1>
           <div className="rounded-lg border overflow-hidden divide-y">
@@ -1370,7 +1394,7 @@ export function SettingsPage() {
                 className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent transition-colors"
               >
                 <item.icon className="w-5 h-5 text-muted-foreground" />
-                <span className="flex-1 text-left text-sm text-foreground">
+                <span className="flex-1 text-left text-body-sm text-foreground">
                   {item.label}
                 </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
@@ -1383,7 +1407,7 @@ export function SettingsPage() {
       {/* Content area */}
       <div className={showMenu ? "hidden md:block" : ""}>
         {!isMobile && (
-          <h1 className="text-xl font-bold text-foreground mb-6">
+          <h1 className="text-heading text-foreground mb-6">
             {t("settings.title")}
           </h1>
         )}
@@ -1396,7 +1420,7 @@ export function SettingsPage() {
               type="button"
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
+                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
                 activeTab === tab.id
                   ? "border-primary text-primary font-semibold"
                   : "border-transparent text-muted-foreground font-medium hover:text-foreground",

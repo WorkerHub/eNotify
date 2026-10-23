@@ -6,7 +6,6 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  AlertCircle,
   CreditCard,
   Bell,
   RotateCcw,
@@ -19,6 +18,7 @@ import {
   Pencil,
   Search,
   ChevronDown,
+  Ellipsis,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,8 @@ import type { Item } from "@/types";
 import { formatLunarDate } from "@/lib/lunar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Portal } from "@/components/Portal";
+import { DueRing, DueCount, dueTierBadgeClass } from "@/components/DueRing";
+import { Skeleton, EmptyState, ErrorState } from "@/components/states";
 
 type StatusKey = "active" | "expiringSoon" | "expired" | "inactive";
 
@@ -63,25 +65,38 @@ function getDaysRemaining(item: Item): number {
   );
 }
 
+function getPeriodDays(item: Item): number {
+  const unit = { day: 1, week: 7, month: 30, year: 365 }[item.period_unit];
+  return Math.max(1, item.period_value * unit);
+}
+
 const STATUS_STYLES: Record<StatusKey, string> = {
-  active:
-    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  expiringSoon:
-    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  expired: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  active: "bg-success/10 text-success",
+  expiringSoon: "bg-warning/10 text-warning",
+  expired: "bg-destructive/10 text-destructive",
+  inactive: "bg-muted text-muted-foreground",
 };
 
-function DaysBadge({ days }: { days: number }) {
-  const cls =
-    days < 0
-      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-      : days <= 7
-        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-        : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+/** Countdown anchor: remaining-progress ring + tabular day count in the due gradient (§3.1). */
+function DueMark({ days, item }: { days: number; item: Item }) {
+  const { t } = useTranslation();
+  const progress = Math.max(0, Math.min(1, days / getPeriodDays(item)));
   return (
-    <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium", cls)}>
-      {days < 0 ? `-${Math.abs(days)}d` : `${days}d`}
+    <span
+      className="inline-flex items-center gap-1.5"
+      title={t("items.daysRemaining")}
+    >
+      <DueRing days={days} progress={progress} size={20} strokeWidth={2.5} />
+      <span
+        className={cn(
+          "px-1.5 py-0.5 rounded-xs text-caption font-medium tabular-nums",
+          dueTierBadgeClass(days),
+        )}
+      >
+        {days < 0
+          ? t("items.overdueShort", { count: Math.abs(days) })
+          : t("items.daysShort", { count: days })}
+      </span>
     </span>
   );
 }
@@ -241,6 +256,7 @@ export function ItemListPage() {
   const [openDropdown, setOpenDropdown] = useState<
     "category" | "status" | null
   >(null);
+  const [moreId, setMoreId] = useState<string | null>(null);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -398,11 +414,11 @@ export function ItemListPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("items.title")}</h1>
+        <h1 className="text-heading">{t("items.title")}</h1>
         <button
           type="button"
           onClick={() => navigate("/items/new")}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-body-sm font-medium shadow-1 hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           {t("items.add")}
@@ -410,10 +426,11 @@ export function ItemListPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
+        <ErrorState
+          message={error}
+          onRetry={loadItems}
+          retryLabel={t("common.retry")}
+        />
       )}
 
       {loading ? (
@@ -422,16 +439,35 @@ export function ItemListPage() {
             (skeletonKey) => (
               <div
                 key={skeletonKey}
-                className="h-16 bg-muted rounded-lg animate-pulse"
-              />
+                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3"
+              >
+                <Skeleton className="h-5 w-5 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-6 w-10" />
+              </div>
             ),
           )}
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <CreditCard className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p>{t("dashboard.noData")}</p>
-        </div>
+        <EmptyState
+          icon={<CreditCard className="w-6 h-6" />}
+          title={t("items.emptyTitle")}
+          description={t("items.emptyDesc")}
+          action={
+            <button
+              type="button"
+              onClick={() => navigate("/items/new")}
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-body-sm font-medium shadow-1 hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {t("items.add")}
+            </button>
+          }
+        />
       ) : (
         <>
           {/* Desktop table */}
@@ -448,10 +484,10 @@ export function ItemListPage() {
               </colgroup>
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     {t("items.name")}
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap relative">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap relative">
                     <span className="inline-flex items-center gap-1">
                       {t("items.category")}
                       <FilterIcon
@@ -462,11 +498,11 @@ export function ItemListPage() {
                       />
                     </span>
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     {t("items.mode.label")}{" "}
                     <HelpIcon tooltip={t("items.mode.tooltip")} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 cursor-pointer select-none"
@@ -490,13 +526,13 @@ export function ItemListPage() {
                       )}
                     </button>
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     {t("common.status")}
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     {t("items.reminder")}
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                  <th className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap">
                     {t("common.actions")}
                   </th>
                 </tr>
@@ -540,7 +576,7 @@ export function ItemListPage() {
                       <td className="px-4 py-2 overflow-hidden">
                         <div className="flex items-center gap-2">
                           <span>{getEffectiveExpiry(item)}</span>
-                          <DaysBadge days={days} />
+                          <DueMark days={days} item={item} />
                         </div>
                         {item.calendar_mode === "both" &&
                         item.lunar_expiry_date &&
@@ -867,8 +903,16 @@ export function ItemListPage() {
                   className="bg-card rounded-xl border p-4 space-y-2"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{item.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-body-strong truncate">{item.name}</p>
+                        <DueCount
+                          days={days}
+                          unit={t("dashboard.daysUnit")}
+                          size="sm"
+                          className="shrink-0"
+                        />
+                      </div>
                       {item.notes && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {item.notes}
@@ -912,7 +956,7 @@ export function ItemListPage() {
                           <span className="text-muted-foreground">
                             {getEffectiveExpiry(item)}
                           </span>
-                          <DaysBadge days={days} />
+                          <DueMark days={days} item={item} />
                         </div>
                         {item.calendar_mode === "both" &&
                         item.lunar_expiry_date &&
@@ -961,79 +1005,108 @@ export function ItemListPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-end justify-between pt-1 border-t gap-1.5">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t">
                     <button
                       type="button"
                       onClick={() => navigate(`/items/${item.id}`)}
-                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors flex-1 min-w-0"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-accent hover:bg-accent/70 text-body-sm transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                      <span className="truncate w-full text-center">
-                        {t("common.edit")}
-                      </span>
+                      {t("common.edit")}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(item)}
-                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 transition-colors flex-1 min-w-0"
-                    >
-                      {item.is_active ? (
-                        <ToggleRight className="w-3.5 h-3.5 text-green-500" />
-                      ) : (
-                        <ToggleLeft className="w-3.5 h-3.5" />
+                    <div className="relative">
+                      <button
+                        type="button"
+                        aria-label={t("common.more")}
+                        aria-expanded={moreId === item.id}
+                        onClick={() =>
+                          setMoreId(moreId === item.id ? null : item.id)
+                        }
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-accent hover:bg-accent/70 text-body-sm transition-colors"
+                      >
+                        <Ellipsis className="w-4 h-4" />
+                        {t("common.more")}
+                      </button>
+                      {moreId === item.id && (
+                        <>
+                          <button
+                            type="button"
+                            aria-label="Close menu"
+                            className="fixed inset-0 z-40"
+                            onClick={() => setMoreId(null)}
+                          />
+                          <div className="absolute right-0 bottom-full mb-1 z-50 w-40 rounded-lg border bg-popover py-1 shadow-3 text-body-sm">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMoreId(null);
+                                handleToggle(item);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
+                            >
+                              {item.is_active ? (
+                                <ToggleRight className="w-4 h-4 text-success" />
+                              ) : (
+                                <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              {item.is_active
+                                ? t("admin.deactivate")
+                                : t("admin.activate")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={testingId === item.id}
+                              onClick={() => {
+                                setMoreId(null);
+                                handleTestNotify(item);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left disabled:opacity-50"
+                            >
+                              <Bell className="w-4 h-4" />
+                              {t("items.testNotify")}
+                            </button>
+                            {item.item_mode === "reset" ? (
+                              <button
+                                type="button"
+                                disabled={resettingId === item.id}
+                                onClick={() => {
+                                  setMoreId(null);
+                                  handleReset(item);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left disabled:opacity-50"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                                {t("items.resetCycle")}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={renewingId === item.id}
+                                onClick={() => {
+                                  setMoreId(null);
+                                  handleRenew(item);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left disabled:opacity-50"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                                {t("items.renew")}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMoreId(null);
+                                handleDelete(item);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-destructive hover:bg-destructive/10 text-left"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              {t("common.delete")}
+                            </button>
+                          </div>
+                        </>
                       )}
-                      <span className="truncate w-full text-center">
-                        {item.is_active
-                          ? t("admin.deactivate")
-                          : t("admin.activate")}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleTestNotify(item)}
-                      disabled={testingId === item.id}
-                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span className="truncate w-full text-center">
-                        {t("items.testNotify")}
-                      </span>
-                    </button>
-                    {item.item_mode === "reset" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleReset(item)}
-                        disabled={resettingId === item.id}
-                        className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span className="truncate w-full text-center">
-                          {t("items.resetCycle")}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleRenew(item)}
-                        disabled={renewingId === item.id}
-                        className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-accent hover:bg-accent/70 disabled:opacity-50 transition-colors flex-1 min-w-0"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span className="truncate w-full text-center">
-                          {t("items.renew")}
-                        </span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(item)}
-                      className="flex flex-col items-center gap-0.5 text-xs py-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex-1 min-w-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span className="truncate w-full text-center">
-                        {t("common.delete")}
-                      </span>
-                    </button>
+                    </div>
                   </div>
                 </div>
               );

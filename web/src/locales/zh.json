@@ -35,7 +35,9 @@
     "period": "周期",
     "confirmDelete": "确定删除 \"{{name}}\"？",
     "confirmDeletePayment": "确定删除该支付记录？",
-    "notificationSent": "通知已发送！"
+    "notificationSent": "通知已发送！",
+    "retry": "重试",
+    "more": "更多"
   },
   "auth": {
     "login": "登录",
@@ -71,7 +73,8 @@
     "resendCode": "重新发送验证码",
     "resendCodeCountdown": "重新发送 ({{seconds}}s)",
     "resetCodeCooldown": "请求过于频繁，请稍后再试",
-    "backToLogin": "返回登录"
+    "backToLogin": "返回登录",
+    "loading": "请稍候…"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -105,7 +108,13 @@
     "regularSection": "普通提醒",
     "activeRegularCount": "活跃普通提醒",
     "upcomingReminders": "即将到期提醒",
-    "regularCategoryRanking": "分类排行（条数）"
+    "regularCategoryRanking": "分类排行（条数）",
+    "overdue": "已逾期",
+    "expiring30": "30 天内到期",
+    "daysUnit": "天",
+    "nextDue": "最近到期",
+    "monthSpent": "本月支出",
+    "noUpcoming": "暂无即将到期事项"
   },
   "items": {
     "title": "通知管理",
@@ -157,7 +166,7 @@
       "expired": "已过期",
       "expiringSoon": "即将到期"
     },
-    "daysRemaining": "剩余 {{days}} 天",
+    "daysRemaining": "剩余天数",
     "expired": "已过期 {{days}} 天",
     "notFound": "未找到该通知",
     "paymentType": {
@@ -185,7 +194,12 @@
     "filterAll": "全部",
     "searchPlaceholder": "搜索通知...",
     "sortExpiry": "到期日",
-    "statusAll": "全部状态"
+    "statusAll": "全部状态",
+    "daysShort": "{{count}} 天",
+    "overdueShort": "逾期 {{count}} 天",
+    "emptyTitle": "还没有任何账目",
+    "emptyDesc": "添加第一笔订阅或提醒，开始记录你的时间账本。",
+    "amountDue": "金额"
   },
   "settings": {
     "title": "设置",
@@ -275,7 +289,10 @@
     "noData": "暂无通知记录",
     "detail": "通知详情",
     "content": "消息内容",
-    "noContent": "该记录无消息内容"
+    "noContent": "该记录无消息内容",
+    "emptyTitle": "还没有发送记录",
+    "emptyDesc": "通知发出后会在这里留下账目。",
+    "loadError": "发送记录加载失败"
   },
   "admin": {
     "title": "管理后台",
@@ -396,5 +413,17 @@
     "wrongSecret": "密钥错误，请检查后重试。",
     "rateLimited": "请求过于频繁，请稍后再试。",
     "genericError": "初始化失败，请稍后再试。"
+  },
+  "me": {
+    "dueThisMonth": "本月到期",
+    "entries": "笔"
+  },
+  "detail": {
+    "sectionBasic": "基本信息",
+    "sectionCycle": "周期与到期",
+    "sectionReminder": "提醒与渠道",
+    "sectionNotes": "备注",
+    "summary": "到期预览",
+    "daysLeft": "剩余"
   }
 }

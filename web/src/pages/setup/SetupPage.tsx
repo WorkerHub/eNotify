@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Database, Globe } from "lucide-react";
 import { setupApi, ApiError } from "@/lib/api";
+import { AuthShell, FormError } from "@/components/AuthShell";
 
 type View = "loading" | "disabled" | "form" | "done";
 
@@ -62,8 +63,18 @@ export function SetupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
+    <AuthShell
+      title={
+        <span className="inline-flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
+            <Database className="h-5 w-5 text-primary-foreground" />
+          </span>
+          {t("app.name")}
+        </span>
+      }
+      subtitle={view === "form" ? t("setup.desc") : undefined}
+    >
+      <div className="fixed top-4 right-4">
         <button
           type="button"
           onClick={toggleLang}
@@ -74,34 +85,23 @@ export function SetupPage() {
         </button>
       </div>
 
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-            <Database className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold text-foreground">
-            {t("app.name")}
-          </span>
-        </div>
-
-        <div className="bg-card border rounded-xl shadow-lg p-8">
+      <div className="w-full">
+        <div>
           {view === "loading" && (
-            <p className="text-center text-sm text-muted-foreground">
-              {t("common.loading")}
+            <p className="text-center text-body-sm text-muted-foreground">
+              {t("auth.loading")}
             </p>
           )}
 
           {view === "disabled" && (
             <div className="space-y-4">
-              <h1 className="text-lg font-semibold text-foreground">
-                {t("setup.title")}
-              </h1>
-              <p role="alert" className="text-sm text-muted-foreground">
+              <h1 className="text-title">{t("setup.title")}</h1>
+              <p role="alert" className="text-body-sm text-muted-foreground">
                 {t("setup.disabled")}
               </p>
               <Link
                 to="/login"
-                className="block w-full text-center py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                className="block w-full text-center py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-body-sm font-medium rounded-md transition-colors"
               >
                 {t("setup.goLogin")}
               </Link>
@@ -110,29 +110,27 @@ export function SetupPage() {
 
           {view === "done" && (
             <div className="space-y-4">
-              <h1 className="text-lg font-semibold text-foreground">
-                {t("setup.title")}
-              </h1>
-              <p className="text-sm text-green-600">
+              <h1 className="text-title">{t("setup.title")}</h1>
+              <p className="text-body-sm text-success">
                 {alreadyInitialized
                   ? t("setup.alreadyInitialized")
                   : t("setup.success")}
               </p>
               {!alreadyInitialized && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-sm text-muted-foreground">
                   {t("setup.successGuide")}
                 </p>
               )}
               <div className="flex gap-2">
                 <Link
                   to="/login"
-                  className="flex-1 text-center py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                  className="flex-1 text-center py-2 px-4 bg-primary hover:bg-primary/90 text-primary-foreground text-body-sm font-medium rounded-md transition-colors"
                 >
                   {t("setup.goLogin")}
                 </Link>
                 <Link
                   to="/"
-                  className="flex-1 text-center py-2 px-4 border border-input hover:bg-accent text-foreground text-sm font-medium rounded-md transition-colors"
+                  className="flex-1 text-center py-2 px-4 border border-input hover:bg-accent text-foreground text-body-sm font-medium rounded-md transition-colors"
                 >
                   {t("setup.goHome")}
                 </Link>
@@ -142,16 +140,11 @@ export function SetupPage() {
 
           {view === "form" && (
             <>
-              <h1 className="text-lg font-semibold text-foreground mb-1">
-                {t("setup.title")}
-              </h1>
-              <p className="text-sm text-muted-foreground mb-6">
-                {t("setup.desc")}
-              </p>
+              <h1 className="text-title mb-6">{t("setup.title")}</h1>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                  <label className="block text-body-sm font-medium text-foreground mb-1.5">
                     {t("setup.secretLabel")}
                   </label>
                   <input
@@ -160,20 +153,16 @@ export function SetupPage() {
                     autoComplete="off"
                     value={secret}
                     onChange={(e) => setSecret(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full px-3 py-2 rounded-sm border border-input bg-background text-foreground text-body-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
-                {error && (
-                  <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                    {error}
-                  </p>
-                )}
+                {error && <FormError>{error}</FormError>}
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                  className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-body-sm font-medium rounded-md transition-colors"
                 >
                   {submitting ? t("setup.submitting") : t("setup.submit")}
                 </button>
@@ -182,6 +171,6 @@ export function SetupPage() {
           )}
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

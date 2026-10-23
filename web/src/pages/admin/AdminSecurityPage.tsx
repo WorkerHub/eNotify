@@ -19,9 +19,11 @@ function Toggle({
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <p className="text-sm font-medium">{label}</p>
+        <p className="text-body-sm font-medium">{label}</p>
         {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          <p className="text-caption text-muted-foreground mt-0.5">
+            {description}
+          </p>
         )}
       </div>
       <button
@@ -31,7 +33,7 @@ function Toggle({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative shrink-0 w-10 h-6 rounded-full transition-colors mt-0.5",
-          checked ? "bg-primary" : "bg-gray-300 dark:bg-gray-600",
+          checked ? "bg-primary" : "bg-input",
         )}
       >
         <span
@@ -128,7 +130,7 @@ export function AdminSecurityPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse max-w-xl">
+      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6">
         <div className="h-40 bg-muted rounded-xl" />
       </div>
     );
@@ -137,7 +139,7 @@ export function AdminSecurityPage() {
   return (
     <div className="max-w-xl space-y-6">
       {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
+        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-body-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -190,7 +192,9 @@ export function AdminSecurityPage() {
           >
             {saving ? t("common.loading") : t("common.save")}
           </button>
-          {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
+          {saveMsg && (
+            <span className="text-body-sm text-success">{saveMsg}</span>
+          )}
         </div>
       </form>
 
@@ -201,7 +205,7 @@ export function AdminSecurityPage() {
         </p>
 
         {upgradeResult && (
-          <p className="text-sm text-green-600">{upgradeResult}</p>
+          <p className="text-body-sm text-success">{upgradeResult}</p>
         )}
         {upgradeError && (
           <p className="text-sm text-destructive">{upgradeError}</p>

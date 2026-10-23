@@ -5,6 +5,7 @@ import { Globe, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/ThemeProvider";
 import { api } from "@/lib/api";
+import { AuthShell, FormError } from "@/components/AuthShell";
 
 export function LoginPage() {
   const { t, i18n } = useTranslation();
@@ -68,9 +69,9 @@ export function LoginPage() {
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
+    <AuthShell title={t("app.name")} subtitle={t("app.tagline")}>
       {/* Top-right controls */}
-      <div className="absolute top-4 right-4 flex items-center gap-1">
+      <div className="fixed top-4 right-4 flex items-center gap-1">
         <button
           type="button"
           onClick={toggleLang}
@@ -89,20 +90,11 @@ export function LoginPage() {
         </button>
       </div>
 
-      <div className="w-full max-w-sm">
-        <div className="bg-card border rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">
-              {t("app.name")}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t("app.tagline")}
-            </p>
-          </div>
-
+      <div className="w-full">
+        <div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
+              <label className="block text-body-sm font-medium text-foreground mb-1.5">
                 {t("auth.email")}
               </label>
               <input
@@ -111,19 +103,19 @@ export function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2 rounded-sm border border-input bg-background text-foreground text-body-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-foreground">
+                <label className="text-body-sm font-medium text-foreground">
                   {t("auth.password")}
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-primary hover:underline"
+                  className="text-caption text-primary hover:underline"
                 >
                   {t("auth.forgotPassword")}
                 </Link>
@@ -134,27 +126,23 @@ export function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2 rounded-sm border border-input bg-background text-foreground text-body-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                {error}
-              </p>
-            )}
+            {error && <FormError>{error}</FormError>}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
             >
-              {loading ? t("common.loading") : t("auth.login")}
+              {loading ? t("auth.loading") : t("auth.login")}
             </button>
           </form>
 
           {registrationEnabled && (
-            <p className="text-center text-sm text-muted-foreground mt-6">
+            <p className="text-center text-body-sm text-muted-foreground mt-6">
               {t("auth.noAccount")}{" "}
               <Link
                 to="/register"
@@ -166,6 +154,6 @@ export function LoginPage() {
           )}
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

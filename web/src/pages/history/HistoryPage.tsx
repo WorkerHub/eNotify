@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CheckCircle, XCircle, History, X, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Skeleton, EmptyState, ErrorState } from "@/components/states";
 import type { NotificationHistory } from "@/types";
 
 interface GroupedHistory {
@@ -109,13 +110,18 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t("history.title")}</h1>
+    <div className="space-y-6">
+      <h1 className="text-heading">{t("history.title")}</h1>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-          {error}
-        </p>
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setLoading(true);
+            fetchHistory();
+          }}
+          retryLabel={t("common.retry")}
+        />
       )}
 
       {loading ? (
@@ -124,16 +130,24 @@ export function HistoryPage() {
             (skeletonKey) => (
               <div
                 key={skeletonKey}
-                className="h-16 bg-muted rounded-lg animate-pulse"
-              />
+                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3"
+              >
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-4 w-28" />
+              </div>
             ),
           )}
         </div>
       ) : grouped.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p>{t("history.noData")}</p>
-        </div>
+        <EmptyState
+          icon={<History className="w-6 h-6" />}
+          title={t("history.emptyTitle")}
+          description={t("history.emptyDesc")}
+        />
       ) : (
         <>
           {/* Desktop table */}
@@ -150,7 +164,7 @@ export function HistoryPage() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap"
+                      className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -185,7 +199,7 @@ export function HistoryPage() {
                         {g.channels.map((c) => (
                           <span
                             key={`${g.id}-${c.channel}`}
-                            className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                            className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
                           >
                             {c.channel}
                           </span>
@@ -194,7 +208,7 @@ export function HistoryPage() {
                     </td>
                     <td className="px-4 py-3">
                       {g.allSuccess ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
                           <CheckCircle className="w-3 h-3" />
                           {t("history.success")}
                         </span>
@@ -205,7 +219,7 @@ export function HistoryPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums text-body-sm">
                       {new Date(g.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
@@ -243,7 +257,7 @@ export function HistoryPage() {
                     )}
                   </div>
                   {g.allSuccess ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full shrink-0">
                       <CheckCircle className="w-3 h-3" />
                       {t("history.success")}
                     </span>
@@ -259,7 +273,7 @@ export function HistoryPage() {
                     {g.channels.map((c) => (
                       <span
                         key={`${g.id}-${c.channel}`}
-                        className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                        className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
                       >
                         {c.channel}
                       </span>
@@ -301,7 +315,7 @@ export function HistoryPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelected(null)}
           />
-          <div className="relative bg-card border rounded-xl w-full max-w-lg shadow-lg flex flex-col max-h-[80vh]">
+          <div className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
               <h3 className="font-semibold text-sm">{t("history.detail")}</h3>
               <button
@@ -343,7 +357,7 @@ export function HistoryPage() {
                   {selected.channels.map((c) => (
                     <span
                       key={`${selected.id}-${c.channel}`}
-                      className={`uppercase px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                      className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
                     >
                       {c.channel}
                     </span>

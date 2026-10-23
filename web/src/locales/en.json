@@ -35,7 +35,9 @@
     "period": "Period",
     "confirmDelete": "Delete \"{{name}}\"?",
     "confirmDeletePayment": "Delete this payment?",
-    "notificationSent": "Notification sent!"
+    "notificationSent": "Notification sent!",
+    "retry": "Retry",
+    "more": "More"
   },
   "auth": {
     "login": "Login",
@@ -71,7 +73,8 @@
     "resendCode": "Resend code",
     "resendCodeCountdown": "Resend ({{seconds}}s)",
     "resetCodeCooldown": "Too many requests, please try again later",
-    "backToLogin": "Back to login"
+    "backToLogin": "Back to login",
+    "loading": "Please wait…"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -105,7 +108,13 @@
     "regularSection": "Regular Reminders",
     "activeRegularCount": "Active Reminders",
     "upcomingReminders": "Upcoming Reminders",
-    "regularCategoryRanking": "By Category (count)"
+    "regularCategoryRanking": "By Category (count)",
+    "overdue": "Overdue",
+    "expiring30": "Due in 30 days",
+    "daysUnit": "d",
+    "nextDue": "Next due",
+    "monthSpent": "This month",
+    "noUpcoming": "Nothing due soon"
   },
   "items": {
     "title": "Notifications",
@@ -157,7 +166,7 @@
       "expired": "Expired",
       "expiringSoon": "Expiring Soon"
     },
-    "daysRemaining": "{{days}} days remaining",
+    "daysRemaining": "Days left",
     "expired": "Expired {{days}} days ago",
     "notFound": "Notification not found",
     "paymentType": {
@@ -185,7 +194,12 @@
     "filterAll": "All",
     "searchPlaceholder": "Search notifications...",
     "sortExpiry": "Expiry",
-    "statusAll": "All Status"
+    "statusAll": "All Status",
+    "daysShort": "{{count}}d",
+    "overdueShort": "{{count}}d overdue",
+    "emptyTitle": "No entries yet",
+    "emptyDesc": "Add your first subscription or reminder to start your ledger of time.",
+    "amountDue": "Amount"
   },
   "settings": {
     "title": "Settings",
@@ -275,7 +289,10 @@
     "noData": "No notification records yet",
     "detail": "Notification Detail",
     "content": "Message Content",
-    "noContent": "No message content for this record"
+    "noContent": "No message content for this record",
+    "emptyTitle": "No history yet",
+    "emptyDesc": "Sent notifications will be recorded here.",
+    "loadError": "Failed to load history"
   },
   "admin": {
     "title": "Admin Panel",
@@ -396,5 +413,17 @@
     "wrongSecret": "Incorrect setup secret.",
     "rateLimited": "Too many requests, please try again later.",
     "genericError": "Initialization failed, please try again later."
+  },
+  "me": {
+    "dueThisMonth": "Due this month",
+    "entries": "entries"
+  },
+  "detail": {
+    "sectionBasic": "Basic info",
+    "sectionCycle": "Cycle & expiry",
+    "sectionReminder": "Reminder & channels",
+    "sectionNotes": "Notes",
+    "summary": "Due preview",
+    "daysLeft": "remaining"
   }
 }

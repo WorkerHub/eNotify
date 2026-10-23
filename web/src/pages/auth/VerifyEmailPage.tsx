@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { AuthShell } from "@/components/AuthShell";
 
 export function VerifyEmailPage() {
   const { t } = useTranslation();
@@ -38,27 +39,23 @@ export function VerifyEmailPage() {
   }, [token, t]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-card border rounded-xl shadow-lg p-8 text-center">
-          <h1 className="text-xl font-bold text-foreground mb-6">
-            {t("auth.verifyEmail")}
-          </h1>
-
+    <AuthShell title={t("auth.verifyEmail")}>
+      <div>
+        <div className="text-center">
           {status === "loading" && (
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="text-sm">{t("common.loading")}</p>
+              <p className="text-body-sm">{t("auth.loading")}</p>
             </div>
           )}
 
           {status === "success" && (
             <div className="flex flex-col items-center gap-3">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-              <p className="text-sm text-foreground">{message}</p>
+              <CheckCircle className="w-12 h-12 text-success" />
+              <p className="text-body-sm text-foreground">{message}</p>
               <Link
                 to="/login"
-                className="mt-4 inline-block py-2 px-6 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-md transition-colors"
+                className="mt-4 inline-block py-2 px-6 bg-primary hover:bg-primary/90 text-primary-foreground text-body-sm font-medium rounded-md transition-colors"
               >
                 {t("auth.login")}
               </Link>
@@ -68,10 +65,10 @@ export function VerifyEmailPage() {
           {status === "error" && (
             <div className="flex flex-col items-center gap-3">
               <XCircle className="w-12 h-12 text-destructive" />
-              <p className="text-sm text-destructive">{message}</p>
+              <p className="text-body-sm text-destructive">{message}</p>
               <Link
                 to="/login"
-                className="mt-4 inline-block text-sm text-primary hover:underline font-medium"
+                className="mt-4 inline-block text-body-sm text-primary hover:underline font-medium"
               >
                 {t("auth.login")}
               </Link>
@@ -79,6 +76,6 @@ export function VerifyEmailPage() {
           )}
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

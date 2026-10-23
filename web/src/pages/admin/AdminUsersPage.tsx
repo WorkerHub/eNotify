@@ -30,11 +30,11 @@ interface AdminUser {
 const ROLE_STYLE: Record<string, string> = {
   admin:
     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  user: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  user: "bg-muted text-muted-foreground",
 };
 
 const INPUT =
-  "w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+  "w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-body-sm focus:outline-none focus:ring-2 focus:ring-ring";
 const SELECT = cn(INPUT, "cursor-pointer");
 
 export function AdminUsersPage() {
@@ -208,13 +208,15 @@ export function AdminUsersPage() {
             <Users className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               {t("admin.userCount")}
             </p>
             {loading ? (
-              <div className="h-4 w-6 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-6 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="text-sm font-bold leading-tight">{users.length}</p>
+              <p className="text-display tabular-nums leading-none">
+                {users.length}
+              </p>
             )}
           </div>
         </div>
@@ -232,7 +234,7 @@ export function AdminUsersPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
+        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-body-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -245,7 +247,9 @@ export function AdminUsersPage() {
           <form onSubmit={handleAddUser} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">{t("auth.email")}</label>
+                <label className="text-body-sm font-medium">
+                  {t("auth.email")}
+                </label>
                 <input
                   type="email"
                   required
@@ -255,7 +259,7 @@ export function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">
+                <label className="text-body-sm font-medium">
                   {t("auth.password")}
                 </label>
                 <input
@@ -268,7 +272,9 @@ export function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">{t("admin.role")}</label>
+                <label className="text-body-sm font-medium">
+                  {t("admin.role")}
+                </label>
                 <select
                   className={SELECT}
                   value={newRole}
@@ -317,7 +323,9 @@ export function AdminUsersPage() {
             </div>
             <form onSubmit={handleEditUser} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">{t("auth.email")}</label>
+                <label className="text-body-sm font-medium">
+                  {t("auth.email")}
+                </label>
                 <input
                   type="email"
                   required
@@ -327,7 +335,7 @@ export function AdminUsersPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">
+                <label className="text-body-sm font-medium">
                   {t("admin.newPasswordOptional")}
                 </label>
                 <input
@@ -366,8 +374,14 @@ export function AdminUsersPage() {
             (skeletonKey) => (
               <div
                 key={skeletonKey}
-                className="h-14 bg-muted rounded-lg animate-pulse"
-              />
+                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3"
+              >
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+                </div>
+                <div className="h-5 w-14 animate-pulse rounded-full bg-muted" />
+              </div>
             ),
           )}
         </div>
@@ -426,8 +440,8 @@ export function AdminUsersPage() {
                         className={cn(
                           "px-2 py-0.5 rounded-full text-xs font-medium",
                           u.is_active
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+                            ? "bg-success/10 text-success"
+                            : "bg-muted text-muted-foreground",
                         )}
                       >
                         {u.is_active
@@ -460,9 +474,9 @@ export function AdminUsersPage() {
                           }
                         >
                           {u.is_active ? (
-                            <UserX className="w-4 h-4 text-yellow-500" />
+                            <UserX className="w-4 h-4 text-warning" />
                           ) : (
-                            <UserCheck className="w-4 h-4 text-green-500" />
+                            <UserCheck className="w-4 h-4 text-success" />
                           )}
                         </button>
                         <button
@@ -522,7 +536,7 @@ export function AdminUsersPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium truncate">{u.email}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {u.created_at.slice(0, 10)}
                     </p>
                   </div>
@@ -541,8 +555,8 @@ export function AdminUsersPage() {
                       className={cn(
                         "px-2 py-0.5 rounded-full text-xs font-medium",
                         u.is_active
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-600",
+                          ? "bg-success/10 text-success"
+                          : "bg-muted text-muted-foreground",
                       )}
                     >
                       {u.is_active ? t("common.active") : t("common.inactive")}

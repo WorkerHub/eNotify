@@ -23,12 +23,12 @@ interface ResendConfig {
 }
 
 const INPUT =
-  "w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow";
+  "w-full rounded-lg border bg-background px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-body-sm font-medium">{label}</label>
       {children}
     </div>
   );
@@ -162,7 +162,7 @@ export function AdminEmailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse max-w-xl">
+      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6">
         <div className="h-40 bg-muted rounded-xl" />
         <div className="h-40 bg-muted rounded-xl" />
       </div>
@@ -172,7 +172,7 @@ export function AdminEmailPage() {
   return (
     <div className="max-w-xl space-y-6">
       {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
+        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-body-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -296,7 +296,9 @@ export function AdminEmailPage() {
           >
             {saving ? t("common.loading") : t("common.save")}
           </button>
-          {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
+          {saveMsg && (
+            <span className="text-body-sm text-success">{saveMsg}</span>
+          )}
         </div>
 
         {emailProvider !== "none" && (
@@ -320,7 +322,9 @@ export function AdminEmailPage() {
                 {testEmailLoading ? t("common.loading") : t("admin.testEmail")}
               </button>
               {testEmailMsg && (
-                <span className="text-sm text-green-600">{testEmailMsg}</span>
+                <span className="text-body-sm text-success">
+                  {testEmailMsg}
+                </span>
               )}
               {testEmailError && (
                 <span className="text-sm text-destructive">

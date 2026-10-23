@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { ArrowLeft, AlertCircle, Bell, HelpCircle } from "lucide-react";
+import { ArrowLeft, Bell, HelpCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types";
@@ -11,6 +11,7 @@ import { ChannelSelector } from "@/components/ChannelSelector";
 import { NotificationHoursSelector } from "@/components/NotificationHoursSelector";
 import { TagCombobox } from "@/components/TagCombobox";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ErrorState } from "@/components/states";
 import { Portal } from "@/components/Portal";
 
 const CURRENCIES = [
@@ -177,7 +178,7 @@ function FieldWithTooltip({
           {pos && (
             <Portal>
               <div
-                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-3 pointer-events-none z-[100] w-80 whitespace-pre-wrap"
                 style={{
                   left: pos.x,
                   top: pos.y,
@@ -357,172 +358,210 @@ export function ItemNewPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold">{t("items.add")}</h1>
+        <h1 className="text-heading">{t("items.add")}</h1>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Kind selector */}
-        <div className="flex items-center gap-2">
-          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <section className="space-y-5">
+          <h2 className="text-title">{t("detail.sectionBasic")}</h2>
+          {/* Kind selector */}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+              <button
+                type="button"
+                onClick={() => set("item_kind", "regular")}
+                className={cn(
+                  "px-4 py-1.5 rounded-md text-body-sm font-medium transition-colors",
+                  form.item_kind === "regular"
+                    ? "bg-background shadow text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t("items.kindRegular")}
+              </button>
+              <button
+                type="button"
+                onClick={() => set("item_kind", "subscription")}
+                className={cn(
+                  "px-4 py-1.5 rounded-md text-body-sm font-medium transition-colors",
+                  form.item_kind === "subscription"
+                    ? "bg-background shadow text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t("items.kindSubscription")}
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => set("item_kind", "regular")}
-              className={cn(
-                "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-                form.item_kind === "regular"
-                  ? "bg-background shadow text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              aria-label={t("items.mode.tooltip")}
+              ref={kindTooltipRef}
+              className="inline-flex"
+              onMouseEnter={() => {
+                if (!kindTooltipRef.current) return;
+                const rect = kindTooltipRef.current.getBoundingClientRect();
+                setKindTooltipPos({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top,
+                });
+              }}
+              onMouseLeave={() => setKindTooltipPos(null)}
             >
-              {t("items.kindRegular")}
-            </button>
-            <button
-              type="button"
-              onClick={() => set("item_kind", "subscription")}
-              className={cn(
-                "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-                form.item_kind === "subscription"
-                  ? "bg-background shadow text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+              <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+              {kindTooltipPos && (
+                <Portal>
+                  <div
+                    className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-3 pointer-events-none z-[100] w-80 whitespace-normal"
+                    style={{
+                      left: kindTooltipPos.x,
+                      top: kindTooltipPos.y,
+                      transform: "translate(-50%, calc(-100% - 8px))",
+                    }}
+                  >
+                    <span className="font-medium">
+                      {t("items.kindRegular")}：
+                    </span>
+                    {t("items.kindRegularTooltip")}
+                    <br />
+                    <span className="font-medium">
+                      {t("items.kindSubscription")}：
+                    </span>
+                    {t("items.kindSubscriptionTooltip")}
+                  </div>
+                </Portal>
               )}
-            >
-              {t("items.kindSubscription")}
             </button>
           </div>
-          <button
-            type="button"
-            aria-label={t("items.mode.tooltip")}
-            ref={kindTooltipRef}
-            className="inline-flex"
-            onMouseEnter={() => {
-              if (!kindTooltipRef.current) return;
-              const rect = kindTooltipRef.current.getBoundingClientRect();
-              setKindTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
-            }}
-            onMouseLeave={() => setKindTooltipPos(null)}
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-            {kindTooltipPos && (
-              <Portal>
-                <div
-                  className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-normal"
-                  style={{
-                    left: kindTooltipPos.x,
-                    top: kindTooltipPos.y,
-                    transform: "translate(-50%, calc(-100% - 8px))",
-                  }}
-                >
-                  <span className="font-medium">
-                    {t("items.kindRegular")}：
-                  </span>
-                  {t("items.kindRegularTooltip")}
-                  <br />
-                  <span className="font-medium">
-                    {t("items.kindSubscription")}：
-                  </span>
-                  {t("items.kindSubscriptionTooltip")}
-                </div>
-              </Portal>
-            )}
-          </button>
-        </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label={t("items.name")} required>
-            <input
-              className={INPUT}
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              required
-            />
-          </Field>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label={t("items.name")} required>
+              <input
+                className={INPUT}
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                required
+              />
+            </Field>
 
-          <FieldWithTooltip
-            label={t("items.mode.label")}
-            tooltip={t("items.mode.tooltip")}
-          >
-            <select
-              className={SELECT}
-              value={form.item_mode}
-              onChange={(e) =>
-                set("item_mode", e.target.value as FormData["item_mode"])
-              }
+            <FieldWithTooltip
+              label={t("items.mode.label")}
+              tooltip={t("items.mode.tooltip")}
             >
-              <option value="cycle">{t("items.mode.cycle")}</option>
-              <option value="reset">{t("items.mode.reset")}</option>
-            </select>
-          </FieldWithTooltip>
-
-          <Field label={t("items.category")}>
-            <TagCombobox
-              value={form.category}
-              onChange={(v) => set("category", v)}
-              options={tags}
-            />
-          </Field>
-
-          <Field label={t("items.startDate")} required>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                className={cn(INPUT, "flex-1")}
-                value={form.start_date}
-                onChange={(e) => set("start_date", e.target.value)}
-                required
-              />
-              {form.calendar_mode !== "solar" && form.start_date && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {formatLunarDate(form.start_date)}
-                </span>
-              )}
-            </div>
-          </Field>
-
-          <Field label={t("items.period")} required>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={1}
-                className={cn(INPUT, "w-24")}
-                value={form.period_value}
-                onChange={(e) => set("period_value", e.target.value)}
-                required
-              />
               <select
                 className={SELECT}
-                value={form.period_unit}
+                value={form.item_mode}
                 onChange={(e) =>
-                  set("period_unit", e.target.value as FormData["period_unit"])
+                  set("item_mode", e.target.value as FormData["item_mode"])
                 }
               >
-                {form.calendar_mode === "solar" && (
-                  <option value="day">{t("items.periodUnit.day")}</option>
-                )}
-                {form.calendar_mode === "solar" && (
-                  <option value="week">{t("items.periodUnit.week")}</option>
-                )}
-                <option value="month">{t("items.periodUnit.month")}</option>
-                <option value="year">{t("items.periodUnit.year")}</option>
+                <option value="cycle">{t("items.mode.cycle")}</option>
+                <option value="reset">{t("items.mode.reset")}</option>
               </select>
-            </div>
-          </Field>
+            </FieldWithTooltip>
 
-          <div className={cn(form.calendar_mode === "both" && "sm:row-span-2")}>
-            <Field label={t("items.expiryDate")} required>
-              {derivedExpiry ? (
-                form.calendar_mode === "both" ? (
-                  <div className="space-y-2">
+            <Field label={t("items.category")}>
+              <TagCombobox
+                value={form.category}
+                onChange={(v) => set("category", v)}
+                options={tags}
+              />
+            </Field>
+
+            <Field label={t("items.startDate")} required>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className={cn(INPUT, "flex-1")}
+                  value={form.start_date}
+                  onChange={(e) => set("start_date", e.target.value)}
+                  required
+                />
+                {form.calendar_mode !== "solar" && form.start_date && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatLunarDate(form.start_date)}
+                  </span>
+                )}
+              </div>
+            </Field>
+
+            <Field label={t("items.period")} required>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  className={cn(INPUT, "w-24")}
+                  value={form.period_value}
+                  onChange={(e) => set("period_value", e.target.value)}
+                  required
+                />
+                <select
+                  className={SELECT}
+                  value={form.period_unit}
+                  onChange={(e) =>
+                    set(
+                      "period_unit",
+                      e.target.value as FormData["period_unit"],
+                    )
+                  }
+                >
+                  {form.calendar_mode === "solar" && (
+                    <option value="day">{t("items.periodUnit.day")}</option>
+                  )}
+                  {form.calendar_mode === "solar" && (
+                    <option value="week">{t("items.periodUnit.week")}</option>
+                  )}
+                  <option value="month">{t("items.periodUnit.month")}</option>
+                  <option value="year">{t("items.periodUnit.year")}</option>
+                </select>
+              </div>
+            </Field>
+
+            <div
+              className={cn(form.calendar_mode === "both" && "sm:row-span-2")}
+            >
+              <Field label={t("items.expiryDate")} required>
+                {derivedExpiry ? (
+                  form.calendar_mode === "both" ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground shrink-0 w-8">
+                          {t("items.calendarSolar")}
+                        </span>
+                        <span
+                          className={cn(
+                            INPUT,
+                            "flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none",
+                          )}
+                        >
+                          {derivedExpiry.solar}
+                        </span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatLunarDate(derivedExpiry.solar)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground shrink-0 w-8">
+                          {t("items.calendarLunar")}
+                        </span>
+                        <span
+                          className={cn(
+                            INPUT,
+                            "flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none",
+                          )}
+                        >
+                          {derivedExpiry.lunarDate ?? "—"}
+                        </span>
+                        {derivedExpiry.lunarDate && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatLunarDate(derivedExpiry.lunarDate)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0 w-8">
-                        {t("items.calendarSolar")}
-                      </span>
                       <span
                         className={cn(
                           INPUT,
@@ -531,223 +570,201 @@ export function ItemNewPage() {
                       >
                         {derivedExpiry.solar}
                       </span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatLunarDate(derivedExpiry.solar)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0 w-8">
-                        {t("items.calendarLunar")}
-                      </span>
-                      <span
-                        className={cn(
-                          INPUT,
-                          "flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none",
-                        )}
-                      >
-                        {derivedExpiry.lunarDate ?? "—"}
-                      </span>
-                      {derivedExpiry.lunarDate && (
+                      {form.calendar_mode === "lunar" && (
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatLunarDate(derivedExpiry.lunarDate)}
+                          {formatLunarDate(derivedExpiry.solar)}
                         </span>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        INPUT,
-                        "flex-1 bg-muted/50 text-muted-foreground cursor-not-allowed select-none",
-                      )}
-                    >
-                      {derivedExpiry.solar}
-                    </span>
-                    {form.calendar_mode === "lunar" && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatLunarDate(derivedExpiry.solar)}
-                      </span>
-                    )}
-                  </div>
-                )
-              ) : (
-                <div className={cn(INPUT, "bg-muted/50 text-muted-foreground")}>
-                  —
-                </div>
-              )}
-            </Field>
-          </div>
-
-          <Field label={t("items.reminderBefore")}>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={0}
-                className={cn(INPUT, "w-24")}
-                value={form.reminder_value}
-                onChange={(e) => set("reminder_value", e.target.value)}
-              />
-              <select
-                className={SELECT}
-                value={form.reminder_unit}
-                onChange={(e) =>
-                  set(
-                    "reminder_unit",
-                    e.target.value as FormData["reminder_unit"],
                   )
-                }
-              >
-                <option value="day">{t("items.periodUnit.day")}</option>
-                <option value="hour">{t("items.periodUnit.hour")}</option>
-              </select>
-            </div>
-          </Field>
-        </div>
-
-        {/* Amount + currency */}
-        {form.item_kind === "subscription" && (
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t("items.amount")}>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className={INPUT}
-                value={form.amount}
-                onChange={(e) => set("amount", e.target.value)}
-              />
-            </Field>
-
-            <Field label={t("items.currency")}>
-              <select
-                className={SELECT}
-                value={form.currency}
-                onChange={(e) => set("currency", e.target.value)}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        )}
-
-        {/* Toggles */}
-        <div className="flex gap-6 flex-wrap">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.auto_renew}
-              onClick={() => set("auto_renew", !form.auto_renew)}
-              className={cn(
-                "relative w-10 h-6 rounded-full transition-colors",
-                form.auto_renew ? "bg-primary" : "bg-gray-300 dark:bg-gray-600",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform",
-                  form.auto_renew && "translate-x-4",
+                ) : (
+                  <div
+                    className={cn(INPUT, "bg-muted/50 text-muted-foreground")}
+                  >
+                    —
+                  </div>
                 )}
-              />
-            </button>
-            <span className="text-sm font-medium">{t("items.autoRenew")}</span>
-          </label>
-        </div>
-
-        {/* Calendar mode selector + test button */}
-        <div className="grid sm:grid-cols-2 gap-4 items-end">
-          <Field label={t("items.calendarMode")}>
-            <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
-              {(["solar", "lunar", "both"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    if (
-                      (mode === "lunar" || mode === "both") &&
-                      (form.period_unit === "day" ||
-                        form.period_unit === "week")
-                    ) {
-                      setForm((prev) => ({
-                        ...prev,
-                        calendar_mode: mode,
-                        period_unit: "month",
-                      }));
-                    } else {
-                      set("calendar_mode", mode);
-                    }
-                  }}
-                  className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-                    form.calendar_mode === mode
-                      ? "bg-background shadow text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t(
-                    `items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
-                  )}
-                </button>
-              ))}
+              </Field>
             </div>
-          </Field>
-          <div>
-            <button
-              type="button"
-              onClick={handleSaveAndTest}
-              disabled={
-                submitting ||
-                !form.name.trim() ||
-                !form.start_date ||
-                !derivedExpiry
-              }
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-            >
-              <Bell className="w-4 h-4" />
-              {submitting ? t("common.loading") : t("items.testNotify")}
-            </button>
+
+            <Field label={t("items.reminderBefore")}>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  className={cn(INPUT, "w-24")}
+                  value={form.reminder_value}
+                  onChange={(e) => set("reminder_value", e.target.value)}
+                />
+                <select
+                  className={SELECT}
+                  value={form.reminder_unit}
+                  onChange={(e) =>
+                    set(
+                      "reminder_unit",
+                      e.target.value as FormData["reminder_unit"],
+                    )
+                  }
+                >
+                  <option value="day">{t("items.periodUnit.day")}</option>
+                  <option value="hour">{t("items.periodUnit.hour")}</option>
+                </select>
+              </div>
+            </Field>
           </div>
-        </div>
+        </section>
 
-        {/* Notes */}
-        <Field label={t("items.notes")}>
-          <textarea
-            rows={3}
-            className={cn(INPUT, "resize-none")}
-            value={form.notes}
-            onChange={(e) => set("notes", e.target.value)}
+        <section className="space-y-5">
+          <h2 className="text-title">{t("detail.sectionCycle")}</h2>
+          {/* Amount + currency */}
+          {form.item_kind === "subscription" && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label={t("items.amount")}>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className={INPUT}
+                  value={form.amount}
+                  onChange={(e) => set("amount", e.target.value)}
+                />
+              </Field>
+
+              <Field label={t("items.currency")}>
+                <select
+                  className={SELECT}
+                  value={form.currency}
+                  onChange={(e) => set("currency", e.target.value)}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {/* Toggles */}
+          <div className="flex gap-6 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.auto_renew}
+                onClick={() => set("auto_renew", !form.auto_renew)}
+                className={cn(
+                  "relative w-10 h-6 rounded-full transition-colors",
+                  form.auto_renew ? "bg-primary" : "bg-input",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-[calc(50%-8px)] left-1 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                    form.auto_renew && "translate-x-4",
+                  )}
+                />
+              </button>
+              <span className="text-sm font-medium">
+                {t("items.autoRenew")}
+              </span>
+            </label>
+          </div>
+
+          {/* Calendar mode selector + test button */}
+          <div className="grid sm:grid-cols-2 gap-4 items-end">
+            <Field label={t("items.calendarMode")}>
+              <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                {(["solar", "lunar", "both"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      if (
+                        (mode === "lunar" || mode === "both") &&
+                        (form.period_unit === "day" ||
+                          form.period_unit === "week")
+                      ) {
+                        setForm((prev) => ({
+                          ...prev,
+                          calendar_mode: mode,
+                          period_unit: "month",
+                        }));
+                      } else {
+                        set("calendar_mode", mode);
+                      }
+                    }}
+                    className={cn(
+                      "px-4 py-1.5 rounded-md text-body-sm font-medium transition-colors",
+                      form.calendar_mode === mode
+                        ? "bg-background shadow text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t(
+                      `items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
+                    )}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <div>
+              <button
+                type="button"
+                onClick={handleSaveAndTest}
+                disabled={
+                  submitting ||
+                  !form.name.trim() ||
+                  !form.start_date ||
+                  !derivedExpiry
+                }
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-body-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                {submitting ? t("common.loading") : t("items.testNotify")}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-5">
+          <h2 className="text-title">{t("detail.sectionReminder")}</h2>
+          {/* Notes */}
+          <Field label={t("items.notes")}>
+            <textarea
+              rows={3}
+              className={cn(INPUT, "resize-none")}
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+            />
+          </Field>
+
+          {/* Channel selector */}
+          <ChannelSelector
+            selected={form.channels}
+            onChange={(channels) => set("channels", channels)}
           />
-        </Field>
 
-        {/* Channel selector */}
-        <ChannelSelector
-          selected={form.channels}
-          onChange={(channels) => set("channels", channels)}
-        />
-
-        <NotificationHoursSelector
-          selected={form.notification_hours}
-          onChange={(hours) => set("notification_hours", hours)}
-          hint={t("items.notificationHoursHint")}
-        />
+          <NotificationHoursSelector
+            selected={form.notification_hours}
+            onChange={(hours) => set("notification_hours", hours)}
+            hint={t("items.notificationHoursHint")}
+          />
+        </section>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
             disabled={submitting}
-            className="bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            className="bg-primary text-primary-foreground px-6 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {submitting ? t("common.loading") : t("common.save")}
           </button>
           <button
             type="button"
             onClick={() => navigate("/items")}
-            className="px-6 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors"
+            className="px-6 py-2 rounded-md text-body-sm font-medium border hover:bg-accent transition-colors"
           >
             {t("common.cancel")}
           </button>

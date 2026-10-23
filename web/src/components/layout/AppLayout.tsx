@@ -203,7 +203,10 @@ export function AppLayout() {
         <div className="h-14 flex items-center px-4 border-b">
           <h1 className="text-title text-primary">
             {appName}
-            <span aria-hidden="true" className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline" />
+            <span
+              aria-hidden="true"
+              className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
+            />
           </h1>
         </div>
         <nav className="flex-1 p-2 space-y-1">
@@ -343,7 +346,10 @@ export function AppLayout() {
       >
         <span className="text-title text-primary">
           {appName}
-          <span aria-hidden="true" className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline" />
+          <span
+            aria-hidden="true"
+            className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
+          />
         </span>
       </header>
 

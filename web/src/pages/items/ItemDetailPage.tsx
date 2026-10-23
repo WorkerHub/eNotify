@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
-  AlertCircle,
   Bell,
   Trash2,
   Pencil,
@@ -21,6 +20,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DueRing, DueCount } from "@/components/DueRing";
+import { Skeleton, ErrorState } from "@/components/states";
 import { Portal } from "@/components/Portal";
 import { cn } from "@/lib/utils";
 import type { Item, Payment } from "@/types";
@@ -146,7 +147,7 @@ function FieldWithTooltip({
           {pos && (
             <Portal>
               <div
-                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-3 pointer-events-none z-[100] w-80 whitespace-pre-wrap"
                 style={{
                   left: pos.x,
                   top: pos.y,
@@ -610,21 +611,46 @@ export function ItemDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-48" />
-        <div className="h-64 bg-muted rounded-xl" />
+      <div className="max-w-5xl space-y-8">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-7 w-48" />
+        </div>
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-5">
+          <Skeleton className="h-5 w-24" />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!item) {
-    return (
-      <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-        <AlertCircle className="w-4 h-4 shrink-0" />
-        {error || t("items.notFound")}
-      </div>
-    );
+    return <ErrorState message={error || t("items.notFound")} />;
   }
+
+  // Live countdown preview (§5: due preview beside the edit form)
+  const effectiveExpiry =
+    item.calendar_mode === "both" &&
+    item.lunar_expiry_date &&
+    item.lunar_expiry_date <= item.expiry_date
+      ? item.lunar_expiry_date
+      : item.expiry_date;
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const daysLeft = Math.ceil(
+    (new Date(effectiveExpiry).getTime() - new Date(todayStr).getTime()) /
+      86400000,
+  );
+  const periodDays = Math.max(
+    1,
+    item.period_value *
+      { day: 1, week: 7, month: 30, year: 365 }[item.period_unit],
+  );
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -636,20 +662,37 @@ export function ItemDetailPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold truncate">{item.name}</h1>
+        <h1 className="text-heading truncate">{item.name}</h1>
+        {/* Due preview anchor (§3.1): ring + display countdown */}
+        <div
+          className="ml-auto flex shrink-0 items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-1"
+          title={t("detail.summary")}
+        >
+          <DueRing
+            days={daysLeft}
+            progress={Math.max(0, Math.min(1, daysLeft / periodDays))}
+            size={32}
+            strokeWidth={3.5}
+          />
+          <div className="flex flex-col leading-tight">
+            <DueCount
+              days={daysLeft}
+              unit={t("dashboard.daysUnit")}
+              size="sm"
+            />
+            <span className="text-caption text-muted-foreground tabular-nums">
+              {effectiveExpiry}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
       {/* Edit form */}
-      <section className="bg-card rounded-xl border p-5 space-y-5">
-        <h2 className="font-semibold text-base">{t("common.edit")}</h2>
-        <form onSubmit={handleSave} className="space-y-4">
+      <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-5">
+        <h2 className="text-title">{t("common.edit")}</h2>
+        <form onSubmit={handleSave} className="space-y-8">
           {/* Kind (read-only) */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
@@ -832,7 +875,10 @@ export function ItemDetailPage() {
           </div>
 
           {item.item_kind === "subscription" && (
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4 border-t pt-6">
+              <h3 className="sm:col-span-2 text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                {t("detail.sectionCycle")}
+              </h3>
               <Field label={t("items.amount")}>
                 <input
                   type="number"
@@ -906,7 +952,7 @@ export function ItemDetailPage() {
                       }
                     }}
                     className={cn(
-                      "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
+                      "px-4 py-1.5 rounded-md text-body-sm font-medium transition-colors",
                       item.calendar_mode === mode
                         ? "bg-background shadow text-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -924,7 +970,7 @@ export function ItemDetailPage() {
                 type="button"
                 onClick={handleTestNotify}
                 disabled={notifying}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-body-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
               >
                 <Bell className="w-4 h-4" />
                 {t("items.testNotify")}
@@ -933,7 +979,7 @@ export function ItemDetailPage() {
                 type="button"
                 onClick={handleRecalcExpiry}
                 disabled={!item?.start_date}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-body-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
               >
                 <Calculator className="w-4 h-4" />
                 {t("items.recalcExpiry")}
@@ -942,7 +988,7 @@ export function ItemDetailPage() {
                 <span
                   className={cn(
                     "text-sm self-center",
-                    notifyError ? "text-destructive" : "text-green-600",
+                    notifyError ? "text-destructive" : "text-success",
                   )}
                 >
                   {notifyMsg}
@@ -951,14 +997,19 @@ export function ItemDetailPage() {
             </div>
           </div>
 
-          <Field label={t("items.notes")}>
-            <textarea
-              rows={3}
-              className={cn(INPUT, "resize-none")}
-              value={item.notes}
-              onChange={(e) => setField("notes", e.target.value)}
-            />
-          </Field>
+          <div className="space-y-4 border-t pt-6">
+            <h3 className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+              {t("detail.sectionReminder")}
+            </h3>
+            <Field label={t("items.notes")}>
+              <textarea
+                rows={3}
+                className={cn(INPUT, "resize-none")}
+                value={item.notes}
+                onChange={(e) => setField("notes", e.target.value)}
+              />
+            </Field>
+          </div>
 
           <ChannelSelector selected={channels} onChange={setChannels} />
 
@@ -972,12 +1023,12 @@ export function ItemDetailPage() {
             <button
               type="submit"
               disabled={saving}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {saving ? t("common.loading") : t("common.save")}
             </button>
             {saveMsg && (
-              <span className="text-sm text-green-600">{saveMsg}</span>
+              <span className="text-body-sm text-success">{saveMsg}</span>
             )}
           </div>
         </form>
@@ -985,8 +1036,8 @@ export function ItemDetailPage() {
 
       {/* Renew / Reset */}
       {item.item_mode === "cycle" ? (
-        <section className="bg-card rounded-xl border p-5 space-y-4">
-          <h2 className="font-semibold text-base">{t("items.renew")}</h2>
+        <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+          <h2 className="text-title">{t("items.renew")}</h2>
           <form onSubmit={handleRenew} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               {item.item_kind === "subscription" && (
@@ -1033,17 +1084,20 @@ export function ItemDetailPage() {
             <button
               type="submit"
               disabled={renewing}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {renewing ? t("common.loading") : t("items.renew")}
             </button>
           </form>
         </section>
       ) : (
-        <section className="bg-card rounded-xl border p-5 space-y-4">
-          <h2 className="font-semibold text-base">{t("items.resetCycle")}</h2>
+        <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+          <h2 className="text-title">{t("items.resetCycle")}</h2>
           <form onSubmit={handleResetSubmit} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4 border-t pt-6">
+              <h3 className="sm:col-span-2 text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                {t("detail.sectionCycle")}
+              </h3>
               <Field label={t("items.amount")}>
                 <input
                   type="number"
@@ -1076,7 +1130,7 @@ export function ItemDetailPage() {
             <button
               type="submit"
               disabled={resetting}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {resetting ? t("common.loading") : t("items.resetCycle")}
             </button>
@@ -1085,8 +1139,8 @@ export function ItemDetailPage() {
       )}
 
       {/* Payment / Renewal history */}
-      <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t("items.renewHistory")}</h2>
+      <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+        <h2 className="text-title">{t("items.renewHistory")}</h2>
 
         {payments.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -1109,7 +1163,7 @@ export function ItemDetailPage() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="text-left px-3 py-2 font-medium text-muted-foreground"
+                        className="text-left px-3 py-2 text-caption font-medium text-muted-foreground"
                       >
                         {h}
                       </th>
@@ -1162,7 +1216,7 @@ export function ItemDetailPage() {
                             }
                           />
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
+                        <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
                           {p.period_start && p.period_end
                             ? `${p.period_start} → ${p.period_end}`
                             : "—"}
@@ -1172,7 +1226,7 @@ export function ItemDetailPage() {
                             <button
                               type="button"
                               onClick={handleSavePayment}
-                              className="p-1 rounded hover:bg-accent text-green-600"
+                              className="p-1 rounded hover:bg-accent text-success"
                             >
                               <Check className="w-4 h-4" />
                             </button>
@@ -1188,7 +1242,9 @@ export function ItemDetailPage() {
                       </tr>
                     ) : (
                       <tr key={p.id} className="hover:bg-muted/20">
-                        <td className="px-3 py-2">{p.date.slice(0, 10)}</td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {p.date.slice(0, 10)}
+                        </td>
                         <td className="px-3 py-2 font-medium tabular-nums">
                           {p.currency} {p.amount.toFixed(2)}
                         </td>
@@ -1198,7 +1254,7 @@ export function ItemDetailPage() {
                         <td className="px-3 py-2 text-muted-foreground">
                           {p.note || "—"}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
+                        <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
                           {p.period_start && p.period_end
                             ? `${p.period_start} → ${p.period_end}`
                             : "—"}
