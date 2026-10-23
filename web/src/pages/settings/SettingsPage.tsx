@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -1337,6 +1337,21 @@ export function SettingsPage() {
     setSearchParams({ tab });
   };
 
+  // Sliding underline for the desktop tab bar (contract §5: 200ms,
+  // transform/width-only). Position is measured from the active button so
+  // label-length / language changes re-center correctly.
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  const [underline, setUnderline] = useState({ left: 0, width: 0 });
+  useLayoutEffect(() => {
+    const btn = tabRefs.current[activeTab];
+    const bar = tabBarRef.current;
+    if (!btn || !bar) return;
+    const b = btn.getBoundingClientRect();
+    const r = bar.getBoundingClientRect();
+    setUnderline({ left: b.left - r.left + bar.scrollLeft, width: b.width });
+  }, [activeTab]);
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     {
       id: "account",
@@ -1412,24 +1427,39 @@ export function SettingsPage() {
           </h1>
         )}
 
-        {/* Tab bar - desktop only */}
-        <div className="hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar">
+        {/* Tab bar - desktop only: shared underline slides to the active tab
+            (contract §5: 200ms ease-out, transform/width-only) */}
+        <div
+          ref={tabBarRef}
+          className="relative hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               type="button"
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap border-b-2 -mb-px transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap -mb-px transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                 activeTab === tab.id
-                  ? "border-primary text-primary font-semibold"
-                  : "border-transparent text-muted-foreground font-medium hover:text-foreground",
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground font-medium hover:text-foreground",
               )}
             >
               {tab.icon}
               {tab.label}
             </button>
           ))}
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 h-0.5 rounded-full bg-primary transition-[transform,width] duration-(--duration-standard) ease-(--ease-out)"
+            style={{
+              width: underline.width,
+              transform: `translateX(${underline.left}px)`,
+            }}
+          />
         </div>
 
         {/* Tab content */}

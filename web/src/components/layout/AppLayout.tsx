@@ -356,29 +356,48 @@ export function AppLayout() {
         </span>
       </header>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — shared pill indicator slides to the active tab
+          (design contract §5: 200ms ease-out; transform-only) */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around z-50"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50"
         style={{
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           paddingTop: "0.5rem",
         }}
       >
-        {mobileNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-11 min-w-11 text-caption transition-colors duration-(--duration-fast) ${
-                isActive ? "text-primary font-medium" : "text-muted-foreground"
-              }`
-            }
-          >
-            <item.icon className="w-5 h-5" />
-            {item.label}
-          </NavLink>
-        ))}
+        <div className="relative flex justify-around">
+          {(() => {
+            const activeIndex = mobileNavItems.findIndex(
+              (item) => item.to === location.pathname,
+            );
+            return (
+              <span
+                aria-hidden="true"
+                className="absolute top-0 bottom-1 rounded-full bg-primary/10 transition-transform duration-(--duration-standard) ease-(--ease-out)"
+                style={{
+                  width: `${100 / mobileNavItems.length}%`,
+                  transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+                  opacity: activeIndex < 0 ? 0 : 1,
+                }}
+              />
+            );
+          })()}
+          {mobileNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              className={({ isActive }) =>
+                `relative z-10 flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-11 min-w-11 text-caption transition-colors duration-(--duration-fast) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full ${
+                  isActive ? "text-primary font-medium" : "text-muted-foreground"
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   );
