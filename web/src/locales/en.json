@@ -111,8 +111,6 @@
     "activeRegularCount": "Active Reminders",
     "upcomingReminders": "Upcoming Reminders",
     "regularCategoryRanking": "By Category (count)",
-    "overdue": "Overdue",
-    "expiring30": "Due in 30 days",
     "daysUnit": "d",
     "nextDue": "Next due",
     "monthSpent": "This month",
@@ -422,7 +420,6 @@
     "stepDone": "Done"
   },
   "me": {
-    "dueThisMonth": "Due in 7 days",
     "entries": "entries",
     "due7": "Due in 7 days"
   },

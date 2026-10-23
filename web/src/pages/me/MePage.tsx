@@ -70,7 +70,7 @@ export function MePage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      {/* Profile card — "ledger head": avatar + email + this-month due count (§5 me) */}
+      {/* Profile card — "ledger head": avatar + email + 7-day due count (sum of expiring_soon, labelled me.due7 / "7 天内到期", §5 me) */}
       <div className="flex flex-col items-center py-8 mb-6">
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
           <User className="w-8 h-8 text-primary" />

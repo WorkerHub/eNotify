@@ -111,8 +111,6 @@
     "activeRegularCount": "活跃普通提醒",
     "upcomingReminders": "即将到期提醒",
     "regularCategoryRanking": "分类排行（条数）",
-    "overdue": "已逾期",
-    "expiring30": "30 天内到期",
     "daysUnit": "天",
     "nextDue": "最近到期",
     "monthSpent": "本月支出",
@@ -422,7 +420,6 @@
     "stepDone": "完成"
   },
   "me": {
-    "dueThisMonth": "7 天内到期",
     "entries": "笔",
     "due7": "7 天内到期"
   },
