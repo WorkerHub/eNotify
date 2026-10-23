@@ -1420,7 +1420,7 @@ export function SettingsPage() {
               type="button"
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
+                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap border-b-2 -mb-px transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                 activeTab === tab.id
                   ? "border-primary text-primary font-semibold"
                   : "border-transparent text-muted-foreground font-medium hover:text-foreground",

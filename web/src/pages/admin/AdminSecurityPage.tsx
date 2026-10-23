@@ -130,7 +130,7 @@ export function AdminSecurityPage() {
 
   if (loading) {
     return (
-      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6">
+      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6 stagger" aria-busy="true">
         <div className="h-40 bg-muted rounded-xl" />
       </div>
     );

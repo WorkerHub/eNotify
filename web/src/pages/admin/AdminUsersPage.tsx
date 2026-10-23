@@ -312,13 +312,15 @@ export function AdminUsersPage() {
 
       {/* Edit user modal */}
       {editUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("admin.editUser")}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-dialog-backdrop"
+        >
           <div
             ref={editTrapRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("admin.editUser")}
-            className="bg-card border rounded-lg p-6 w-full max-w-md mx-4 space-y-4 shadow-4"
+            className="bg-card border rounded-lg p-6 w-full max-w-md mx-4 space-y-4 shadow-4 animate-dialog-panel"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-title">{t("admin.editUser")}</h2>

@@ -52,7 +52,7 @@ export function AdminAppPage() {
 
   if (loading) {
     return (
-      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6">
+      <div className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6 stagger" aria-busy="true">
         <div className="h-4 w-1/4 animate-pulse rounded bg-muted" />
         <div className="h-10 w-full animate-pulse rounded-sm bg-muted" />
         <div className="h-4 w-1/4 animate-pulse rounded bg-muted" />

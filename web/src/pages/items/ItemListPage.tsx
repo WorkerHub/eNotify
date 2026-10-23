@@ -119,12 +119,14 @@ function HelpIcon({ tooltip }: { tooltip: string }) {
       className="inline-flex ml-0.5"
       onMouseEnter={updatePos}
       onMouseLeave={() => setPos(null)}
+      onFocus={updatePos}
+      onBlur={() => setPos(null)}
     >
       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
       {pos && (
         <Portal>
           <div
-            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
+            className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-3 pointer-events-none z-[100] max-w-80 w-max whitespace-pre-wrap animate-popover"
             style={{
               left: pos.x,
               top: pos.y,
@@ -153,6 +155,16 @@ function FilterIcon({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Esc closes the popover (keyboard contract).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -192,7 +204,7 @@ function FilterIcon({
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed bg-popover border rounded-lg shadow-lg p-2 z-[101] min-w-[140px]"
+            className="fixed bg-popover border rounded-lg shadow-3 p-2 z-[101] min-w-[140px] animate-popover"
             style={{ left: pos.x, top: pos.y }}
           >
             <label className="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-accent rounded">
@@ -257,6 +269,29 @@ export function ItemListPage() {
     "category" | "status" | null
   >(null);
   const [moreId, setMoreId] = useState<string | null>(null);
+  // Delete exit animation: ids currently animating out (contract §4.7:
+  // 200ms ease-in, transform/opacity only), removed from state afterwards.
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  // First-paint stagger gate: only animate the initial page load (stagger
+  // 40ms × ≤6 items, contract §4.7); re-renders after mutations stay put.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    if (!loading) setEntered(true);
+  }, [loading]);
+
+  // Esc closes floating layers: mobile overflow menu, mobile filter
+  // dropdown, desktop table filter popover.
+  useEffect(() => {
+    if (!moreId && !openDropdown) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMoreId(null);
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [moreId, openDropdown]);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -315,7 +350,16 @@ export function ItemListPage() {
         setConfirm(null);
         try {
           await api.delete(`/items/${item.id}`);
-          setItems((prev) => prev.filter((s) => s.id !== item.id));
+          // Play exit animation, then remove from state.
+          setRemovingIds((prev) => new Set(prev).add(item.id));
+          window.setTimeout(() => {
+            setItems((prev) => prev.filter((s) => s.id !== item.id));
+            setRemovingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(item.id);
+              return next;
+            });
+          }, 200);
         } catch (e: any) {
           setError(e.message);
         }
@@ -439,7 +483,7 @@ export function ItemListPage() {
             (skeletonKey) => (
               <div
                 key={skeletonKey}
-                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3"
+                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3 animate-list-item"
               >
                 <Skeleton className="h-5 w-5 rounded-full shrink-0" />
                 <div className="flex-1 space-y-2">
@@ -538,13 +582,22 @@ export function ItemListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {displayItems.map((item) => {
+                {displayItems.map((item, idx) => {
                   const status = getStatus(item);
                   const days = getDaysRemaining(item);
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-muted/30 transition-colors"
+                      className={cn(
+                        "hover:bg-muted/30 transition-colors duration-(--duration-fast)",
+                        !entered && "animate-list-item",
+                        removingIds.has(item.id) && "animate-list-item-out",
+                      )}
+                      style={
+                        !entered
+                          ? { animationDelay: `${Math.min(idx, 5) * 40}ms` }
+                          : undefined
+                      }
                     >
                       <td className="px-4 py-2 overflow-hidden">
                         <div className="font-medium truncate">{item.name}</div>
@@ -809,7 +862,7 @@ export function ItemListPage() {
                 />
               )}
               {openDropdown === "category" && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-lg">
+                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-3 animate-popover">
                   <button
                     type="button"
                     onClick={() => {
@@ -846,7 +899,7 @@ export function ItemListPage() {
                 </div>
               )}
               {openDropdown === "status" && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-lg">
+                <div className="absolute top-full left-0 right-0 mt-1 z-20 flex flex-wrap gap-2 p-2 rounded-lg border bg-card shadow-3 animate-popover">
                   <button
                     type="button"
                     onClick={() => {
@@ -893,14 +946,17 @@ export function ItemListPage() {
           </div>
 
           {/* Mobile card list */}
-          <div className="md:hidden space-y-3">
+          <div className={cn("md:hidden space-y-3", !entered && "stagger")}>
             {displayItems.map((item) => {
               const status = getStatus(item);
               const days = getDaysRemaining(item);
               return (
                 <div
                   key={item.id}
-                  className="bg-card rounded-xl border p-4 space-y-2"
+                  className={cn(
+                    "bg-card rounded-xl border p-4 space-y-2",
+                    removingIds.has(item.id) && "animate-list-item-out",
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -914,7 +970,7 @@ export function ItemListPage() {
                         />
                       </div>
                       {item.notes && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5 break-words">
                           {item.notes}
                         </p>
                       )}
@@ -1035,7 +1091,7 @@ export function ItemListPage() {
                             className="fixed inset-0 z-40"
                             onClick={() => setMoreId(null)}
                           />
-                          <div className="absolute right-0 bottom-full mb-1 z-50 w-40 rounded-lg border bg-popover py-1 shadow-3 text-body-sm">
+                          <div className="absolute right-0 bottom-full mb-1 z-50 w-40 rounded-lg border bg-popover py-1 shadow-3 text-body-sm animate-popover">
                             <button
                               type="button"
                               onClick={() => {

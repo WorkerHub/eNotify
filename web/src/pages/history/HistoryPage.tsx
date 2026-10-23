@@ -349,19 +349,25 @@ export function HistoryPage() {
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("history.detail")}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSelected(null);
+          }}
+        >
           <button
             type="button"
             aria-label="Close details"
-            className="absolute inset-0 bg-black/40"
+            tabIndex={-1}
+            className="absolute inset-0 bg-black/40 animate-dialog-backdrop"
             onClick={() => setSelected(null)}
           />
           <div
             ref={detailTrapRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("history.detail")}
-            className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh]"
+            className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh] animate-dialog-panel"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
               <h3 className="text-title">{t("history.detail")}</h3>

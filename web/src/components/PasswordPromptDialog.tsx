@@ -28,16 +28,22 @@ export function PasswordPromptDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/40"
+        tabIndex={-1}
+        className="absolute inset-0 bg-black/40 animate-dialog-backdrop"
         onClick={close}
       />
       <form
         ref={trapRef}
-        className="relative bg-card border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 shadow-lg"
+        className="relative bg-card border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 shadow-3 animate-dialog-panel"
         onSubmit={async (e) => {
           e.preventDefault();
           const value = password;
@@ -63,14 +69,14 @@ export function PasswordPromptDialog({
           <button
             type="button"
             onClick={close}
-            className="px-4 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium border hover:bg-accent transition-colors duration-(--duration-fast) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {t("common.cancel")}
           </button>
           <button
             type="submit"
             disabled={!password}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors duration-(--duration-fast) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {t("common.confirm")}
           </button>

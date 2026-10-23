@@ -260,6 +260,143 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Motion language — design contract §4.7 / ONE-71.
+   Every utility below references the --duration-* / --ease-* tokens only.
+   Motion uses transform/opacity exclusively; information duty documented in
+   docs/design-system.md §4.7 (feedback ≤200ms, entrances 320ms ease-out,
+   list stagger 40ms ≤ 6 items). */
+
+/* Page / block entrance: fade + 8px rise. Duty: continuity on navigation. */
+@keyframes motion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.motion-enter {
+  animation: motion-enter var(--duration-slow) var(--ease-out) both;
+}
+
+/* Staggered list entrance: add .stagger to a container, first 6 children
+   rise in at 40ms steps (contract §4.7 limit). Duty: reading order cue. */
+.stagger > :nth-child(-n + 6) {
+  animation: motion-enter var(--duration-slow) var(--ease-out) both;
+}
+.stagger > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger > :nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger > :nth-child(5) {
+  animation-delay: 160ms;
+}
+.stagger > :nth-child(6) {
+  animation-delay: 200ms;
+}
+
+/* Dialog entrance: backdrop fade-in + panel scale/fade in.
+   Duty: focus attention, establish overlay layering. */
+@keyframes dialog-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+.animate-dialog-backdrop {
+  animation: dialog-backdrop-in var(--duration-standard) var(--ease-out) both;
+}
+.animate-dialog-panel {
+  animation: dialog-panel-in var(--duration-slow) var(--ease-out) both;
+}
+
+/* Popover (tooltip / dropdown / select) entrance: fade + small rise.
+   200ms per Linear boundary for interactive feedback. */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.animate-popover {
+  animation: popover-in var(--duration-standard) var(--ease-out) both;
+}
+
+/* List item entrance for newly added rows/cards.
+   Duty: confirm creation, anchor where the item landed. */
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.animate-list-item {
+  animation: list-item-in var(--duration-standard) var(--ease-out) both;
+}
+
+/* List item exit (delete): fade + slight collapse before removal.
+   Duty: confirm deletion happened, preserve spatial continuity. */
+@keyframes list-item-out {
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+.animate-list-item-out {
+  animation: list-item-out var(--duration-standard) var(--ease-in) both;
+}
+
+/* Status swap feedback (e.g. test-notify result): fade change.
+   Duty: communicate success/failure without layout shift. */
+@keyframes status-in {
+  from {
+    opacity: 0;
+  }
+}
+.animate-status {
+  animation: status-in var(--duration-standard) var(--ease-out) both;
+}
+
+/* Respect reduced motion — design contract §4.7.
+   Kill displacement: entrances degrade to a pure opacity fade; continuous
+   pulses/spinners collapse to a near-instant static state. Unlayered rule
+   beats Tailwind's layered utilities; no !important (biome). */
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .stagger > :nth-child(-n + 6),
+  .animate-popover,
+  .animate-list-item {
+    animation-name: status-in;
+    animation-duration: var(--duration-fast);
+    animation-delay: 0ms;
+  }
+  .animate-dialog-panel {
+    animation-name: status-in;
+    animation-duration: var(--duration-fast);
+  }
+  .animate-dialog-backdrop,
+  .animate-status {
+    animation-duration: var(--duration-fast);
+  }
+  .animate-list-item-out {
+    animation-name: status-in;
+    animation-direction: reverse;
+    animation-duration: var(--duration-fast);
+  }
+}
+
 /* Tabular figures for amounts, dates and countdowns */
 .tnum {
   font-variant-numeric: tabular-nums;
@@ -281,8 +418,13 @@ body {
    Unlayered rule beats Tailwind's layered utilities; avoids !important (biome noImportantStyles). */
 @media (prefers-reduced-motion: reduce) {
   :root :is(*, *::before, *::after) {
+    transition-duration: var(--duration-fast);
+  }
+  /* Collapse continuous decorative animation; state (opacity/color) remains. */
+  .animate-pulse,
+  .animate-spin {
     animation-duration: 0.01ms;
-    transition-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }
 

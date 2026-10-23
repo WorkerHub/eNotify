@@ -199,7 +199,7 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 stagger">
         <Skeleton className="h-7 w-32" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatSkeleton />

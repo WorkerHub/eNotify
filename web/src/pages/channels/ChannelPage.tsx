@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Clock, Radio } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { NotificationHoursSelector } from "@/components/NotificationHoursSelector";
+import { Skeleton } from "@/components/states";
 import type { NotificationConfig } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -433,8 +434,10 @@ function ChannelCard({
 
             {feedback && (
               <p
+                key={feedback.msg}
+                role="status"
                 className={cn(
-                  "text-xs px-3 py-2 rounded-md",
+                  "text-xs px-3 py-2 rounded-md animate-status",
                   feedback.ok
                     ? "text-success bg-success/10"
                     : "text-destructive bg-destructive/10",
@@ -523,8 +526,10 @@ function NotificationHoursTab({
 
         {feedback && (
           <p
+            key={feedback.msg}
+            role="status"
             className={cn(
-              "text-xs px-3 py-2 rounded-md",
+              "text-xs px-3 py-2 rounded-md animate-status",
               feedback.ok
                 ? "text-success bg-success/10"
                 : "text-destructive bg-destructive/10",
@@ -605,7 +610,11 @@ export function ChannelPage() {
 
   if (loading) {
     return (
-      <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+      <div className="space-y-4 stagger" aria-busy="true">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
     );
   }
   if (error || !config) {

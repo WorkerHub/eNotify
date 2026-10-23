@@ -32,8 +32,10 @@ export function useFocusTrap<T extends HTMLElement>(
         (el) => el.offsetParent !== null || el === document.activeElement,
       );
 
-    // initial focus: first focusable, else the container itself
-    const first = focusables()[0];
+    // initial focus: [data-autofocus] target if present (safe default like
+    // a cancel button), else first focusable, else the container itself
+    const first =
+      node.querySelector<HTMLElement>("[data-autofocus]") ?? focusables()[0];
     if (first) first.focus();
     else {
       node.setAttribute("tabindex", "-1");

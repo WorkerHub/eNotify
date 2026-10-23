@@ -611,7 +611,7 @@ export function ItemDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl space-y-8">
+      <div className="max-w-5xl space-y-8 stagger">
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9" />
           <Skeleton className="h-7 w-48" />

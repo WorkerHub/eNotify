@@ -18,7 +18,7 @@ export function AuthShell({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <div className={cn("w-full max-w-[400px]", className)}>
+      <div className={cn("w-full max-w-[400px] motion-enter", className)}>
         <div className="rounded-lg border bg-card p-8 shadow-2">
           <div className="mb-8 text-center">
             <h1 className="text-display">{title}</h1>

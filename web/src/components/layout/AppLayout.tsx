@@ -80,8 +80,9 @@ function AvatarDropdown({
           {user?.role === "admin" && (
             <button
               type="button"
+              role="menuitem"
               onClick={() => handleNavigate("/admin")}
-              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:bg-accent"
             >
               <Shield className="w-4 h-4" />
               {t("nav.admin")}
@@ -283,8 +284,8 @@ export function AppLayout() {
         )}
 
         <div className="px-4 pt-6 pb-4 md:px-6 md:pt-8 md:pb-6 max-w-5xl mx-auto">
-          {/* Desktop: always use Outlet */}
-          <div className="hidden md:block">
+          {/* Desktop: always use Outlet (keyed → page entrance re-runs per route) */}
+          <div key={location.pathname} className="hidden md:block motion-enter">
             <Outlet />
           </div>
           {/* Mobile: KeepAlive for tab pages, Outlet for non-tab pages */}
@@ -330,7 +331,9 @@ export function AppLayout() {
                 </div>
               </>
             ) : (
-              <Outlet />
+              <div key={location.pathname} className="motion-enter">
+                <Outlet />
+              </div>
             )}
           </div>
         </div>
