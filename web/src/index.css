@@ -143,38 +143,40 @@
   --n-850: 240 8.1% 7.3%;
   --n-900: 240 5.9% 10%;
 
-  /* n-* → role (light), design contract §4.6 mapping table */
-  --background: var(--n-0);
-  --foreground: var(--n-900);
-  --card: var(--n-0);
-  --card-foreground: var(--n-900);
-  --popover: var(--n-0);
-  --popover-foreground: var(--n-900);
+  /* n-* → role (light), design contract §4.6 mapping table.
+     NOTE: raw channel values (not var() refs) — Tailwind v4 hoists var()
+     dependencies into :root, which would freeze these at light values. */
+  --background: 0 0% 100%;
+  --foreground: 240 5.9% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 5.9% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 5.9% 10%;
   --primary: 243.4 75.4% 58.6%;
-  --primary-foreground: var(--n-0);
-  --secondary: var(--n-100);
-  --secondary-foreground: var(--n-900);
-  --muted: var(--n-100);
-  --muted-foreground: var(--n-500);
-  --accent: var(--n-100);
-  --accent-foreground: var(--n-900);
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
   --destructive: 0 73.7% 41.8%;
-  --destructive-foreground: var(--n-0);
+  --destructive-foreground: 0 0% 100%;
   --success: 142.4 71.8% 29.2%;
-  --success-foreground: var(--n-0);
+  --success-foreground: 0 0% 100%;
   --warning: 26 90.5% 37.1%;
-  --warning-foreground: var(--n-0);
+  --warning-foreground: 0 0% 100%;
   --info: 224.3 76.3% 48%;
-  --info-foreground: var(--n-0);
-  --border: var(--n-200);
-  --input: var(--n-300);
-  --ring: var(--primary);
+  --info-foreground: 0 0% 100%;
+  --border: 240 5.9% 90%;
+  --input: 240 4.9% 83.9%;
+  --ring: 243.4 75.4% 58.6%;
 
   /* Countdown urgency gradient (light) */
-  --due-far: var(--n-500);
-  --due-soon: var(--primary);
-  --due-close: var(--warning);
-  --due-over: var(--destructive);
+  --due-far: 240 3.8% 46.1%;
+  --due-soon: 243.4 75.4% 58.6%;
+  --due-close: 26 90.5% 37.1%;
+  --due-over: 0 73.7% 41.8%;
 }
 
 html {
@@ -202,16 +204,39 @@ html {
   --n-850: 240 8.1% 7.3%;
   --n-900: 240 9.1% 4.3%;
 
+  /* n-* → role (dark), design contract §4.6 mapping table (raw channels,
+     same no-var() reason as the light block above) */
+  --background: 240 9.1% 4.3%;
+  --foreground: 0 0% 98%;
+  --card: 240 8.1% 7.3%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 8.1% 7.3%;
+  --popover-foreground: 0 0% 98%;
   --primary: 234.5 89.5% 73.9%;
-  --primary-foreground: var(--n-900);
+  --primary-foreground: 240 9.1% 4.3%;
+  --secondary: 240 8.8% 11.2%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 8.8% 11.2%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 8.8% 11.2%;
+  --accent-foreground: 0 0% 98%;
   --destructive: 0 90.6% 70.8%;
-  --destructive-foreground: var(--n-900);
+  --destructive-foreground: 240 9.1% 4.3%;
   --success: 141.9 69.2% 58%;
-  --success-foreground: var(--n-900);
+  --success-foreground: 240 9.1% 4.3%;
   --warning: 43.3 96.4% 56.3%;
-  --warning-foreground: var(--n-900);
+  --warning-foreground: 240 9.1% 4.3%;
   --info: 211.7 96.4% 78.4%;
-  --info-foreground: var(--n-900);
+  --info-foreground: 240 9.1% 4.3%;
+  --border: 240 7.3% 16.1%;
+  --input: 240 7.1% 22%;
+  --ring: 234.5 89.5% 73.9%;
+
+  /* Countdown urgency gradient (dark) */
+  --due-far: 240 5% 64.9%;
+  --due-soon: 234.5 89.5% 73.9%;
+  --due-close: 43.3 96.4% 56.3%;
+  --due-over: 0 90.6% 70.8%;
 
   /* Dark elevation: borders + glow instead of drop shadows (§4.5) */
   --shadow-1: 0 0 0 1px rgb(255 255 255 / 0.06);
