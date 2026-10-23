@@ -58,7 +58,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           : theme === "dark";
       metaThemeColor.setAttribute(
         "content",
-        isDark ? "hsl(222.2 84% 4.9%)" : "#ffffff",
+        isDark ? "hsl(240 9.1% 4.3%)" : "hsl(0 0% 100%)",
       );
     }
 
