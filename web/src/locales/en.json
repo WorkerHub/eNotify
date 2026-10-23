@@ -98,7 +98,7 @@
     "yearlyExpense": "Yearly Expense",
     "monthlyAverage": "Monthly Avg",
     "activeCount": "Active Notifications",
-    "expiringSoon": "Expiring Soon",
+    "expiringSoon": "Due in 7 days",
     "upcomingRenewals": "Upcoming Renewals",
     "recentPayments": "Recent Payments",
     "categoryRanking": "By Category",
@@ -116,7 +116,9 @@
     "daysUnit": "d",
     "nextDue": "Next due",
     "monthSpent": "This month",
-    "noUpcoming": "Nothing due soon"
+    "noUpcoming": "Nothing due soon",
+    "expiring7": "Due in 7 days",
+    "activeTotal": "Active items"
   },
   "items": {
     "title": "Notifications",
@@ -201,7 +203,8 @@
     "overdueShort": "{{count}}d overdue",
     "emptyTitle": "No entries yet",
     "emptyDesc": "Add your first subscription or reminder to start your ledger of time.",
-    "amountDue": "Amount"
+    "amountDue": "Amount",
+    "moreActions": "More actions"
   },
   "settings": {
     "title": "Settings",
@@ -414,11 +417,14 @@
     "missingSecret": "Please enter the setup secret.",
     "wrongSecret": "Incorrect setup secret.",
     "rateLimited": "Too many requests, please try again later.",
-    "genericError": "Initialization failed, please try again later."
+    "genericError": "Initialization failed, please try again later.",
+    "stepInit": "Initialize",
+    "stepDone": "Done"
   },
   "me": {
-    "dueThisMonth": "Due this month",
-    "entries": "entries"
+    "dueThisMonth": "Due in 7 days",
+    "entries": "entries",
+    "due7": "Due in 7 days"
   },
   "detail": {
     "sectionBasic": "Basic info",
@@ -426,6 +432,7 @@
     "sectionReminder": "Reminder & channels",
     "sectionNotes": "Notes",
     "summary": "Due preview",
-    "daysLeft": "remaining"
+    "daysLeft": "remaining",
+    "daysUnit": "d"
   }
 }

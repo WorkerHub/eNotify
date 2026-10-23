@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle, XCircle, History, X, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Skeleton, EmptyState, ErrorState } from "@/components/states";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { NotificationHistory } from "@/types";
 
 interface GroupedHistory {
@@ -52,6 +53,18 @@ function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
   return groups;
 }
 
+/** Group entries by calendar day for the timeline view (§5 history). */
+function groupByDay(groups: GroupedHistory[]): [string, GroupedHistory[]][] {
+  const days = new Map<string, GroupedHistory[]>();
+  for (const g of groups) {
+    const key = new Date(g.created_at).toLocaleDateString();
+    const arr = days.get(key) ?? [];
+    arr.push(g);
+    days.set(key, arr);
+  }
+  return [...days.entries()];
+}
+
 export function HistoryPage() {
   const { t } = useTranslation();
   const [history, setHistory] = useState<NotificationHistory[]>([]);
@@ -62,6 +75,9 @@ export function HistoryPage() {
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const detailTrapRef = useFocusTrap<HTMLDivElement>(!!selected, () =>
+    setSelected(null),
+  );
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -81,6 +97,7 @@ export function HistoryPage() {
   }, [fetchHistory]);
 
   const grouped = groupHistory(history);
+  const groupedByDay = groupByDay(grouped);
 
   const handleClear = (e: React.MouseEvent, g: GroupedHistory) => {
     e.stopPropagation();
@@ -172,29 +189,125 @@ export function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {grouped.map((g) => (
-                  <tr
+                {groupedByDay.map(([day, rows]) => (
+                  <Fragment key={`day-${day}`}>
+                    <tr>
+                      <th
+                        colSpan={5}
+                        scope="rowgroup"
+                        className="sticky top-0 z-10 bg-muted/80 px-4 py-2 text-left text-caption font-medium uppercase tracking-wide text-muted-foreground backdrop-blur"
+                      >
+                        {day}
+                      </th>
+                    </tr>
+                    {rows.map((g) => (
+                      <tr
+                        key={g.id}
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => setSelected(g)}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium truncate max-w-xs">
+                            {g.title}
+                          </p>
+                          {g.item_name && (
+                            <p className="text-xs text-muted-foreground">
+                              {g.item_name}
+                            </p>
+                          )}
+                          {g.channels.some((c) => c.error) && (
+                            <p className="text-xs text-destructive truncate max-w-xs">
+                              {g.channels
+                                .filter((c) => c.error)
+                                .map((c) => `${c.channel}: ${c.error}`)
+                                .join("; ")}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {g.channels.map((c) => (
+                              <span
+                                key={`${g.id}-${c.channel}`}
+                                className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                              >
+                                {c.channel}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {g.allSuccess ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
+                              <CheckCircle className="w-3 h-3" />
+                              {t("history.success")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                              <XCircle className="w-3 h-3" />
+                              {t("history.failed")}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums text-body-sm">
+                          {new Date(g.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={(e) => handleClear(e, g)}
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            title={t("common.clear")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-3">
+            {groupedByDay.map(([day, rows]) => (
+              <div key={`m-day-${day}`} className="space-y-3">
+                <h2 className="sticky -top-px z-10 -mx-1 bg-background/90 px-1 py-1.5 text-caption font-medium uppercase tracking-wide text-muted-foreground backdrop-blur">
+                  {day}
+                </h2>
+                {rows.map((g) => (
+                  <button
+                    type="button"
                     key={g.id}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
                     onClick={() => setSelected(g)}
                   >
-                    <td className="px-4 py-3">
-                      <p className="font-medium truncate max-w-xs">{g.title}</p>
-                      {g.item_name && (
-                        <p className="text-xs text-muted-foreground">
-                          {g.item_name}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {g.title}
                         </p>
+                        {g.item_name && (
+                          <p className="text-xs text-muted-foreground">
+                            {g.item_name}
+                          </p>
+                        )}
+                      </div>
+                      {g.allSuccess ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full shrink-0">
+                          <CheckCircle className="w-3 h-3" />
+                          {t("history.success")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full shrink-0">
+                          <XCircle className="w-3 h-3" />
+                          {t("history.failed")}
+                        </span>
                       )}
-                      {g.channels.some((c) => c.error) && (
-                        <p className="text-xs text-destructive truncate max-w-xs">
-                          {g.channels
-                            .filter((c) => c.error)
-                            .map((c) => `${c.channel}: ${c.error}`)
-                            .join("; ")}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex flex-wrap gap-1">
                         {g.channels.map((c) => (
                           <span
@@ -205,103 +318,31 @@ export function HistoryPage() {
                           </span>
                         ))}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {g.allSuccess ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
-                          <CheckCircle className="w-3 h-3" />
-                          {t("history.success")}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(g.created_at).toLocaleString()}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
-                          <XCircle className="w-3 h-3" />
-                          {t("history.failed")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums text-body-sm">
-                      {new Date(g.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={(e) => handleClear(e, g)}
-                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        title={t("common.clear")}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card list */}
-          <div className="md:hidden space-y-3">
-            {grouped.map((g) => (
-              <button
-                type="button"
-                key={g.id}
-                className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
-                onClick={() => setSelected(g)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{g.title}</p>
-                    {g.item_name && (
-                      <p className="text-xs text-muted-foreground">
-                        {g.item_name}
+                        <button
+                          type="button"
+                          onClick={(e) => handleClear(e, g)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          title={t("common.clear")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    {g.channels.some((c) => c.error) && (
+                      <p className="text-xs text-destructive truncate">
+                        {g.channels
+                          .filter((c) => c.error)
+                          .map((c) => `${c.channel}: ${c.error}`)
+                          .join("; ")}
                       </p>
                     )}
-                  </div>
-                  {g.allSuccess ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full shrink-0">
-                      <CheckCircle className="w-3 h-3" />
-                      {t("history.success")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full shrink-0">
-                      <XCircle className="w-3 h-3" />
-                      {t("history.failed")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-1">
-                    {g.channels.map((c) => (
-                      <span
-                        key={`${g.id}-${c.channel}`}
-                        className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
-                      >
-                        {c.channel}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(g.created_at).toLocaleString()}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => handleClear(e, g)}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title={t("common.clear")}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {g.channels.some((c) => c.error) && (
-                  <p className="text-xs text-destructive truncate">
-                    {g.channels
-                      .filter((c) => c.error)
-                      .map((c) => `${c.channel}: ${c.error}`)
-                      .join("; ")}
-                  </p>
-                )}
-              </button>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </>
@@ -315,9 +356,15 @@ export function HistoryPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelected(null)}
           />
-          <div className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh]">
+          <div
+            ref={detailTrapRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("history.detail")}
+            className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh]"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-              <h3 className="font-semibold text-sm">{t("history.detail")}</h3>
+              <h3 className="text-title">{t("history.detail")}</h3>
               <button
                 type="button"
                 onClick={() => setSelected(null)}

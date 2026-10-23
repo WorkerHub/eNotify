@@ -889,7 +889,7 @@ function ApiKeysTab() {
       {createdKey && (
         <div className="border border-primary/40 bg-primary/5 rounded-lg p-4 space-y-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-foreground">
                 {t("settings.apiKeysCreatedTitle", { name: createdKey.name })}
@@ -1051,7 +1051,7 @@ function ApiKeysTab() {
                         {k.name}
                       </p>
                       {expired && (
-                        <span className="inline-flex items-center text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">
+                        <span className="inline-flex items-center text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full font-medium">
                           {t("settings.apiKeysExpired")}
                         </span>
                       )}

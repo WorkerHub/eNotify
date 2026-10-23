@@ -16,6 +16,7 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AdminUser {
@@ -28,8 +29,7 @@ interface AdminUser {
 }
 
 const ROLE_STYLE: Record<string, string> = {
-  admin:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  admin: "bg-info/10 text-info",
   user: "bg-muted text-muted-foreground",
 };
 
@@ -57,6 +57,9 @@ export function AdminUsersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editing, setEditing] = useState(false);
+  const editTrapRef = useFocusTrap<HTMLDivElement>(!!editUser, () =>
+    setEditUser(null),
+  );
   const [pendingAction, setPendingAction] = useState<{
     message: string;
     danger?: boolean;
@@ -310,9 +313,15 @@ export function AdminUsersPage() {
       {/* Edit user modal */}
       {editUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card border rounded-xl p-6 w-full max-w-md mx-4 space-y-4">
+          <div
+            ref={editTrapRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("admin.editUser")}
+            className="bg-card border rounded-lg p-6 w-full max-w-md mx-4 space-y-4 shadow-4"
+          >
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">{t("admin.editUser")}</h2>
+              <h2 className="text-title">{t("admin.editUser")}</h2>
               <button
                 type="button"
                 onClick={() => setEditUser(null)}

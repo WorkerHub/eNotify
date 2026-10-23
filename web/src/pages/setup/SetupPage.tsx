@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Database, Globe } from "lucide-react";
 import { setupApi, ApiError } from "@/lib/api";
 import { AuthShell, FormError } from "@/components/AuthShell";
+import { DueRing } from "@/components/DueRing";
 
 type View = "loading" | "disabled" | "form" | "done";
 
@@ -87,6 +88,46 @@ export function SetupPage() {
 
       <div className="w-full">
         <div>
+          {/* Step indicator in the DueRing visual language (§5 setup) */}
+          {view !== "loading" && (
+            <ol className="mb-6 flex items-center justify-center gap-3">
+              {[
+                { key: "init", label: t("setup.stepInit"), pct: 0.5 },
+                { key: "done", label: t("setup.stepDone"), pct: 1 },
+              ].map((step, i) => {
+                const active =
+                  view === "done" ? i === 1 : view === "form" ? i === 0 : false;
+                const complete = view === "done" && i === 0;
+                return (
+                  <li key={step.key} className="flex items-center gap-3">
+                    {i > 0 && (
+                      <span className="h-px w-8 bg-border" aria-hidden="true" />
+                    )}
+                    <span className="flex items-center gap-1.5">
+                      <DueRing
+                        days={1}
+                        progress={complete || active ? step.pct : 0}
+                        size={16}
+                        strokeWidth={2}
+                        className={
+                          complete || active ? "" : "text-muted-foreground"
+                        }
+                      />
+                      <span
+                        className={
+                          active
+                            ? "text-body-sm font-medium"
+                            : "text-body-sm text-muted-foreground"
+                        }
+                      >
+                        {step.label}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
           {view === "loading" && (
             <p className="text-center text-body-sm text-muted-foreground">
               {t("auth.loading")}

@@ -5,6 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Local YYYY-MM-DD today — shared by countdown/status calculations. */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Days from today until a YYYY-MM-DD date (negative = overdue). */
+export function daysUntil(date: string): number {
+  return Math.ceil(
+    (new Date(date).getTime() - new Date(localToday()).getTime()) / 86400000,
+  );
+}
+
 function bufferToBase64url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";

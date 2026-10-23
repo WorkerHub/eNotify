@@ -9,21 +9,10 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, daysUntil } from "@/lib/utils";
 import type { DashboardStats } from "@/types";
 import { DueRing, getDueTier } from "@/components/DueRing";
 import { Skeleton, EmptyState, ErrorState } from "@/components/states";
-
-function localToday(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function daysUntil(date: string): number {
-  return Math.ceil(
-    (new Date(date).getTime() - new Date(localToday()).getTime()) / 86400000,
-  );
-}
 
 function StatSkeleton() {
   return (
@@ -274,10 +263,6 @@ export function DashboardPage() {
   const nextProgress =
     nextDays != null ? Math.max(0, Math.min(1, nextDays / periodDays)) : 0;
 
-  const overdueCount = [...sub.upcoming_renewals].filter(
-    (i) => daysUntil(i.expiry_date) < 0,
-  ).length;
-
   const isEmpty =
     sub.active_count === 0 &&
     reg.active_count === 0 &&
@@ -343,7 +328,7 @@ export function DashboardPage() {
               display
             />
             <StatCard
-              label={t("dashboard.expiring30")}
+              label={t("dashboard.expiring7")}
               value={String(sub.expiring_soon + reg.expiring_soon)}
               icon={AlertCircle}
               display
@@ -354,11 +339,10 @@ export function DashboardPage() {
               }
             />
             <StatCard
-              label={t("dashboard.overdue")}
-              value={String(overdueCount)}
+              label={t("dashboard.activeTotal")}
+              value={String(sub.active_count + reg.active_count)}
               icon={Bell}
               display
-              tone={overdueCount > 0 ? "danger" : undefined}
             />
           </section>
 

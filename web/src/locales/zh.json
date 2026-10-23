@@ -98,7 +98,7 @@
     "yearlyExpense": "年度支出",
     "monthlyAverage": "月均",
     "activeCount": "活跃通知",
-    "expiringSoon": "即将到期",
+    "expiringSoon": "7 天内到期",
     "upcomingRenewals": "即将续费",
     "recentPayments": "近期支付",
     "categoryRanking": "分类排行",
@@ -116,7 +116,9 @@
     "daysUnit": "天",
     "nextDue": "最近到期",
     "monthSpent": "本月支出",
-    "noUpcoming": "暂无即将到期事项"
+    "noUpcoming": "暂无即将到期事项",
+    "expiring7": "7 天内到期",
+    "activeTotal": "活跃条目"
   },
   "items": {
     "title": "通知管理",
@@ -201,7 +203,8 @@
     "overdueShort": "逾期 {{count}} 天",
     "emptyTitle": "还没有任何账目",
     "emptyDesc": "添加第一笔订阅或提醒，开始记录你的时间账本。",
-    "amountDue": "金额"
+    "amountDue": "金额",
+    "moreActions": "更多操作"
   },
   "settings": {
     "title": "设置",
@@ -414,11 +417,14 @@
     "missingSecret": "请输入密钥。",
     "wrongSecret": "密钥错误，请检查后重试。",
     "rateLimited": "请求过于频繁，请稍后再试。",
-    "genericError": "初始化失败，请稍后再试。"
+    "genericError": "初始化失败，请稍后再试。",
+    "stepInit": "初始化",
+    "stepDone": "完成"
   },
   "me": {
-    "dueThisMonth": "本月到期",
-    "entries": "笔"
+    "dueThisMonth": "7 天内到期",
+    "entries": "笔",
+    "due7": "7 天内到期"
   },
   "detail": {
     "sectionBasic": "基本信息",
@@ -426,6 +432,7 @@
     "sectionReminder": "提醒与渠道",
     "sectionNotes": "备注",
     "summary": "到期预览",
-    "daysLeft": "剩余"
+    "daysLeft": "剩余",
+    "daysUnit": "天"
   }
 }

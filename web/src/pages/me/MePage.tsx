@@ -55,19 +55,15 @@ export function MePage() {
     navigate("/login");
   };
 
-  // This-month due count for the ledger head
+  // Ledger head stat: items due within 7 days (backend expiring_soon is a 0..7d window)
   const [dueCount, setDueCount] = useState<number | null>(null);
   useEffect(() => {
-    const now = new Date();
-    const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
     api
       .get<DashboardStats>("/dashboard/stats")
       .then((stats) => {
-        const count = [
-          ...stats.subscription.upcoming_renewals.map((r) => r.expiry_date),
-          ...stats.regular.upcoming_reminders.map((r) => r.expiry_date),
-        ].filter((d) => d <= monthEnd).length;
-        setDueCount(count);
+        setDueCount(
+          stats.subscription.expiring_soon + stats.regular.expiring_soon,
+        );
       })
       .catch(() => setDueCount(null));
   }, []);
@@ -86,7 +82,7 @@ export function MePage() {
               {dueCount}
             </span>
             <span className="text-caption text-muted-foreground">
-              {t("me.entries")} · {t("me.dueThisMonth")}
+              {t("me.entries")} · {t("me.due7")}
             </span>
           </p>
         )}
