@@ -54,7 +54,6 @@ export function PasswordPromptDialog({
         <input
           type="password"
           autoComplete="current-password"
-          // biome-ignore lint/a11y/noAutofocus: dialog opens on explicit user action
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
