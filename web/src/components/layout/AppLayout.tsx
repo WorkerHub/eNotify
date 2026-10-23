@@ -389,7 +389,9 @@ export function AppLayout() {
               end
               className={({ isActive }) =>
                 `relative z-10 flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-11 min-w-11 text-caption transition-colors duration-(--duration-fast) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full ${
-                  isActive ? "text-primary font-medium" : "text-muted-foreground"
+                  isActive
+                    ? "text-primary font-medium"
+                    : "text-muted-foreground"
                 }`
               }
             >
