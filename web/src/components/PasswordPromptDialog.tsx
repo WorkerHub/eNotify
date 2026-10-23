@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface PasswordPromptDialogProps {
   open: boolean;
@@ -17,12 +18,14 @@ export function PasswordPromptDialog({
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
 
-  if (!open) return null;
+  const trapRef = useFocusTrap<HTMLFormElement>(open, onCancel);
 
   const close = () => {
     setPassword("");
     onCancel();
   };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -33,6 +36,7 @@ export function PasswordPromptDialog({
         onClick={close}
       />
       <form
+        ref={trapRef}
         className="relative bg-card border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4 shadow-lg"
         onSubmit={async (e) => {
           e.preventDefault();

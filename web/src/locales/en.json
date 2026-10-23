@@ -37,7 +37,9 @@
     "confirmDeletePayment": "Delete this payment?",
     "notificationSent": "Notification sent!",
     "retry": "Retry",
-    "more": "More"
+    "more": "More",
+    "daysLeftShort": "{{count}} days left",
+    "overdueBy": "Overdue by {{count}} days"
   },
   "auth": {
     "login": "Login",

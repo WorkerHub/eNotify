@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,10 +51,15 @@ export function DueRing({
   strokeWidth?: number;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const tier = getDueTier(days);
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
   const clamped = Math.max(0, Math.min(1, progress));
+  const ariaLabel =
+    days < 0
+      ? t("common.overdueBy", { count: -days })
+      : t("common.daysLeftShort", { count: days });
   return (
     <svg
       width={size}
@@ -61,7 +67,7 @@ export function DueRing({
       viewBox={`0 0 ${size} ${size}`}
       className={cn("shrink-0 -rotate-90", TIER_TEXT[tier], className)}
       role="img"
-      aria-label={`${days}d`}
+      aria-label={ariaLabel}
     >
       <circle
         cx={size / 2}

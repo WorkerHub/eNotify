@@ -218,7 +218,7 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 
 **中性色阶（8 级，亮色 zinc 系微调，暗色独立调色非反色）：**
 
-亮色：`--n-0:#ffffff（bg）` `--n-50:#fafafa` `--n-100:#f4f4f5（muted bg）` `--n-200:#e4e4e7（border）` `--n-300:#d4d4d8（input border）` `--n-500:#60606b（muted fg，on 白 5.69:1 ✅、on muted 5.17:1 ✅）` `--n-700:#3f3f46（次级 fg）` `--n-900:#18181b（主 fg，on 白 17.72:1 ✅）`
+亮色：`--n-0:#ffffff（bg）` `--n-50:#fafafa` `--n-100:#f4f4f5（muted bg）` `--n-200:#e4e4e7（border）` `--n-300:#d4d4d8（input border）` `--n-500:#666670（muted fg，on 白 6.10:1 ✅、on muted 5.16:1 ✅）` `--n-700:#3f3f46（次级 fg）` `--n-900:#18181b（主 fg，on 白 17.72:1 ✅）`
 
 暗色：`--n-900:#0a0a0c（bg）` `--n-850:#111114（card bg）` `--n-800:#1a1a1f（muted bg）` `--n-700:#26262c（border）` `--n-600:#34343c（input border）` `--n-400:#a1a1aa（muted fg，on bg 7.76:1 ✅）` `--n-200:#d4d4d8（次级 fg）` `--n-50:#fafafa（主 fg，on bg 19.06:1 ✅）`
 
@@ -231,7 +231,7 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 | `--card` / `--popover` | `n-0 #ffffff` | `n-850 #111114` |
 | `--card-foreground` / `--popover-foreground` | `n-900 #18181b` | `n-50 #fafafa` |
 | `--muted` / `--accent` | `n-100 #f4f4f5` | `n-800 #1a1a1f` |
-| `--muted-foreground` / `--accent-foreground` | `n-500 #60606b` / `n-900` | `n-400 #a1a1aa` / `n-50` |
+| `--muted-foreground` / `--accent-foreground` | `n-500 #666670` / `n-900` | `n-400 #a1a1aa` / `n-50` |
 | `--secondary` | `n-100 #f4f4f5` | `n-800 #1a1a1f` |
 | `--secondary-foreground` | `n-900 #18181b` | `n-50 #fafafa` |
 | `--border` | `n-200 #e4e4e7` | `n-700 #26262c` |
@@ -255,7 +255,7 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 
 | token | 阈值 | 亮色 | 暗色 |
 |---|---|---|---|
-| `--color-due-far` | >30 天 | neutral `#60606b` | `#a1a1aa` |
+| `--color-due-far` | >30 天 | neutral `#666670` | `#a1a1aa` |
 | `--color-due-soon` | ≤30 天 | `#4f46e5` | `#818cf8` |
 | `--color-due-close` | ≤7 天 | `#b45309` | `#fbbf24` |
 | `--color-due-over` | 逾期 | `#b91c1c` | `#f87171` |
@@ -302,8 +302,8 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 ### A-1（ONE-70，2026-10-23，Mike 授权修订）
 
 - **问题**：冻结值 `muted-foreground on muted`（`n-500 #71717a` on `n-100 #f4f4f5`）实测对比度 4.39:1，低于父单 color 维度的 AA 正文指标（≥4.5:1），差 0.11。
-- **修订**：亮色 `n-500` 由 `240 3.8% 46.1%`（`#71717a`）调整为 `240 4.9% 42%`（`#60606b`）。同步引用该值的 token：`--muted-foreground`（亮色）与 `--due-far`（亮色）。
-- **达标后对比度**：`n-500 on n-100` = **5.17:1** ✅；`n-500 on n-0`（白底）= **5.69:1** ✅。暗色组合（`n-400 on n-800` = 6.76:1）原本达标，未动。
+- **修订**：亮色 `n-500` 由 `240 3.8% 46.1%`（`#71717a`）调整为 `240 4.9% 42%`（`#666670`）。同步引用该值的 token：`--muted-foreground`（亮色）与 `--due-far`（亮色）。
+- **达标后对比度**：`n-500 on n-100` = **5.16:1** ✅；`n-500 on n-0`（白底）= **6.10:1** ✅。暗色组合（`n-400 on n-800` = 6.76:1）原本达标，未动。
 
 ---
 

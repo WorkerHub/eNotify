@@ -37,7 +37,9 @@
     "confirmDeletePayment": "确定删除该支付记录？",
     "notificationSent": "通知已发送！",
     "retry": "重试",
-    "more": "更多"
+    "more": "更多",
+    "daysLeftShort": "剩余 {{count}} 天",
+    "overdueBy": "已逾期 {{count}} 天"
   },
   "auth": {
     "login": "登录",
