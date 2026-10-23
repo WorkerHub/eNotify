@@ -106,18 +106,39 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 
 ### 4.1 字体族（--font-*）
 
-系统栈自托管策略：**不引入任何 webfont / 外部 CDN**（契约禁止外部字体 CDN；系统栈保证离线与 PWA 可用）。中英混排靠栈序解决。
+**主字体：自托管 Inter Variable（裁决定案，冻结）**——非 npm 依赖、非外部 CDN，woff2 资产入仓，保证离线与 PWA 可用。
+
+- 资产（已随契约入仓）：`web/src/assets/fonts/InterVariable.woff2`（344KB）与 `InterVariable-Italic.woff2`（379KB），许可 `web/src/assets/fonts/INTER-LICENSE.txt`（OFL，来源 Inter 4.1 官方 release）。
+- `@font-face`（唯一声明位置：`web/src/index.css` 顶层，`@theme` 之外）：
 
 ```css
---font-sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto,
-  "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/InterVariable-Italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+```
+
+```css
+--font-sans: "Inter", ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI",
+  Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
   "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
   "Liberation Mono", monospace;
 ```
 
-- 西文先行、CJK 落到 PingFang/雅黑——同字号下 PingFang 字面略大，正文级用 15px 而非 14px 补偿（见 4.2）。
-- **等宽数字**：不另设字体，统一用 `font-feature-settings: "tnum"`（Tailwind `tabular-nums`），纳入数字专用工具类 `--font-numeric: var(--font-sans)` + 约定所有日期/天数/金额必须挂 `tabular-nums`。
+- Inter 首顺位覆盖西文与数字；CJK 无 Inter 字形，自然落到 PingFang/雅黑——同字号下 PingFang 字面略大，正文级用 15px 而非 14px 补偿（见 4.2）。
+- Inter 为可变字重字体，§4.2 的 400/500/600/650 四档字重全部原生成立，不再依赖回落。
+- **等宽数字**：不另设字体，统一用 `font-feature-settings: "tnum"`（Tailwind `tabular-nums`），纳入数字专用工具类 `--font-numeric: var(--font-sans)` + 约定所有金额/日期/倒计时必须挂 `tabular-nums`（Inter 的 tnum 特性完整）。
 
 ### 4.2 字号阶梯（--text-*，含 line-height / 字重 / 字距）
 
@@ -132,7 +153,7 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 | `--text-display` | 28 | 1.2 (33.6px) | 650 | -0.02em | 详情页主数字/标题 |
 | `--text-display-lg` | 36 | 1.15 (41.4px) | 650 | -0.025em | 仪表盘主统计数字（倒计时天数） |
 
-- 字重仅允许 400/500/600/650 四档（650 用 `font-weight: 650` 变量字体特性，系统栈不支持时回落 600）。
+- 字重仅允许 400/500/600/650 四档（650 由 Inter Variable 原生提供；极端情况下 Inter 加载失败回落系统栈时按 600 渲染，属可接受降级）。
 - 中西文差异：标题级负字距仅作用于西文多的场景；中文占比高时字距归零（约定：含中文的 heading 不加额外 tracking 类）。中文正文行高 1.6，西文正文 1.5 可接受，统一取 1.6。
 
 ### 4.3 间距阶梯（--spacing-*，4px 基准）
@@ -201,6 +222,22 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 
 暗色：`--n-900:#0a0a0c（bg）` `--n-850:#111114（card bg）` `--n-800:#1a1a1f（muted bg）` `--n-700:#26262c（border）` `--n-600:#34343c（input border）` `--n-400:#a1a1aa（muted fg，on bg 7.76:1 ✅）` `--n-200:#d4d4d8（次级 fg）` `--n-50:#fafafa（主 fg，on bg 19.06:1 ✅）`
 
+`--n-*` 是中性色的**唯一来源**；组件入口仍走既有 role token（`background/card/popover/muted/accent/border/input/ring/foreground` 等，见 `index.css:5-26`），role token 的值改为引用 `n-*`，不另设色值。**`n-* → role` 显式映射表（冻结）：**
+
+| role token | 亮色映射 | 暗色映射 |
+|---|---|---|
+| `--background` | `n-0 #ffffff` | `n-900 #0a0a0c` |
+| `--foreground` | `n-900 #18181b` | `n-50 #fafafa` |
+| `--card` / `--popover` | `n-0 #ffffff` | `n-850 #111114` |
+| `--card-foreground` / `--popover-foreground` | `n-900 #18181b` | `n-50 #fafafa` |
+| `--muted` / `--accent` | `n-100 #f4f4f5` | `n-800 #1a1a1f` |
+| `--muted-foreground` / `--accent-foreground` | `n-500 #71717a` / `n-900` | `n-400 #a1a1aa` / `n-50` |
+| `--secondary` | `n-100 #f4f4f5` | `n-800 #1a1a1f` |
+| `--secondary-foreground` | `n-900 #18181b` | `n-50 #fafafa` |
+| `--border` | `n-200 #e4e4e7` | `n-700 #26262c` |
+| `--input` | `n-300 #d4d4d8` | `n-600 #34343c` |
+| `--ring` | primary `#4f46e5` | primary `#818cf8` |
+
 **语义色（成功/警告/信息/危险，亮色 on 白 / 暗色 on #0a0a0c，文本用法均实测）：**
 
 | 语义 | 亮色文本值 | 对比度 | 暗色文本值 | 对比度 |
@@ -211,6 +248,8 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 | danger | `#b91c1c` (red-700) | 6.47:1 ✅ | `#f87171` | 7.19:1 ✅ |
 
 （徽章底用同族 10% 透明度，如 `success/10`。）
+
+**命名兼容（冻结）**：危险色的实体 token 保留既有名 `--destructive` / `--destructive-foreground`（值写新 danger：亮色 `hsl(0 72.2% 41.6%)` = `#b91c1c`，暗色 `hsl(0 91.4% 71.4%)` = `#f87171`）；`danger` 是文档与沟通中的语义名，落地映射为 **`danger → --destructive`**（`bg-danger`/`text-danger` 一律写成 `bg-destructive`/`text-destructive`）。success/warning/info 新增同名 token。
 
 **功能色 = 倒计时紧迫梯度（本契约的语义核心，替换现状「一律绿点」）：**
 
@@ -260,7 +299,9 @@ eNotify 的视觉语言从它的核心语义直接长出来：**每一笔周期�
 
 ## 6. 契约边界（与冻结条款对齐）
 
+- **唯一契约**：本文件是唯一冻结契约。历史文档 `web/docs/design-contract.md`（存在于旧分支 `agent/mary/a19f619bb981` / `ed2f1ad360d5`，未进 main）**已退役**，不再作为任何实现依据；若其所在分支后续合并，必须删除该文件或以醒目批注指向本文档。
 - 令牌只写 `web/src/index.css` `@theme inline`；`.dark` 维护同名覆盖（含 4.5 暗色阴影套）。
-- 不引入新框架/组件库/动画库/外部字体 CDN；字体用系统栈（4.1）。
+- 字体资产入仓于 `web/src/assets/fonts/`，`@font-face` 声明于 `index.css` 顶层；不引入新框架/组件库/动画库/外部字体 CDN。
 - 不动 `worker/`、路由、API、既有 i18n key 语义。
+- 命名兼容：`danger → --destructive`（见 §4.6）；其余令牌按本文档 §4 命名原样保留，旧引用（6 个 `ui/*` 组件 + `AppLayout` 中的 shadow/rounded 等旧名）由 Stage 2 落地时统一替换。
 - 本单不写实现代码；实现由后续 Stage 子单按本文执行。
