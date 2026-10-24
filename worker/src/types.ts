@@ -3,7 +3,13 @@ export interface Env {
   KV: KVNamespace;
   JWT_SECRET: string;
   SETUP_SECRET: string;
-  TABLE_PREFIX: string;
+  /**
+   * Table prefix, three states:
+   * - undefined/null (unset) → DEFAULT_TABLE_PREFIX ("enotify"), normalized to "enotify_"
+   * - non-empty custom value → used verbatim with a trailing "_" appended
+   * - explicit empty string "" → no prefix at all
+   */
+  TABLE_PREFIX?: string;
   ASSETS: Fetcher;
 }
 
@@ -117,10 +123,25 @@ export type HonoEnv = {
   };
 };
 
+/** Default table prefix used when TABLE_PREFIX is not configured (no trailing underscore). */
+export const DEFAULT_TABLE_PREFIX = "enotify";
+
 export function getTablePrefix(env: Env): string {
-  const raw = env.TABLE_PREFIX || "";
-  if (!raw) return "";
-  return raw.endsWith("_") ? raw : `${raw}_`;
+  const raw = env.TABLE_PREFIX;
+  // State 1: unset (undefined or null) → default prefix, normalized with trailing "_"
+  if (raw === undefined || raw === null) {
+    return ensureTrailingUnderscore(DEFAULT_TABLE_PREFIX);
+  }
+  // State 3: explicitly configured as empty string → no prefix
+  if (raw === "") {
+    return "";
+  }
+  // State 2: custom non-empty value → existing normalization (append trailing "_")
+  return ensureTrailingUnderscore(raw);
+}
+
+export function ensureTrailingUnderscore(v: string): string {
+  return v.endsWith("_") ? v : `${v}_`;
 }
 
 export const VALID_CHANNELS: string[] = [

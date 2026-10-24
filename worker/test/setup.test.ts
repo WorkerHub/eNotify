@@ -160,7 +160,7 @@ describe("POST /api/setup (regression)", () => {
       headers: secretHeader(),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true });
+    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("users")).toBe(true);
@@ -179,7 +179,11 @@ describe("POST /api/setup (regression)", () => {
       headers: secretHeader(),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, alreadyInitialized: true });
+    expect(res.body).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "",
+    });
   });
 
   it("rejects a wrong secret with 403", async () => {

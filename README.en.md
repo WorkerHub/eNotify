@@ -63,12 +63,12 @@ In your repository Settings → Secrets and variables → Actions, add:
 
 In Settings → Secrets and variables → Actions → Variables, add:
 
-| Variable           | Description                                           |
-| ------------------ | ----------------------------------------------------- |
-| `D1_DATABASE_NAME` | D1 database name                                      |
-| `D1_DATABASE_ID`   | D1 database ID                                        |
-| `KV_NAMESPACE_ID`  | KV namespace ID                                       |
-| `TABLE_PREFIX`     | Optional prefix for all DB table names(e.g. `myapp_`) |
+| Variable           | Description                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `D1_DATABASE_NAME` | D1 database name                                                                                         |
+| `D1_DATABASE_ID`   | D1 database ID                                                                                           |
+| `KV_NAMESPACE_ID`  | KV namespace ID                                                                                          |
+| `TABLE_PREFIX`     | Table prefix, three states: unset/empty → default `enotify` (tables like `enotify_users`); `none` → no prefix; other values (e.g. `eNotify`) → verbatim |
 
 ### 3. Deploy
 
@@ -170,11 +170,21 @@ curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: 
 
 `JWT_SECRET` and `SETUP_SECRET` are Secrets, uploaded by GitHub Actions via `wrangler deploy --secrets-file`. For local deploys, run `wrangler secret put JWT_SECRET` (and `SETUP_SECRET`) first. `TABLE_PREFIX` is injected into wrangler.toml.
 
-| Variable       | Description                                             |
-| -------------- | ------------------------------------------------------- |
-| `JWT_SECRET`   | JWT signing secret, any random 64-char string           |
-| `SETUP_SECRET` | Database initialization route secret, any random string |
-| `TABLE_PREFIX` | Database table prefix (e.g., `hk_`), default is empty   |
+`TABLE_PREFIX` has three-state semantics (resolved solely by the `getTablePrefix()` helper in `worker/src/types.ts`):
+
+- **Unset** (not configured / `null`) → default prefix `enotify`, actual table names like `enotify_users`;
+- **Custom non-empty value** (e.g. `eNotify`) → used verbatim with a trailing `_` appended (`eNotify_`); only letters, digits and underscores are allowed;
+- **Explicit empty string `""`** → no prefix at all (table names like `users`).
+
+CI deployment convention (`.github/workflows/deploy.yml`): a GitHub Variables `TABLE_PREFIX` that is unset or empty → injects `enotify`; the reserved word `none` → injects the empty string (no prefix); any other value → injected verbatim. This matches the runtime three-state resolution.
+
+> ⚠️ **Upgrade warning**: older deployments that never configured `TABLE_PREFIX` (the old default was no prefix) must explicitly set `TABLE_PREFIX=none` in GitHub Variables before upgrading, in order to keep the existing unprefixed table names. Otherwise the setup/migration endpoints (`POST /api/setup`, `POST /api/admin/setup`) detect the conflict between the legacy unprefixed schema and the new default prefix `enotify_` and abort with 409 `PREFIX_CONFLICT` — they never re-create or silently switch tables. Deployments already using a custom value (e.g. `eNotify`) are unaffected.
+
+| Variable       | Description                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`   | JWT signing secret, any random 64-char string                                                            |
+| `SETUP_SECRET` | Database initialization route secret, any random string                                                  |
+| `TABLE_PREFIX` | Table prefix, three states: unset → default `enotify` (tables like `enotify_users`); explicit empty string / CI `none` → no prefix; custom value → verbatim with trailing `_` |
 
 ## License
 

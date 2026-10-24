@@ -1,9 +1,62 @@
-import { getTablePrefix } from "../types";
+import {
+  DEFAULT_TABLE_PREFIX,
+  ensureTrailingUnderscore,
+  getTablePrefix,
+} from "../types";
 import type { Env } from "../types";
 
-export interface SetupResult {
-  success: true;
-  alreadyInitialized?: true;
+export type SetupResult =
+  | { success: true; alreadyInitialized?: true; effectivePrefix: string }
+  | {
+      success: false;
+      code: "PREFIX_CONFLICT";
+      error: string;
+      message: string;
+      resolvedPrefix: string;
+      detectedPrefixes: string[];
+    };
+
+// Unprefixed names of the tables that make up an initialized eNotify schema.
+// Used to detect which prefixes the database has already been initialized
+// under, so a prefix change can never silently re-initialize fresh tables.
+const EONOTIFY_TABLES = [
+  "users",
+  "user_2fa",
+  "items",
+  "payment_history",
+  "notification_configs",
+  "system_settings",
+  "notification_history",
+];
+
+/**
+ * Detects the table prefixes under which an initialized eNotify schema exists.
+ * A prefix counts as initialized when at least 4 core tables carrying it are
+ * present and one of them is `users`. Unrelated tables (e.g. a lone `users`
+ * table from another app) do not trigger a detection.
+ */
+export function detectTablePrefixes(tableNames: string[]): Set<string> {
+  const count: Record<string, number> = {};
+  const hasUsers: Record<string, boolean> = {};
+
+  for (const t of tableNames) {
+    for (const suffix of EONOTIFY_TABLES) {
+      if (t === suffix) {
+        count[""] = (count[""] ?? 0) + 1;
+        if (suffix === "users") hasUsers[""] = true;
+      } else if (t.endsWith("_" + suffix)) {
+        const p = t.slice(0, t.length - suffix.length); // keeps the trailing underscore, e.g. "eNotify_"
+        count[p] = (count[p] ?? 0) + 1;
+        if (suffix === "users") hasUsers[p] = true;
+      }
+    }
+  }
+
+  return new Set(
+    Object.entries(count)
+      .filter(([p, n]) => n >= 4 && hasUsers[p])
+      .map(([p]) => p),
+  );
 }
 
 const DEFAULT_SETTINGS: Record<string, string> = {
@@ -176,7 +229,46 @@ export async function runSetup(env: Env): Promise<SetupResult> {
   const prefix = getTablePrefix(env);
   const db = env.DB;
 
-  // Check if already initialized
+  // Anti-silent-switch guard: if the database already holds an initialized
+  // eNotify schema under a different prefix, abort instead of re-initializing
+  // fresh tables under the resolved prefix.
+  const rows = await db
+    .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
+    .all<{ name: string }>();
+  const detected = detectTablePrefixes(rows.results.map((r) => r.name));
+
+  if (!detected.has(prefix) && detected.size > 0) {
+    const detectedList = [...detected].sort();
+    let message: string;
+    if (
+      detected.has("") &&
+      prefix === ensureTrailingUnderscore(DEFAULT_TABLE_PREFIX)
+    ) {
+      message =
+        `Detected a legacy schema without table prefix, but TABLE_PREFIX is unset ` +
+        `(resolves to "${prefix}"). To keep the legacy tables, set TABLE_PREFIX to an ` +
+        `explicit empty value (GitHub vars: TABLE_PREFIX=none, injected as "" by CI), ` +
+        `or migrate the tables to the "${prefix}" prefix per the README upgrade guide.`;
+    } else {
+      message =
+        `TABLE_PREFIX mismatch: this database is already initialized under a different ` +
+        `table prefix (detected: ${detectedList.join(", ")}), but TABLE_PREFIX resolves ` +
+        `to "${prefix}". Set TABLE_PREFIX explicitly to keep the existing tables ` +
+        `(e.g. "${detectedList[0]}"), or migrate the tables to the new prefix before ` +
+        `retrying setup.`;
+    }
+
+    return {
+      success: false,
+      code: "PREFIX_CONFLICT",
+      error: message,
+      message,
+      resolvedPrefix: prefix,
+      detectedPrefixes: detectedList,
+    };
+  }
+
+  // Check if already initialized under the resolved prefix
   const existing = await db
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
     .bind(`${prefix}users`)
@@ -184,7 +276,7 @@ export async function runSetup(env: Env): Promise<SetupResult> {
 
   if (existing) {
     await runMigrations(db, prefix);
-    return { success: true, alreadyInitialized: true };
+    return { success: true, alreadyInitialized: true, effectivePrefix: prefix };
   }
 
   const schemaSQL = getSchema();
@@ -209,7 +301,7 @@ export async function runSetup(env: Env): Promise<SetupResult> {
       .run();
   }
 
-  return { success: true };
+  return { success: true, effectivePrefix: prefix };
 }
 
 function getSchema(): string {

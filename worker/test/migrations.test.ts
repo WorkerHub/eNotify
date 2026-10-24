@@ -186,7 +186,11 @@ describe("notification_configs slack_config migration", () => {
     d1.db.exec(OLD_SCHEMA);
 
     const result = await runSetup(makeEnv(d1));
-    expect(result).toEqual({ success: true, alreadyInitialized: true });
+    expect(result).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "en_",
+    });
 
     const columns = d1.db
       .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)
@@ -230,7 +234,11 @@ describe("notification_configs slack_config migration", () => {
 
     await runSetup(makeEnv(d1));
     const second = await runSetup(makeEnv(d1));
-    expect(second).toEqual({ success: true, alreadyInitialized: true });
+    expect(second).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "en_",
+    });
 
     const rows = d1.db
       .prepare(`SELECT * FROM ${PREFIX}notification_configs`)
@@ -398,7 +406,11 @@ describe("retired channel cleanup migration", () => {
 
     await runSetup(makeEnv(d1));
     const second = await runSetup(makeEnv(d1));
-    expect(second).toEqual({ success: true, alreadyInitialized: true });
+    expect(second).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "en_",
+    });
 
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
@@ -448,7 +460,7 @@ describe("fresh install schema", () => {
     const d1 = new SqliteD1();
 
     const result = await runSetup(makeEnv(d1));
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, effectivePrefix: "en_" });
 
     const columns = d1.db
       .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)

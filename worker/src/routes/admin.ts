@@ -549,6 +549,9 @@ adminRoutes.put("/system/settings", async (c) => {
 adminRoutes.post("/setup", async (c) => {
   try {
     const result = await runSetup(c.env);
+    if (!result.success) {
+      return c.json(result, 409);
+    }
     return c.json(result, 200);
   } catch (err) {
     console.error("Admin setup failed:", err);

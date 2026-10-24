@@ -57,7 +57,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 **Database** (`worker/src/db/`):
 
 - Cloudflare D1 (SQLite). Schema defined in `worker/src/db/schema.sql`.
-- All table names use a `{prefix}` placeholder at definition time, resolved at runtime via `TABLE_PREFIX` env var and the `getTablePrefix()` helper in `types.ts`.
+- All table names use a `{prefix}` placeholder at definition time, resolved at runtime via `TABLE_PREFIX` env var and the `getTablePrefix()` helper in `types.ts` (the ONLY resolution point). Three states: unset/null → default `enotify` (`enotify_`); custom non-empty value → verbatim with trailing `_`; explicit `""` → no prefix. `runSetup` in `worker/src/lib/setup.ts` detects existing initialized schemas under other prefixes via `detectTablePrefixes()` and aborts with 409 `PREFIX_CONFLICT` instead of silently re-initializing; CI maps unset/empty vars to `enotify` and the reserved word `none` to `""`.
 - Query functions are organized by entity in `worker/src/db/queries/`. Key entities: `items`, `payments`, `users`, `notifications` (channel config), `settings`.
 
 **Core utilities** (`worker/src/core/`):
@@ -81,7 +81,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `KV` — KV namespace (used for scheduler deduplication and status)
 - `ASSETS` — static file serving
 - Secrets: `JWT_SECRET`, `SETUP_SECRET`
-- Env var: `TABLE_PREFIX` (optional, allows shared DB with prefix isolation)
+- Env var: `TABLE_PREFIX` (three states: unset → default `enotify`, tables like `enotify_users`; custom value → verbatim with trailing `_`; explicit `""`/CI `none` → no prefix; allows shared DB with prefix isolation)
 
 ### Frontend (`web/`)
 

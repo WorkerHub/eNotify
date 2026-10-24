@@ -61,6 +61,9 @@ setupRoutes.post(
     }
 
     const result = await runSetup(c.env);
+    if (!result.success) {
+      return c.json(result, 409);
+    }
     return c.json(result);
   },
 );

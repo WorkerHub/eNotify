@@ -39,13 +39,26 @@ jobs:
           KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
           TABLE_PREFIX: ${{ vars.TABLE_PREFIX }}
         run: |
+          # Three-state TABLE_PREFIX resolution (must match runtime getTablePrefix):
+          # - vars unset or empty → inject "enotify" (default prefix)
+          # - vars "none" (reserved word) → inject "" (explicit no prefix)
+          # - anything else → inject verbatim
+          if [ -z "$TABLE_PREFIX" ]; then
+            RESOLVED_PREFIX="enotify"
+          elif [ "$TABLE_PREFIX" = "none" ]; then
+            RESOLVED_PREFIX=""
+          else
+            RESOLVED_PREFIX="$TABLE_PREFIX"
+          fi
+          export RESOLVED_PREFIX
+
           APP_VERSION="$(node -p "require('../package.json').version")" \
           perl -pi -e '
             s/CLOUDFLARE_ACCOUNT_ID_PLACEHOLDER/$ENV{CLOUDFLARE_ACCOUNT_ID}/g;
             s/D1_DATABASE_NAME_PLACEHOLDER/$ENV{D1_DATABASE_NAME}/g;
             s/D1_DATABASE_ID_PLACEHOLDER/$ENV{D1_DATABASE_ID}/g;
             s/KV_NAMESPACE_ID_PLACEHOLDER/$ENV{KV_NAMESPACE_ID}/g;
-            s/TABLE_PREFIX_PLACEHOLDER/$ENV{TABLE_PREFIX}/g;
+            s/TABLE_PREFIX_PLACEHOLDER/$ENV{RESOLVED_PREFIX}/g;
             s/__APP_VERSION__/'\''$ENV{APP_VERSION}'\''/g;
           ' wrangler.toml
 

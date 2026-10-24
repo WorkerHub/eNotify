@@ -63,12 +63,12 @@ npx wrangler kv namespace create ENOTIFY_KV
 
 在 Settings → Secrets and variables → Actions → Variables 中添加：
 
-| Variable           | 说明                               |
-| ------------------ | ---------------------------------- |
-| `D1_DATABASE_NAME` | D1 数据库名称                      |
-| `D1_DATABASE_ID`   | D1 数据库 ID                       |
-| `KV_NAMESPACE_ID`  | KV 命名空间 ID                     |
-| `TABLE_PREFIX`     | 数据库表前缀（如 `hk_`），默认为空 |
+| Variable           | 说明                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `D1_DATABASE_NAME` | D1 数据库名称                                                                                                            |
+| `D1_DATABASE_ID`   | D1 数据库 ID                                                                                                             |
+| `KV_NAMESPACE_ID`  | KV 命名空间 ID                                                                                                           |
+| `TABLE_PREFIX`     | 数据库表前缀，三态：未设置/留空 → 默认 `enotify`（表名如 `enotify_users`）；设为 `none` → 无前缀；其他值（如 `eNotify`）→ 原样 |
 
 ### 3. 部署
 
@@ -175,11 +175,21 @@ curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: 
 
 `JWT_SECRET` 和 `SETUP_SECRET` 是 Secret，由 GitHub Actions 通过 `wrangler deploy --secrets-file` 上传；本地部署请先执行 `wrangler secret put JWT_SECRET`（`SETUP_SECRET` 同理）。`TABLE_PREFIX` 在 wrangler.toml 中注入。
 
-| 变量           | 说明                                 |
-| -------------- | ------------------------------------ |
-| `JWT_SECRET`   | JWT 签名密钥，任意 64 位随机字符串   |
-| `SETUP_SECRET` | 数据库初始化路由密钥，任意随机字符串 |
-| `TABLE_PREFIX` | 数据库表前缀（如 `hk_`），默认为空   |
+`TABLE_PREFIX` 为三态语义（在 `worker/src/types.ts` 的 `getTablePrefix()` 中统一解析，全仓唯一解析点）：
+
+- **未配置**（未设置 / `null`）→ 默认前缀 `enotify`，实际表名如 `enotify_users`；
+- **自定义非空值**（如 `eNotify`）→ 原样使用并自动补尾 `_`（`eNotify_`），仅允许字母/数字/下划线；
+- **显式空字符串 `""`** → 无前缀，表名不带前缀（如 `users`）。
+
+CI 部署约定（`.github/workflows/deploy.yml`）：GitHub Variables 中的 `TABLE_PREFIX` 未设置或为空 → 注入 `enotify`；设为保留字 `none` → 注入空字符串（无前缀）；其他值 → 原样注入。与运行时三态解析保持一致。
+
+> ⚠️ **升级警告**：历史上从未配置过 `TABLE_PREFIX` 的旧部署（旧版默认无前缀）升级到本版本前，须先在 GitHub Variables 中显式配置 `TABLE_PREFIX=none` 保持原表名；否则初始化/迁移接口（`POST /api/setup`、`POST /api/admin/setup`）会检测到无前缀存量 schema 与新默认前缀 `enotify_` 冲突并中止（409 `PREFIX_CONFLICT`，绝不自动重建表）。配置为自定义值（如 `eNotify`）的存量部署不受影响。
+
+| 变量           | 说明                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `JWT_SECRET`   | JWT 签名密钥，任意 64 位随机字符串                                                                                       |
+| `SETUP_SECRET` | 数据库初始化路由密钥，任意随机字符串                                                                                     |
+| `TABLE_PREFIX` | 数据库表前缀，三态：未设置 → 默认 `enotify`（表名如 `enotify_users`）；显式空串/CI `none` → 无前缀；自定义值 → 原样补尾 `_` |
 
 ## 许可证
 
