@@ -30,6 +30,7 @@ export async function upsertNotificationConfig(
 
   const fields: (keyof Omit<NotificationConfig, "user_id" | "updated_at">)[] = [
     "enabled_channels",
+    "default_channel",
     "telegram_config",
     "webhook_config",
     "wechatbot_config",

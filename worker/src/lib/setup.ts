@@ -72,16 +72,37 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
     console.error("Migration failed for notification_configs table:", err);
   }
 
+  // Migration: add default_channel column to notification_configs. This must
+  // run before the retired-channel cleanup, which reads the new column.
+  try {
+    const notifCols = await db
+      .prepare(`PRAGMA table_info(${prefix}notification_configs)`)
+      .all<{ name: string }>();
+    if (!notifCols.results.some((c) => c.name === "default_channel")) {
+      await db
+        .prepare(
+          `ALTER TABLE ${prefix}notification_configs ADD COLUMN default_channel TEXT NOT NULL DEFAULT ''`,
+        )
+        .run();
+    }
+  } catch (err) {
+    console.error("Migration failed for notification_configs table:", err);
+  }
+
   // Migration: drop retired channels (serverchan/pushplus/gotify/notifyx) from
-  // enabled_channels. Their sender code is gone, so a stale ID would make every
-  // push fail with "Unknown channel" and write a notification_history row.
+  // enabled_channels and default_channel. Their sender code is gone, so stale
+  // enabled IDs would fail and a retired default would make routing fail too.
   // Idempotent: the second run finds nothing to strip and performs no UPDATE.
   try {
     const rows = await db
       .prepare(
-        `SELECT user_id, enabled_channels FROM ${prefix}notification_configs`,
+        `SELECT user_id, enabled_channels, default_channel FROM ${prefix}notification_configs`,
       )
-      .all<{ user_id: string; enabled_channels: string }>();
+      .all<{
+        user_id: string;
+        enabled_channels: string;
+        default_channel: string;
+      }>();
     for (const row of rows.results) {
       let channels: unknown;
       try {
@@ -91,12 +112,20 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
       }
       if (!Array.isArray(channels)) continue;
       const filtered = channels.filter((ch) => !RETIRED_CHANNELS.includes(ch));
-      if (filtered.length === channels.length) continue;
+      const defaultChannel = RETIRED_CHANNELS.includes(row.default_channel)
+        ? ""
+        : row.default_channel;
+      if (
+        filtered.length === channels.length &&
+        defaultChannel === row.default_channel
+      ) {
+        continue;
+      }
       await db
         .prepare(
-          `UPDATE ${prefix}notification_configs SET enabled_channels = ? WHERE user_id = ?`,
+          `UPDATE ${prefix}notification_configs SET enabled_channels = ?, default_channel = ? WHERE user_id = ?`,
         )
-        .bind(JSON.stringify(filtered), row.user_id)
+        .bind(JSON.stringify(filtered), defaultChannel, row.user_id)
         .run();
     }
   } catch (err) {
@@ -262,6 +291,7 @@ CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_user_id
 CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   user_id           TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
   enabled_channels  TEXT NOT NULL DEFAULT '[]',
+  default_channel TEXT NOT NULL DEFAULT '',
   telegram_config   TEXT NOT NULL DEFAULT '{}',
   webhook_config    TEXT NOT NULL DEFAULT '{}',
   wechatbot_config  TEXT NOT NULL DEFAULT '{}',

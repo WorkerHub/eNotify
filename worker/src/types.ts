@@ -77,6 +77,7 @@ export interface PaymentHistory {
 export interface NotificationConfig {
   user_id: string;
   enabled_channels: string;
+  default_channel: string;
   telegram_config: string;
   webhook_config: string;
   wechatbot_config: string;

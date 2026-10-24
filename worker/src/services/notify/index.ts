@@ -100,14 +100,27 @@ export async function sendNotifications(
     enabledChannels = [];
   }
 
+  let targetChannels: string[];
   // If specific channels are requested, intersect with enabled channels
   if (channels && channels.length > 0) {
-    enabledChannels = enabledChannels.filter((ch) => channels.includes(ch));
+    targetChannels = enabledChannels.filter((ch) => channels.includes(ch));
+    if (targetChannels.length === 0) {
+      throw new Error("None of the requested channels are enabled");
+    }
+  } else {
+    const defaultChannel = config.default_channel || "";
+    if (defaultChannel === "") {
+      throw new Error("No default channel configured");
+    }
+    if (!enabledChannels.includes(defaultChannel)) {
+      throw new Error(`Default channel is not enabled: ${defaultChannel}`);
+    }
+    targetChannels = [defaultChannel];
   }
 
   const results: NotifyResult[] = [];
 
-  for (const channel of enabledChannels) {
+  for (const channel of targetChannels) {
     const sender = CHANNEL_SENDERS[channel];
     if (!sender) {
       results.push({ channel, success: false, error: "Unknown channel" });

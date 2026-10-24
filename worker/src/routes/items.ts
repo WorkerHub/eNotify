@@ -702,19 +702,26 @@ itemRoutes.post("/:id/test-notify", async (c) => {
     itemChannels = [];
   }
 
-  const results = await sendNotifications(
-    notifyConfig,
-    message,
-    c.env,
-    {
-      db: c.env.DB,
-      prefix,
-      userId,
-      itemId: id,
-    },
-    itemChannels?.length ? itemChannels : undefined,
-  );
-  return c.json({ results });
+  try {
+    const results = await sendNotifications(
+      notifyConfig,
+      message,
+      c.env,
+      {
+        db: c.env.DB,
+        prefix,
+        userId,
+        itemId: id,
+      },
+      itemChannels?.length ? itemChannels : undefined,
+    );
+    return c.json({ results });
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      400,
+    );
+  }
 });
 
 // Payment history

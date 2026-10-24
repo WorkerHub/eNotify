@@ -13,7 +13,7 @@
 - **仪表盘** — 月度/年度支出统计、到期预警、分类分析
 - **8 个通知渠道** — Telegram、Webhook、企业微信、邮件、Bark、Slack、飞书、Discord
 - **渠道管理** — 独立页面统一管理通知渠道的启用与配置
-- **按项选择渠道** — 每个通知项可单独指定使用哪些渠道，未指定则默认使用所有已启用渠道
+- **按项选择渠道** — 每个通知项可单独多选使用哪些渠道，未指定则只使用默认渠道
 - **定时提醒** — 每小时自动检查并发送到期提醒，支持全局时段配置和每项独立覆盖
 - **通知历史** — 查看所有已发送通知的记录与状态
 - **两步验证** — TOTP（验证器应用）、邮箱验证码、Passkey
@@ -145,9 +145,15 @@ curl -X POST https://your-worker.workers.dev/api/notify \
   -H "Authorization: Bearer enk_xxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"title": "提醒", "body": "内容", "url": "https://example.com"}'
+
+# 多选 Telegram 和 Bark，其他渠道不发送
+curl -X POST https://your-worker.workers.dev/api/notify \
+  -H "Authorization: Bearer enk_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "提醒", "body": "内容", "channels": ["telegram", "bark"]}'
 ```
 
-`POST /api/notify` 会向该用户已启用的通知渠道发送推送；`title` 省略时默认为 `Notification`。该接口除了 API Key 也接受 cookie 登录态。
+`POST /api/notify` 请求体可带可选 `channels` 数组多选渠道；不带或为空数组时只发该用户的默认渠道。`channels` 含未知或未启用渠道、或未设默认渠道时返回 400 且不发送。`title` 省略时默认为 `Notification`。该接口除了 API Key 也接受 cookie 登录态。
 
 每个 key 限流 120 次/分钟，超出返回 `429`。key 无效、过期或已吊销时返回 `401`；对应用户被禁用后其 key 立即失效。`/api/notify` 另有一层按 IP 的 30 次/分钟限流。
 

@@ -240,11 +240,16 @@ meRoutes.get("/notifications", async (c) => {
 
   const config = await getNotificationConfig(c.env.DB, prefix, userId);
   if (!config) {
-    return c.json({ enabled_channels: [], notification_hours: [] });
+    return c.json({
+      enabled_channels: [],
+      default_channel: "",
+      notification_hours: [],
+    });
   }
 
   // Redact sensitive fields - return configured flags instead
   const safeConfig: Record<string, any> = {
+    default_channel: config.default_channel || "",
     enabled_channels: (() => {
       try {
         return JSON.parse(config.enabled_channels);
@@ -334,6 +339,16 @@ meRoutes.put("/notifications", async (c) => {
     }
     updates.enabled_channels = JSON.stringify(body.enabled_channels);
   }
+  if (body.default_channel !== undefined) {
+    if (
+      typeof body.default_channel !== "string" ||
+      (body.default_channel !== "" &&
+        !VALID_CHANNELS.includes(body.default_channel))
+    ) {
+      return c.json({ error: "Invalid channel name" }, 400);
+    }
+    updates.default_channel = body.default_channel;
+  }
   if (body.notification_hours !== undefined) {
     if (!Array.isArray(body.notification_hours))
       return c.json({ error: "notification_hours must be an array" }, 400);
@@ -352,6 +367,19 @@ meRoutes.put("/notifications", async (c) => {
 
   const channels = VALID_CHANNELS;
   const existing = await getNotificationConfig(c.env.DB, prefix, userId);
+
+  let finalEnabled: string[] = [];
+  try {
+    finalEnabled =
+      body.enabled_channels ?? JSON.parse(existing?.enabled_channels || "[]");
+  } catch {
+    finalEnabled = [];
+  }
+  const finalDefault = body.default_channel ?? existing?.default_channel ?? "";
+  if (finalDefault !== "" && !finalEnabled.includes(finalDefault)) {
+    return c.json({ error: "Default channel must be an enabled channel" }, 400);
+  }
+
   for (const ch of channels) {
     if (body[`${ch}_config`]) {
       const existingConfig = existing

@@ -464,6 +464,7 @@ describe("sendNotifyEmail", () => {
       {
         user_id: "user-1",
         enabled_channels: JSON.stringify(["email"]),
+        default_channel: "email",
         email_config: JSON.stringify({ to: "user@example.com" }),
       } as any,
       MESSAGE,

@@ -79,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_user_id
 CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
   user_id           TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
   enabled_channels  TEXT NOT NULL DEFAULT '[]',
+  default_channel TEXT NOT NULL DEFAULT '',
   telegram_config   TEXT NOT NULL DEFAULT '{}',
   webhook_config    TEXT NOT NULL DEFAULT '{}',
   wechatbot_config  TEXT NOT NULL DEFAULT '{}',

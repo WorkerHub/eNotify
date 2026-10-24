@@ -330,18 +330,26 @@ async function processSubscription(
       };
     }
 
-    await sendNotifications(
-      notifyConfig,
-      message,
-      env,
-      {
-        db: env.DB,
-        prefix,
-        userId,
-        itemId: sub.id,
-      },
-      channels,
-    );
+    try {
+      await sendNotifications(
+        notifyConfig,
+        message,
+        env,
+        {
+          db: env.DB,
+          prefix,
+          userId,
+          itemId: sub.id,
+        },
+        channels,
+      );
+    } catch (err) {
+      console.error(
+        `Failed to resolve notification channels for item ${sub.id}:`,
+        err instanceof Error ? err.message : String(err),
+      );
+      continue;
+    }
     await kv.put(dedupeKey, "1", { expirationTtl: 172800 });
   }
 }
