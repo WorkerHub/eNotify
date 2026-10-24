@@ -85,6 +85,7 @@ export interface DashboardStats {
 
 export interface NotificationConfig {
   enabled_channels: string[];
+  default_channel: string;
   notification_hours: number[];
   [key: string]: unknown;
 }
