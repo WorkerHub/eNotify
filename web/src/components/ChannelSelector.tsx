@@ -16,6 +16,7 @@ export function ChannelSelector({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [enabledChannels, setEnabledChannels] = useState<string[]>([]);
+  const [defaultChannel, setDefaultChannel] = useState("");
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -24,8 +25,10 @@ export function ChannelSelector({
       try {
         const config = await api.get<NotificationConfig>("/me/notifications");
         setEnabledChannels(config.enabled_channels || []);
+        setDefaultChannel(config.default_channel || "");
       } catch {
         setEnabledChannels([]);
+        setDefaultChannel("");
       } finally {
         setLoading(false);
       }
@@ -48,6 +51,12 @@ export function ChannelSelector({
   const availableChannels = CHANNELS.filter((ch) =>
     enabledChannels.includes(ch.id),
   );
+  const defaultChannelLabel = CHANNELS.find(
+    (channel) => channel.id === defaultChannel,
+  )?.label;
+  const emptySelectionLabel = defaultChannelLabel
+    ? t("channels.defaultChannelOption", { name: defaultChannelLabel })
+    : t("channels.noChannelsSelected");
 
   const toggleChannel = (channelId: string) => {
     const newSelected = selected.includes(channelId)
@@ -84,7 +93,7 @@ export function ChannelSelector({
       >
         <span className="text-foreground">
           {selected.length === 0
-            ? t("channels.allChannels")
+            ? emptySelectionLabel
             : t("channels.selectedChannels", { count: selected.length })}
         </span>
         <ChevronDown
@@ -147,9 +156,7 @@ export function ChannelSelector({
                   <div className="w-4 h-4 rounded-full border flex items-center justify-center">
                     {selected.length === 0 && <Radio className="w-3 h-3" />}
                   </div>
-                  <span className="text-sm flex-1">
-                    {t("channels.allChannels")}
-                  </span>
+                  <span className="text-sm flex-1">{emptySelectionLabel}</span>
                   {selected.length === 0 && (
                     <Check className="w-4 h-4 text-primary" />
                   )}

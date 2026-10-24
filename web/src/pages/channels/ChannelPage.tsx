@@ -316,8 +316,18 @@ function ChannelCard({
         enabled_channels: next.enabled_channels,
       });
       onConfigChange(next);
-    } catch {
-      // no state change on error
+    } catch (err: any) {
+      setFeedback({ ok: false, msg: err.message || t("common.error") });
+    }
+  };
+
+  const handleSetDefault = async () => {
+    setFeedback(null);
+    try {
+      await api.put("/me/notifications", { default_channel: channel.id });
+      onConfigChange({ ...config, default_channel: channel.id });
+    } catch (err: any) {
+      setFeedback({ ok: false, msg: err.message || t("common.error") });
     }
   };
 
@@ -390,6 +400,19 @@ function ChannelCard({
           >
             {isEnabled ? t("common.enabled") : t("common.disabled")}
           </span>
+          {config.default_channel === channel.id ? (
+            <span className="rounded-full px-2 py-0.5 text-caption font-medium bg-primary/10 text-primary">
+              {t("channels.defaultChannel")}
+            </span>
+          ) : isEnabled ? (
+            <button
+              type="button"
+              onClick={handleSetDefault}
+              className="py-0.5 px-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-medium rounded-md transition-colors"
+            >
+              {t("channels.setAsDefault")}
+            </button>
+          ) : null}
         </div>
         <button
           type="button"
