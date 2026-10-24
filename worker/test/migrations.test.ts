@@ -114,6 +114,72 @@ type ColumnInfo = {
   dflt_value: string | null;
 };
 
+describe("notification_configs default_channel migration", () => {
+  it("adds an empty default, keeps existing data and is idempotent", async () => {
+    const d1 = new SqliteD1();
+    d1.db.exec(OLD_SCHEMA);
+
+    await runSetup(makeEnv(d1));
+    const columns = d1.db
+      .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)
+      .all() as ColumnInfo[];
+    const column = columns.find((c) => c.name === "default_channel");
+    expect(column).toMatchObject({
+      type: "TEXT",
+      notnull: 1,
+      dflt_value: "''",
+    });
+    const row = d1.db
+      .prepare(
+        `SELECT * FROM ${PREFIX}notification_configs WHERE user_id = 'u1'`,
+      )
+      .get() as Record<string, unknown>;
+    expect(row.default_channel).toBe("");
+    expect(row.enabled_channels).toBe('["telegram"]');
+    expect(row.notification_hours).toBe("[8,9]");
+
+    await runSetup(makeEnv(d1));
+    const after = d1.db
+      .prepare(
+        `SELECT * FROM ${PREFIX}notification_configs WHERE user_id = 'u1'`,
+      )
+      .get();
+    expect(after).toEqual(row);
+  });
+
+  it("clears only retired default channels", async () => {
+    const d1 = new SqliteD1();
+    d1.db.exec(OLD_SCHEMA);
+    d1.db
+      .prepare(
+        `ALTER TABLE ${PREFIX}notification_configs ADD COLUMN default_channel TEXT NOT NULL DEFAULT ''`,
+      )
+      .run();
+    d1.db
+      .prepare(
+        `UPDATE ${PREFIX}notification_configs SET default_channel = 'gotify' WHERE user_id = 'u1'`,
+      )
+      .run();
+    d1.db
+      .prepare(
+        `INSERT INTO ${PREFIX}notification_configs (user_id, enabled_channels, default_channel, updated_at)
+         VALUES ('u2', '["bark"]', 'bark', '2026-01-01T00:00:00.000Z')`,
+      )
+      .run();
+
+    await runSetup(makeEnv(d1));
+    const rows = d1.db
+      .prepare(
+        `SELECT user_id, enabled_channels, default_channel FROM ${PREFIX}notification_configs ORDER BY user_id`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { user_id: "u1", enabled_channels: '["telegram"]', default_channel: "" },
+      { user_id: "u2", enabled_channels: '["bark"]', default_channel: "bark" },
+    ]);
+  });
+});
+
 describe("notification_configs slack_config migration", () => {
   it("adds slack_config with a '{}' default and keeps existing data", async () => {
     const d1 = new SqliteD1();
@@ -362,6 +428,7 @@ describe("retired channel cleanup migration", () => {
         prefix: PREFIX,
         userId: "u1",
       },
+      ["telegram"],
     );
 
     expect(results).toEqual([{ channel: "telegram", success: true }]);
@@ -391,6 +458,7 @@ describe("fresh install schema", () => {
     expect(names).not.toContain("pushplus_config");
     expect(names).not.toContain("gotify_config");
     expect(names).not.toContain("notifyx_config");
+    expect(names).toContain("default_channel");
     expect(names).toContain("slack_config");
     expect(names).toContain("feishu_config");
     expect(names).toContain("discord_config");

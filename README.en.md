@@ -13,7 +13,7 @@ A smart notification management system that helps you track expiry dates and exp
 - **Dashboard** — Monthly/yearly expense stats, expiry alerts, category analysis
 - **8 Notification Channels** — Telegram, Webhook, WeChat Work, Email, Bark, Slack, Feishu, Discord
 - **Channel Management** — Dedicated page to enable and configure notification channels
-- **Per-Item Channel Selection** — Each notification item can specify which channels to use; defaults to all enabled channels if unset
+- **Per-Item Channel Selection** — Each notification item can select multiple channels; if unset, only the default channel is used
 - **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override
 - **Notification History** — View all sent notifications with delivery status
 - **Two-Factor Auth** — TOTP (authenticator app), Email OTP, Passkey
@@ -140,9 +140,15 @@ curl -X POST https://your-worker.workers.dev/api/notify \
   -H "Authorization: Bearer enk_xxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"title": "Reminder", "body": "Content", "url": "https://example.com"}'
+
+# Send only to Telegram and Bark
+curl -X POST https://your-worker.workers.dev/api/notify \
+  -H "Authorization: Bearer enk_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Reminder", "body": "Content", "channels": ["telegram", "bark"]}'
 ```
 
-`POST /api/notify` sends a push to the user's enabled notification channels; `title` defaults to `Notification` when omitted. Besides the API key, it also accepts a cookie login session.
+`POST /api/notify` accepts an optional `channels` array to select multiple channels. If omitted or empty, only the user's default channel is used. Unknown or disabled channels, and requests without channels when no default is configured, return 400 without sending. `title` defaults to `Notification` when omitted. Besides the API key, it also accepts a cookie login session.
 
 Each key is limited to 120 requests/minute (`429` beyond that). Invalid, expired or revoked keys get `401`; keys stop working as soon as their user is disabled. `/api/notify` has an additional per-IP limit of 30 requests/minute.
 

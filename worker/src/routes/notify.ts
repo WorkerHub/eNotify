@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getTablePrefix, type HonoEnv } from "../types";
+import { getTablePrefix, VALID_CHANNELS, type HonoEnv } from "../types";
 import { getNotificationConfig } from "../db/queries/notifications";
 import {
   sendNotifications,
@@ -35,7 +35,32 @@ notifyRoutes.post("/", async (c) => {
     title?: string;
     body?: string;
     url?: string;
+    channels?: unknown;
   }>();
+
+  let channels: string[] | undefined;
+  if (body.channels !== undefined) {
+    if (!Array.isArray(body.channels)) {
+      return c.json({ error: "channels must be an array" }, 400);
+    }
+    channels = body.channels;
+    const invalidChannel = channels.find((ch) => !VALID_CHANNELS.includes(ch));
+    if (invalidChannel !== undefined) {
+      return c.json({ error: `Invalid channel name: ${invalidChannel}` }, 400);
+    }
+    let enabledChannels: string[];
+    try {
+      enabledChannels = JSON.parse(notifyConfig.enabled_channels || "[]");
+    } catch {
+      enabledChannels = [];
+    }
+    const disabledChannel = channels.find(
+      (ch) => !enabledChannels.includes(ch),
+    );
+    if (disabledChannel) {
+      return c.json({ error: `Channel not enabled: ${disabledChannel}` }, 400);
+    }
+  }
 
   const message: NotifyMessage = {
     title: body.title || "Notification",
@@ -43,8 +68,21 @@ notifyRoutes.post("/", async (c) => {
     url: body.url,
   };
 
-  const results = await sendNotifications(notifyConfig, message, c.env);
-  return c.json({ success: true, results });
+  try {
+    const results = await sendNotifications(
+      notifyConfig,
+      message,
+      c.env,
+      undefined,
+      channels,
+    );
+    return c.json({ success: true, results });
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      400,
+    );
+  }
 });
 
 // Third-party token trigger — deprecated in favour of API keys. Return 410

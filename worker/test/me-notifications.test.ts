@@ -67,6 +67,90 @@ async function makeLoggedInEnv(db: ConfigDB): Promise<Record<string, unknown>> {
   return env;
 }
 
+describe("GET/PUT /api/me/notifications — default channel", () => {
+  let db: ConfigDB;
+  let app: Hono;
+  let env: Record<string, unknown>;
+  let token: string;
+
+  beforeEach(async () => {
+    db = new ConfigDB();
+    app = makeApp();
+    env = await makeLoggedInEnv(db);
+    token = await makeToken("user", { sub: "user-1", sid: "session-1" });
+  });
+
+  async function put(body: Record<string, unknown>) {
+    return request(app, env, "/api/me/notifications", {
+      method: "PUT",
+      headers: { ...cookieHeader(token), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  function seed(enabled = ["telegram", "bark"], defaultChannel = "") {
+    db.rows.set("user-1", {
+      user_id: "user-1",
+      enabled_channels: JSON.stringify(enabled),
+      default_channel: defaultChannel,
+      notification_hours: "[]",
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  it("returns an empty default when no config row exists", async () => {
+    const res = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.default_channel).toBe("");
+  });
+
+  it("stores and reads an enabled default", async () => {
+    seed();
+    expect((await put({ default_channel: "telegram" })).status).toBe(200);
+    expect(db.rows.get("user-1")?.default_channel).toBe("telegram");
+    const res = await request(app, env, "/api/me/notifications", {
+      headers: cookieHeader(token),
+    });
+    expect(res.body.default_channel).toBe("telegram");
+  });
+
+  it("rejects a disabled default without changing the stored config", async () => {
+    seed(["telegram"], "telegram");
+    const before = { ...db.rows.get("user-1") };
+    const res = await put({ default_channel: "bark" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Default channel must be an enabled channel");
+    expect(db.rows.get("user-1")).toEqual(before);
+  });
+
+  it("rejects disabling the current default without changing the stored config", async () => {
+    seed(["telegram", "bark"], "telegram");
+    const before = { ...db.rows.get("user-1") };
+    const res = await put({ enabled_channels: ["bark"] });
+    expect(res.status).toBe(400);
+    expect(db.rows.get("user-1")).toEqual(before);
+  });
+
+  it("allows changing enabled channels and the default atomically", async () => {
+    seed(["telegram", "bark"], "telegram");
+    const res = await put({
+      enabled_channels: ["bark"],
+      default_channel: "bark",
+    });
+    expect(res.status).toBe(200);
+    expect(db.rows.get("user-1")?.enabled_channels).toBe('["bark"]');
+    expect(db.rows.get("user-1")?.default_channel).toBe("bark");
+  });
+
+  it("allows clearing the default", async () => {
+    seed(["telegram"], "telegram");
+    expect((await put({ default_channel: "" })).status).toBe(200);
+    expect(db.rows.get("user-1")?.default_channel).toBe("");
+  });
+});
+
 describe("GET/PUT /api/me/notifications — per-user SMTP credentials", () => {
   let db: ConfigDB;
   let app: Hono;

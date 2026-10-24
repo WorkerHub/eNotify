@@ -67,13 +67,13 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `lunar.ts` — Chinese lunar calendar support (1900–2100)
 - `currency.ts` — multi-currency / exchange rate conversion
 
-**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Slack, Feishu, Discord, WeChatBot) is a separate file. `index.ts` fans out to all enabled channels, with optional per-item channel filtering via the `channels` parameter.
+**Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Slack, Feishu, Discord, WeChatBot) is a separate file. `index.ts` sends to selected enabled channels via the `channels` parameter, or only to the user's default channel when no channels are selected.
 
 **Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly via Cloudflare Cron Trigger (`0 * * * *`). For each active user it:
 
 1. Checks their allowed notification hours (per-timezone).
 2. Auto-renews expired items (with KV deduplication).
-3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication). If an item has specific channels configured (`channels` column), only those channels are used; otherwise all enabled channels receive the notification.
+3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication). If an item has specific channels configured (`channels` column), only those channels are used; otherwise only the user's default channel receives the notification.
 
 **Cloudflare bindings**:
 
@@ -101,7 +101,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - **UI (zh)**: shows "通知" / "通知管理"
 - **UI (en)**: shows "Notification" / "Notifications"
 - **`notification_config`** / `NotificationConfig` refers to push channel configuration, not items — these are separate concepts.
-- **Code/UI for channels**: `channels` / `Channel` in code and nav. DB column `channels` on items stores a JSON array of channel IDs (e.g. `["telegram","email"]`). Empty array `[]` means "use all enabled channels".
+- **Code/UI for channels**: `channels` / `Channel` in code and nav. DB column `channels` on items stores a JSON array of channel IDs (e.g. `["telegram","email"]`). Empty array `[]` means "use the default channel".
 - **UI (zh)**: shows "渠道" / "渠道管理"
 - **UI (en)**: shows "Channel" / "Channel Management"
 
