@@ -9,6 +9,7 @@ import {
   serializeAuthenticationCredential,
   prepareAuthenticationOptions,
 } from "@/lib/utils";
+import { AuthShell, FormError } from "@/components/AuthShell";
 
 type Method = "totp" | "email_otp" | "passkey";
 
@@ -125,16 +126,9 @@ export function TwoFactorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-card border rounded-xl shadow-lg p-8">
-          <h1 className="text-xl font-bold text-center text-foreground mb-2">
-            {t("auth.twoFactor")}
-          </h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">
-            {t("auth.enterCode")}
-          </p>
-
+    <AuthShell title={t("auth.twoFactor")} subtitle={t("auth.enterCode")}>
+      <div>
+        <div>
           {/* Method selector */}
           {availableMethods.length > 1 && (
             <div className="flex gap-1 mb-6 p-1 bg-muted rounded-lg">
@@ -161,9 +155,9 @@ export function TwoFactorPage() {
           )}
 
           {error && (
-            <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md mb-4">
-              {error}
-            </p>
+            <div className="mb-4">
+              <FormError>{error}</FormError>
+            </div>
           )}
 
           {activeMethod === "passkey" ? (
@@ -174,7 +168,7 @@ export function TwoFactorPage() {
               className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2"
             >
               <KeyRound className="w-4 h-4" />
-              {loading ? t("common.loading") : t("auth.passkey")}
+              {loading ? t("auth.loading") : t("auth.passkey")}
             </button>
           ) : (
             <form onSubmit={handleVerify} className="space-y-4">
@@ -185,11 +179,11 @@ export function TwoFactorPage() {
                   disabled={loading}
                   className="w-full py-2 px-4 bg-secondary hover:bg-secondary/80 disabled:opacity-50 text-secondary-foreground text-sm font-medium rounded-md transition-colors"
                 >
-                  {loading ? t("common.loading") : t("auth.sendCode")}
+                  {loading ? t("auth.loading") : t("auth.sendCode")}
                 </button>
               )}
               {activeMethod === "email_otp" && codeSent && (
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-caption text-muted-foreground text-center">
                   {t("auth.verifyEmailSent")}
                 </p>
               )}
@@ -218,7 +212,7 @@ export function TwoFactorPage() {
                     disabled={loading || code.length < 6}
                     className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
                   >
-                    {loading ? t("common.loading") : t("common.confirm")}
+                    {loading ? t("auth.loading") : t("common.confirm")}
                   </button>
                 </>
               )}
@@ -228,13 +222,13 @@ export function TwoFactorPage() {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="text-body-sm text-muted-foreground hover:text-foreground"
             >
               ← {t("common.back")}
             </Link>
           </div>
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

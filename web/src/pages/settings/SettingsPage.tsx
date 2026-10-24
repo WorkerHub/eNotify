@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -37,7 +43,7 @@ type TabId = "account" | "security" | "sessions" | "apiKeys" | "preferences";
 function StatusBadge({ ok }: { ok: boolean }) {
   const { t } = useTranslation();
   return ok ? (
-    <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
       <CheckCircle className="w-3 h-3" />
       {t("common.enabled")}
     </span>
@@ -100,7 +106,7 @@ function AccountTab() {
             </p>
           </div>
           {user?.email_verified && (
-            <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+            <CheckCircle className="w-4 h-4 text-success ml-auto" />
           )}
         </div>
       </div>
@@ -141,7 +147,7 @@ function AccountTab() {
             </p>
           )}
           {pwSuccess && (
-            <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+            <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
               {t("common.success")}
             </p>
           )}
@@ -592,9 +598,21 @@ function SessionsTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-20 bg-muted rounded-lg" />
-        <div className="h-20 bg-muted rounded-lg" />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
       </div>
     );
   }
@@ -611,7 +629,7 @@ function SessionsTab() {
         </p>
       )}
       {revokeMsg && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {revokeMsg}
         </p>
       )}
@@ -631,7 +649,7 @@ function SessionsTab() {
                 <div className="flex items-center gap-2 mb-1">
                   <Monitor className="w-4 h-4 text-muted-foreground shrink-0" />
                   {s.current && (
-                    <span className="inline-flex items-center text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full font-medium">
+                    <span className="inline-flex items-center text-xs text-success bg-success/10 px-2 py-0.5 rounded-full font-medium">
                       {t("settings.currentSession")}
                     </span>
                   )}
@@ -818,9 +836,21 @@ function ApiKeysTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-20 bg-muted rounded-lg" />
-        <div className="h-20 bg-muted rounded-lg" />
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
       </div>
     );
   }
@@ -856,7 +886,7 @@ function ApiKeysTab() {
         </p>
       )}
       {successMsg && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {successMsg}
         </p>
       )}
@@ -865,7 +895,7 @@ function ApiKeysTab() {
       {createdKey && (
         <div className="border border-primary/40 bg-primary/5 rounded-lg p-4 space-y-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-foreground">
                 {t("settings.apiKeysCreatedTitle", { name: createdKey.name })}
@@ -1027,7 +1057,7 @@ function ApiKeysTab() {
                         {k.name}
                       </p>
                       {expired && (
-                        <span className="inline-flex items-center text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full font-medium">
+                        <span className="inline-flex items-center text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full font-medium">
                           {t("settings.apiKeysExpired")}
                         </span>
                       )}
@@ -1272,7 +1302,7 @@ function PreferencesTab() {
         </p>
       )}
       {success && (
-        <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md">
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
           {t("common.success")}
         </p>
       )}
@@ -1312,6 +1342,21 @@ export function SettingsPage() {
   const setTab = (tab: TabId) => {
     setSearchParams({ tab });
   };
+
+  // Sliding underline for the desktop tab bar (contract §5: 200ms,
+  // transform/width-only). Position is measured from the active button so
+  // label-length / language changes re-center correctly.
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  const [underline, setUnderline] = useState({ left: 0, width: 0 });
+  useLayoutEffect(() => {
+    const btn = tabRefs.current[activeTab];
+    const bar = tabBarRef.current;
+    if (!btn || !bar) return;
+    const b = btn.getBoundingClientRect();
+    const r = bar.getBoundingClientRect();
+    setUnderline({ left: b.left - r.left + bar.scrollLeft, width: b.width });
+  }, [activeTab]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     {
@@ -1358,7 +1403,7 @@ export function SettingsPage() {
       {/* Mobile sub-menu */}
       {showMenu && (
         <div className="md:hidden">
-          <h1 className="text-xl font-bold text-foreground mb-6">
+          <h1 className="text-heading text-foreground mb-6">
             {t("settings.title")}
           </h1>
           <div className="rounded-lg border overflow-hidden divide-y">
@@ -1370,7 +1415,7 @@ export function SettingsPage() {
                 className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent transition-colors"
               >
                 <item.icon className="w-5 h-5 text-muted-foreground" />
-                <span className="flex-1 text-left text-sm text-foreground">
+                <span className="flex-1 text-left text-body-sm text-foreground">
                   {item.label}
                 </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
@@ -1383,29 +1428,44 @@ export function SettingsPage() {
       {/* Content area */}
       <div className={showMenu ? "hidden md:block" : ""}>
         {!isMobile && (
-          <h1 className="text-xl font-bold text-foreground mb-6">
+          <h1 className="text-heading text-foreground mb-6">
             {t("settings.title")}
           </h1>
         )}
 
-        {/* Tab bar - desktop only */}
-        <div className="hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar">
+        {/* Tab bar - desktop only: shared underline slides to the active tab
+            (contract §5: 200ms ease-out, transform/width-only) */}
+        <div
+          ref={tabBarRef}
+          className="relative hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               type="button"
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
+                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap -mb-px transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                 activeTab === tab.id
-                  ? "border-primary text-primary font-semibold"
-                  : "border-transparent text-muted-foreground font-medium hover:text-foreground",
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground font-medium hover:text-foreground",
               )}
             >
               {tab.icon}
               {tab.label}
             </button>
           ))}
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 h-0.5 rounded-full bg-primary transition-[transform,width] duration-(--duration-standard) ease-(--ease-out)"
+            style={{
+              width: underline.width,
+              transform: `translateX(${underline.left}px)`,
+            }}
+          />
         </div>
 
         {/* Tab content */}

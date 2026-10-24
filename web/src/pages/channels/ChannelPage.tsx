@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Clock, Radio } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { NotificationHoursSelector } from "@/components/NotificationHoursSelector";
+import { Skeleton } from "@/components/states";
 import type { NotificationConfig } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -357,7 +358,7 @@ function ChannelCard({
   };
 
   return (
-    <div className="bg-card border rounded-lg overflow-hidden">
+    <div className="bg-card border rounded-lg shadow-1 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           {/* Toggle switch */}
@@ -366,7 +367,7 @@ function ChannelCard({
             onClick={toggleEnabled}
             className={cn(
               "relative shrink-0 w-10 h-6 cursor-pointer rounded-full transition-colors",
-              isEnabled ? "bg-primary" : "bg-gray-300 dark:bg-gray-600",
+              isEnabled ? "bg-primary" : "bg-input",
             )}
             role="switch"
             aria-checked={isEnabled}
@@ -378,8 +379,16 @@ function ChannelCard({
               )}
             />
           </button>
-          <span className="text-sm font-medium text-foreground">
-            {channel.label}
+          <span className="text-title">{channel.label}</span>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-caption font-medium",
+              isEnabled
+                ? "bg-success/10 text-success"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {isEnabled ? t("common.enabled") : t("common.disabled")}
           </span>
         </div>
         <button
@@ -425,10 +434,12 @@ function ChannelCard({
 
             {feedback && (
               <p
+                key={feedback.msg}
+                role="status"
                 className={cn(
-                  "text-xs px-3 py-2 rounded-md",
+                  "text-xs px-3 py-2 rounded-md animate-status",
                   feedback.ok
-                    ? "text-green-600 bg-green-50 dark:bg-green-900/20"
+                    ? "text-success bg-success/10"
                     : "text-destructive bg-destructive/10",
                 )}
               >
@@ -502,7 +513,7 @@ function NotificationHoursTab({
 
   return (
     <div className="space-y-4">
-      <div className="bg-card border rounded-lg p-5 space-y-4">
+      <div className="bg-card border rounded-lg shadow-1 p-4 md:p-6 space-y-4">
         <p className="text-xs text-muted-foreground">
           {t("channels.notificationHoursHint")}
         </p>
@@ -515,10 +526,12 @@ function NotificationHoursTab({
 
         {feedback && (
           <p
+            key={feedback.msg}
+            role="status"
             className={cn(
-              "text-xs px-3 py-2 rounded-md",
+              "text-xs px-3 py-2 rounded-md animate-status",
               feedback.ok
-                ? "text-green-600 bg-green-50 dark:bg-green-900/20"
+                ? "text-success bg-success/10"
                 : "text-destructive bg-destructive/10",
             )}
           >
@@ -597,7 +610,11 @@ export function ChannelPage() {
 
   if (loading) {
     return (
-      <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+      <div className="space-y-4 stagger" aria-busy="true">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
     );
   }
   if (error || !config) {
@@ -620,18 +637,18 @@ export function ChannelPage() {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">{t("channels.title")}</h1>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <h1 className="text-heading">{t("channels.title")}</h1>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b mb-6 overflow-x-auto">
+      <div className="flex gap-1 border-b overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
+              "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap border-b-2 -mb-px transition-colors",
               activeTab === tab.id
                 ? "border-primary text-primary font-semibold"
                 : "border-transparent text-muted-foreground font-medium hover:text-foreground",

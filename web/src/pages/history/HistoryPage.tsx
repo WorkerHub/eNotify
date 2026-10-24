@@ -1,8 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle, XCircle, History, X, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Skeleton, EmptyState, ErrorState } from "@/components/states";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { NotificationHistory } from "@/types";
 
 interface GroupedHistory {
@@ -51,6 +53,18 @@ function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
   return groups;
 }
 
+/** Group entries by calendar day for the timeline view (§5 history). */
+function groupByDay(groups: GroupedHistory[]): [string, GroupedHistory[]][] {
+  const days = new Map<string, GroupedHistory[]>();
+  for (const g of groups) {
+    const key = new Date(g.created_at).toLocaleDateString();
+    const arr = days.get(key) ?? [];
+    arr.push(g);
+    days.set(key, arr);
+  }
+  return [...days.entries()];
+}
+
 export function HistoryPage() {
   const { t } = useTranslation();
   const [history, setHistory] = useState<NotificationHistory[]>([]);
@@ -61,6 +75,9 @@ export function HistoryPage() {
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const detailTrapRef = useFocusTrap<HTMLDivElement>(!!selected, () =>
+    setSelected(null),
+  );
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -80,6 +97,7 @@ export function HistoryPage() {
   }, [fetchHistory]);
 
   const grouped = groupHistory(history);
+  const groupedByDay = groupByDay(grouped);
 
   const handleClear = (e: React.MouseEvent, g: GroupedHistory) => {
     e.stopPropagation();
@@ -109,13 +127,18 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t("history.title")}</h1>
+    <div className="space-y-6">
+      <h1 className="text-heading">{t("history.title")}</h1>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-          {error}
-        </p>
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setLoading(true);
+            fetchHistory();
+          }}
+          retryLabel={t("common.retry")}
+        />
       )}
 
       {loading ? (
@@ -124,16 +147,24 @@ export function HistoryPage() {
             (skeletonKey) => (
               <div
                 key={skeletonKey}
-                className="h-16 bg-muted rounded-lg animate-pulse"
-              />
+                className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3"
+              >
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-4 w-28" />
+              </div>
             ),
           )}
         </div>
       ) : grouped.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p>{t("history.noData")}</p>
-        </div>
+        <EmptyState
+          icon={<History className="w-6 h-6" />}
+          title={t("history.emptyTitle")}
+          description={t("history.emptyDesc")}
+        />
       ) : (
         <>
           {/* Desktop table */}
@@ -150,7 +181,7 @@ export function HistoryPage() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap"
+                      className="text-left px-4 py-3 text-caption font-medium text-muted-foreground whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -158,67 +189,82 @@ export function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {grouped.map((g) => (
-                  <tr
-                    key={g.id}
-                    className="hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => setSelected(g)}
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-medium truncate max-w-xs">{g.title}</p>
-                      {g.item_name && (
-                        <p className="text-xs text-muted-foreground">
-                          {g.item_name}
-                        </p>
-                      )}
-                      {g.channels.some((c) => c.error) && (
-                        <p className="text-xs text-destructive truncate max-w-xs">
-                          {g.channels
-                            .filter((c) => c.error)
-                            .map((c) => `${c.channel}: ${c.error}`)
-                            .join("; ")}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {g.channels.map((c) => (
-                          <span
-                            key={`${g.id}-${c.channel}`}
-                            className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
-                          >
-                            {c.channel}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {g.allSuccess ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                          <CheckCircle className="w-3 h-3" />
-                          {t("history.success")}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
-                          <XCircle className="w-3 h-3" />
-                          {t("history.failed")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {new Date(g.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={(e) => handleClear(e, g)}
-                        className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        title={t("common.clear")}
+                {groupedByDay.map(([day, rows]) => (
+                  <Fragment key={`day-${day}`}>
+                    <tr>
+                      <th
+                        colSpan={5}
+                        scope="rowgroup"
+                        className="sticky top-0 z-10 bg-muted/80 px-4 py-2 text-left text-caption font-medium uppercase tracking-wide text-muted-foreground backdrop-blur"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
+                        {day}
+                      </th>
+                    </tr>
+                    {rows.map((g) => (
+                      <tr
+                        key={g.id}
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => setSelected(g)}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium truncate max-w-xs">
+                            {g.title}
+                          </p>
+                          {g.item_name && (
+                            <p className="text-xs text-muted-foreground">
+                              {g.item_name}
+                            </p>
+                          )}
+                          {g.channels.some((c) => c.error) && (
+                            <p className="text-xs text-destructive truncate max-w-xs">
+                              {g.channels
+                                .filter((c) => c.error)
+                                .map((c) => `${c.channel}: ${c.error}`)
+                                .join("; ")}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {g.channels.map((c) => (
+                              <span
+                                key={`${g.id}-${c.channel}`}
+                                className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                              >
+                                {c.channel}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {g.allSuccess ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full">
+                              <CheckCircle className="w-3 h-3" />
+                              {t("history.success")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                              <XCircle className="w-3 h-3" />
+                              {t("history.failed")}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums text-body-sm">
+                          {new Date(g.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={(e) => handleClear(e, g)}
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            title={t("common.clear")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -226,84 +272,105 @@ export function HistoryPage() {
 
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
-            {grouped.map((g) => (
-              <button
-                type="button"
-                key={g.id}
-                className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
-                onClick={() => setSelected(g)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{g.title}</p>
-                    {g.item_name && (
-                      <p className="text-xs text-muted-foreground">
-                        {g.item_name}
+            {groupedByDay.map(([day, rows]) => (
+              <div key={`m-day-${day}`} className="space-y-3">
+                <h2 className="sticky -top-px z-10 -mx-1 bg-background/90 px-1 py-1.5 text-caption font-medium uppercase tracking-wide text-muted-foreground backdrop-blur">
+                  {day}
+                </h2>
+                {rows.map((g) => (
+                  <button
+                    type="button"
+                    key={g.id}
+                    className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
+                    onClick={() => setSelected(g)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {g.title}
+                        </p>
+                        {g.item_name && (
+                          <p className="text-xs text-muted-foreground">
+                            {g.item_name}
+                          </p>
+                        )}
+                      </div>
+                      {g.allSuccess ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-success bg-success/10 px-2 py-0.5 rounded-full shrink-0">
+                          <CheckCircle className="w-3 h-3" />
+                          {t("history.success")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full shrink-0">
+                          <XCircle className="w-3 h-3" />
+                          {t("history.failed")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {g.channels.map((c) => (
+                          <span
+                            key={`${g.id}-${c.channel}`}
+                            className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                          >
+                            {c.channel}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(g.created_at).toLocaleString()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleClear(e, g)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          title={t("common.clear")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    {g.channels.some((c) => c.error) && (
+                      <p className="text-xs text-destructive truncate">
+                        {g.channels
+                          .filter((c) => c.error)
+                          .map((c) => `${c.channel}: ${c.error}`)
+                          .join("; ")}
                       </p>
                     )}
-                  </div>
-                  {g.allSuccess ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full shrink-0">
-                      <CheckCircle className="w-3 h-3" />
-                      {t("history.success")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded-full shrink-0">
-                      <XCircle className="w-3 h-3" />
-                      {t("history.failed")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-1">
-                    {g.channels.map((c) => (
-                      <span
-                        key={`${g.id}-${c.channel}`}
-                        className={`uppercase text-xs px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
-                      >
-                        {c.channel}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(g.created_at).toLocaleString()}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => handleClear(e, g)}
-                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title={t("common.clear")}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {g.channels.some((c) => c.error) && (
-                  <p className="text-xs text-destructive truncate">
-                    {g.channels
-                      .filter((c) => c.error)
-                      .map((c) => `${c.channel}: ${c.error}`)
-                      .join("; ")}
-                  </p>
-                )}
-              </button>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </>
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("history.detail")}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSelected(null);
+          }}
+        >
           <button
             type="button"
             aria-label="Close details"
-            className="absolute inset-0 bg-black/40"
+            tabIndex={-1}
+            className="absolute inset-0 bg-black/40 animate-dialog-backdrop"
             onClick={() => setSelected(null)}
           />
-          <div className="relative bg-card border rounded-xl w-full max-w-lg shadow-lg flex flex-col max-h-[80vh]">
+          <div
+            ref={detailTrapRef}
+            className="relative bg-card border rounded-lg w-full max-w-lg shadow-4 flex flex-col max-h-[80vh] animate-dialog-panel"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
-              <h3 className="font-semibold text-sm">{t("history.detail")}</h3>
+              <h3 className="text-title">{t("history.detail")}</h3>
               <button
                 type="button"
                 onClick={() => setSelected(null)}
@@ -343,7 +410,7 @@ export function HistoryPage() {
                   {selected.channels.map((c) => (
                     <span
                       key={`${selected.id}-${c.channel}`}
-                      className={`uppercase px-1.5 py-0.5 rounded ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
+                      className={`uppercase text-caption px-1.5 py-0.5 rounded-xs ${c.success ? "text-muted-foreground bg-muted" : "text-destructive bg-destructive/10"}`}
                     >
                       {c.channel}
                     </span>

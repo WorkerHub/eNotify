@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
-  AlertCircle,
   Bell,
   Trash2,
   Pencil,
@@ -21,8 +20,10 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DueRing, DueCount } from "@/components/DueRing";
+import { Skeleton, ErrorState } from "@/components/states";
 import { Portal } from "@/components/Portal";
-import { cn } from "@/lib/utils";
+import { cn, daysUntil } from "@/lib/utils";
 import type { Item, Payment } from "@/types";
 import { formatLunarDate, solarToLunar, lunarToSolar } from "@/lib/lunar";
 import { ChannelSelector } from "@/components/ChannelSelector";
@@ -146,7 +147,7 @@ function FieldWithTooltip({
           {pos && (
             <Portal>
               <div
-                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-lg pointer-events-none z-[100] w-80 whitespace-pre-wrap"
+                className="fixed px-3 py-2 rounded-lg text-xs bg-popover text-popover-foreground border shadow-3 pointer-events-none z-[100] w-80 whitespace-pre-wrap"
                 style={{
                   left: pos.x,
                   top: pos.y,
@@ -182,7 +183,7 @@ function Toggle({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative w-10 h-6 rounded-full transition-colors",
-          checked ? "bg-primary" : "bg-gray-300 dark:bg-gray-600",
+          checked ? "bg-primary" : "bg-input",
         )}
       >
         <span
@@ -610,21 +611,41 @@ export function ItemDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-48" />
-        <div className="h-64 bg-muted rounded-xl" />
+      <div className="max-w-5xl space-y-8 stagger">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-7 w-48" />
+        </div>
+        <div className="rounded-lg border bg-card p-4 md:p-6 space-y-5">
+          <Skeleton className="h-5 w-24" />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!item) {
-    return (
-      <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-        <AlertCircle className="w-4 h-4 shrink-0" />
-        {error || t("items.notFound")}
-      </div>
-    );
+    return <ErrorState message={error || t("items.notFound")} />;
   }
+
+  // Live countdown preview (§5: due preview beside the edit form)
+  const effectiveExpiry =
+    item.calendar_mode === "both" &&
+    item.lunar_expiry_date &&
+    item.lunar_expiry_date <= item.expiry_date
+      ? item.lunar_expiry_date
+      : item.expiry_date;
+  const daysLeft = daysUntil(effectiveExpiry);
+  const periodDays = Math.max(
+    1,
+    item.period_value *
+      { day: 1, week: 7, month: 30, year: 365 }[item.period_unit],
+  );
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -636,494 +657,640 @@ export function ItemDetailPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold truncate">{item.name}</h1>
+        <h1 className="text-heading truncate">{item.name}</h1>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
+      {error && <ErrorState message={error} />}
 
-      {/* Edit form */}
-      <section className="bg-card rounded-xl border p-5 space-y-5">
-        <h2 className="font-semibold text-base">{t("common.edit")}</h2>
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Kind (read-only) */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {t("items.kind")}：
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-foreground">
-              {item.item_kind === "subscription"
-                ? t("items.kindSubscription")
-                : t("items.kindRegular")}
-            </span>
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label={t("items.name")}>
-              <input
-                className={INPUT}
-                value={item.name}
-                onChange={(e) => setField("name", e.target.value)}
-                required
-              />
-            </Field>
-
-            <FieldWithTooltip
-              label={t("items.mode.label")}
-              tooltip={t("items.mode.tooltip")}
-            >
-              <select
-                className={SELECT}
-                value={item.item_mode}
-                onChange={(e) => setField("item_mode", e.target.value as any)}
-              >
-                <option value="cycle">{t("items.mode.cycle")}</option>
-                <option value="reset">{t("items.mode.reset")}</option>
-              </select>
-            </FieldWithTooltip>
-
-            <FieldWithTooltip
-              label={t("items.category")}
-              tooltip={t("items.categoryTooltip")}
-            >
-              <TagCombobox
-                value={item.category}
-                onChange={(v) => setField("category", v)}
-                options={tags}
-              />
-            </FieldWithTooltip>
-
-            <Field label={t("items.startDate")}>
+      <div className="md:grid md:grid-cols-[1fr_300px] md:gap-8 md:items-start">
+        <div className="min-w-0 space-y-8">
+          {/* Edit form */}
+          <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-5">
+            <h2 className="text-title">{t("common.edit")}</h2>
+            <form onSubmit={handleSave} className="space-y-8">
+              {/* Kind (read-only) */}
               <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  className={cn(INPUT, "flex-1")}
-                  value={item.start_date ?? ""}
-                  onChange={(e) =>
-                    setField("start_date", e.target.value || null)
-                  }
-                />
-                {item.calendar_mode !== "solar" && item.start_date && (
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatLunarDate(item.start_date)}
-                  </span>
-                )}
+                <span className="text-sm text-muted-foreground">
+                  {t("items.kind")}：
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-foreground">
+                  {item.item_kind === "subscription"
+                    ? t("items.kindSubscription")
+                    : t("items.kindRegular")}
+                </span>
               </div>
-            </Field>
 
-            <Field label={t("items.period")}>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  className={cn(INPUT, "w-24")}
-                  value={item.period_value}
-                  onChange={(e) =>
-                    setField("period_value", Number(e.target.value))
-                  }
-                />
-                <select
-                  className={SELECT}
-                  value={item.period_unit}
-                  onChange={(e) =>
-                    setField("period_unit", e.target.value as any)
-                  }
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label={t("items.name")}>
+                  <input
+                    className={INPUT}
+                    value={item.name}
+                    onChange={(e) => setField("name", e.target.value)}
+                    required
+                  />
+                </Field>
+
+                <FieldWithTooltip
+                  label={t("items.mode.label")}
+                  tooltip={t("items.mode.tooltip")}
                 >
-                  {item.calendar_mode === "solar" && (
-                    <option value="day">{t("items.periodUnit.day")}</option>
-                  )}
-                  {item.calendar_mode === "solar" && (
-                    <option value="week">{t("items.periodUnit.week")}</option>
-                  )}
-                  <option value="month">{t("items.periodUnit.month")}</option>
-                  <option value="year">{t("items.periodUnit.year")}</option>
-                </select>
-              </div>
-            </Field>
+                  <select
+                    className={SELECT}
+                    value={item.item_mode}
+                    onChange={(e) =>
+                      setField("item_mode", e.target.value as any)
+                    }
+                  >
+                    <option value="cycle">{t("items.mode.cycle")}</option>
+                    <option value="reset">{t("items.mode.reset")}</option>
+                  </select>
+                </FieldWithTooltip>
 
-            <div
-              className={cn(item.calendar_mode === "both" && "sm:row-span-2")}
-            >
-              <Field label={t("items.expiryDate")}>
-                {item.calendar_mode === "both" ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0 w-8">
-                        {t("items.calendarSolar")}
-                      </span>
-                      <input
-                        type="date"
-                        className={cn(INPUT, "flex-1")}
-                        value={item.expiry_date}
-                        onChange={(e) =>
-                          setField("expiry_date", e.target.value)
-                        }
-                        required
-                      />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatLunarDate(item.expiry_date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0 w-8">
-                        {t("items.calendarLunar")}
-                      </span>
-                      <input
-                        type="date"
-                        className={cn(INPUT, "flex-1")}
-                        value={item.lunar_expiry_date ?? ""}
-                        onChange={(e) =>
-                          setField("lunar_expiry_date", e.target.value || null)
-                        }
-                      />
-                      {item.lunar_expiry_date && (
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatLunarDate(item.lunar_expiry_date)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
+                <FieldWithTooltip
+                  label={t("items.category")}
+                  tooltip={t("items.categoryTooltip")}
+                >
+                  <TagCombobox
+                    value={item.category}
+                    onChange={(v) => setField("category", v)}
+                    options={tags}
+                  />
+                </FieldWithTooltip>
+
+                <Field label={t("items.startDate")}>
                   <div className="flex items-center gap-2">
                     <input
                       type="date"
                       className={cn(INPUT, "flex-1")}
-                      value={item.expiry_date}
-                      onChange={(e) => setField("expiry_date", e.target.value)}
-                      required
+                      value={item.start_date ?? ""}
+                      onChange={(e) =>
+                        setField("start_date", e.target.value || null)
+                      }
                     />
-                    {item.calendar_mode !== "solar" && item.expiry_date && (
+                    {item.calendar_mode !== "solar" && item.start_date && (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatLunarDate(item.expiry_date)}
+                        {formatLunarDate(item.start_date)}
                       </span>
                     )}
                   </div>
-                )}
-              </Field>
-            </div>
+                </Field>
 
-            <Field label={t("items.reminderBefore")}>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  className={cn(INPUT, "w-24")}
-                  value={item.reminder_value}
-                  onChange={(e) =>
-                    setField("reminder_value", Number(e.target.value))
-                  }
-                />
-                <select
-                  className={SELECT}
-                  value={item.reminder_unit}
-                  onChange={(e) =>
-                    setField("reminder_unit", e.target.value as any)
-                  }
-                >
-                  <option value="day">{t("items.periodUnit.day")}</option>
-                  <option value="hour">{t("items.periodUnit.hour")}</option>
-                </select>
-              </div>
-            </Field>
-          </div>
-
-          {item.item_kind === "subscription" && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label={t("items.amount")}>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className={INPUT}
-                  value={item.amount ?? ""}
-                  onChange={(e) =>
-                    setField(
-                      "amount",
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                />
-              </Field>
-
-              <Field label={t("items.currency")}>
-                <select
-                  className={SELECT}
-                  value={item.currency}
-                  onChange={(e) => setField("currency", e.target.value)}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          )}
-
-          <div className="flex gap-6 flex-wrap">
-            <Toggle
-              checked={!!item.is_active}
-              onChange={(v) => setField("is_active", v ? 1 : 0)}
-              label={t("items.enableItem")}
-            />
-            <Toggle
-              checked={!!item.auto_renew}
-              onChange={(v) => setField("auto_renew", v ? 1 : 0)}
-              label={t("items.autoRenew")}
-            />
-          </div>
-
-          {/* Calendar mode selector + action buttons */}
-          <div className="grid sm:grid-cols-2 gap-4 items-end">
-            <Field label={t("items.calendarMode")}>
-              <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
-                {(["solar", "lunar", "both"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      if (
-                        (mode === "lunar" || mode === "both") &&
-                        (item.period_unit === "day" ||
-                          item.period_unit === "week")
-                      ) {
-                        setItem((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                calendar_mode: mode,
-                                period_unit: "month",
-                              }
-                            : prev,
-                        );
-                      } else {
-                        setField("calendar_mode", mode);
+                <Field label={t("items.period")}>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      className={cn(INPUT, "w-24")}
+                      value={item.period_value}
+                      onChange={(e) =>
+                        setField("period_value", Number(e.target.value))
                       }
-                    }}
-                    className={cn(
-                      "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-                      item.calendar_mode === mode
-                        ? "bg-background shadow text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t(
-                      `items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
-                    )}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleTestNotify}
-                disabled={notifying}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-              >
-                <Bell className="w-4 h-4" />
-                {t("items.testNotify")}
-              </button>
-              <button
-                type="button"
-                onClick={handleRecalcExpiry}
-                disabled={!item?.start_date}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
-              >
-                <Calculator className="w-4 h-4" />
-                {t("items.recalcExpiry")}
-              </button>
-              {notifyMsg && (
-                <span
+                    />
+                    <select
+                      className={SELECT}
+                      value={item.period_unit}
+                      onChange={(e) =>
+                        setField("period_unit", e.target.value as any)
+                      }
+                    >
+                      {item.calendar_mode === "solar" && (
+                        <option value="day">{t("items.periodUnit.day")}</option>
+                      )}
+                      {item.calendar_mode === "solar" && (
+                        <option value="week">
+                          {t("items.periodUnit.week")}
+                        </option>
+                      )}
+                      <option value="month">
+                        {t("items.periodUnit.month")}
+                      </option>
+                      <option value="year">{t("items.periodUnit.year")}</option>
+                    </select>
+                  </div>
+                </Field>
+
+                <div
                   className={cn(
-                    "text-sm self-center",
-                    notifyError ? "text-destructive" : "text-green-600",
+                    item.calendar_mode === "both" && "sm:row-span-2",
                   )}
                 >
-                  {notifyMsg}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <Field label={t("items.notes")}>
-            <textarea
-              rows={3}
-              className={cn(INPUT, "resize-none")}
-              value={item.notes}
-              onChange={(e) => setField("notes", e.target.value)}
-            />
-          </Field>
-
-          <ChannelSelector selected={channels} onChange={setChannels} />
-
-          <NotificationHoursSelector
-            selected={notificationHours}
-            onChange={setNotificationHours}
-            hint={t("items.notificationHoursHint")}
-          />
-
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? t("common.loading") : t("common.save")}
-            </button>
-            {saveMsg && (
-              <span className="text-sm text-green-600">{saveMsg}</span>
-            )}
-          </div>
-        </form>
-      </section>
-
-      {/* Renew / Reset */}
-      {item.item_mode === "cycle" ? (
-        <section className="bg-card rounded-xl border p-5 space-y-4">
-          <h2 className="font-semibold text-base">{t("items.renew")}</h2>
-          <form onSubmit={handleRenew} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {item.item_kind === "subscription" && (
-                <Field label={t("items.amount")}>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className={INPUT}
-                    value={renewAmount}
-                    onChange={(e) => setRenewAmount(e.target.value)}
-                  />
-                </Field>
-              )}
-
-              <Field label={t("common.date")}>
-                <input
-                  type="date"
-                  className={INPUT}
-                  value={renewDate}
-                  onChange={(e) => setRenewDate(e.target.value)}
-                />
-              </Field>
-
-              <Field label={t("items.renewMultiplier")}>
-                <input
-                  type="number"
-                  min={1}
-                  className={INPUT}
-                  value={renewMultiplier}
-                  onChange={(e) => setRenewMultiplier(e.target.value)}
-                />
-              </Field>
-
-              <Field label={t("common.note")}>
-                <input
-                  className={INPUT}
-                  value={renewNote}
-                  onChange={(e) => setRenewNote(e.target.value)}
-                />
-              </Field>
-            </div>
-
-            <button
-              type="submit"
-              disabled={renewing}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {renewing ? t("common.loading") : t("items.renew")}
-            </button>
-          </form>
-        </section>
-      ) : (
-        <section className="bg-card rounded-xl border p-5 space-y-4">
-          <h2 className="font-semibold text-base">{t("items.resetCycle")}</h2>
-          <form onSubmit={handleResetSubmit} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label={t("items.amount")}>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className={INPUT}
-                  value={renewAmount}
-                  onChange={(e) => setRenewAmount(e.target.value)}
-                />
-              </Field>
-
-              <Field label={t("common.date")}>
-                <input
-                  type="date"
-                  className={INPUT}
-                  value={renewDate}
-                  onChange={(e) => setRenewDate(e.target.value)}
-                />
-              </Field>
-
-              <Field label={t("common.note")}>
-                <input
-                  className={INPUT}
-                  value={renewNote}
-                  onChange={(e) => setRenewNote(e.target.value)}
-                />
-              </Field>
-            </div>
-
-            <button
-              type="submit"
-              disabled={resetting}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {resetting ? t("common.loading") : t("items.resetCycle")}
-            </button>
-          </form>
-        </section>
-      )}
-
-      {/* Payment / Renewal history */}
-      <section className="bg-card rounded-xl border p-5 space-y-4">
-        <h2 className="font-semibold text-base">{t("items.renewHistory")}</h2>
-
-        {payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("dashboard.noData")}
-          </p>
-        ) : (
-          <>
-            {/* Desktop */}
-            <div className="hidden md:block rounded-lg border overflow-hidden text-sm">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    {[
-                      t("common.date"),
-                      t("items.amount"),
-                      t("items.type"),
-                      t("common.note"),
-                      t("common.period"),
-                      t("common.actions"),
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left px-3 py-2 font-medium text-muted-foreground"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {payments.map((p) =>
-                    editingPayment?.id === p.id ? (
-                      <tr key={p.id} className="bg-muted/20">
-                        <td className="px-3 py-2">
+                  <Field label={t("items.expiryDate")}>
+                    {item.calendar_mode === "both" ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0 w-8">
+                            {t("items.calendarSolar")}
+                          </span>
                           <input
                             type="date"
-                            className={cn(INPUT, "py-1")}
+                            className={cn(INPUT, "flex-1")}
+                            value={item.expiry_date}
+                            onChange={(e) =>
+                              setField("expiry_date", e.target.value)
+                            }
+                            required
+                          />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatLunarDate(item.expiry_date)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0 w-8">
+                            {t("items.calendarLunar")}
+                          </span>
+                          <input
+                            type="date"
+                            className={cn(INPUT, "flex-1")}
+                            value={item.lunar_expiry_date ?? ""}
+                            onChange={(e) =>
+                              setField(
+                                "lunar_expiry_date",
+                                e.target.value || null,
+                              )
+                            }
+                          />
+                          {item.lunar_expiry_date && (
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatLunarDate(item.lunar_expiry_date)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          className={cn(INPUT, "flex-1")}
+                          value={item.expiry_date}
+                          onChange={(e) =>
+                            setField("expiry_date", e.target.value)
+                          }
+                          required
+                        />
+                        {item.calendar_mode !== "solar" && item.expiry_date && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatLunarDate(item.expiry_date)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </Field>
+                </div>
+
+                <Field label={t("items.reminderBefore")}>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      className={cn(INPUT, "w-24")}
+                      value={item.reminder_value}
+                      onChange={(e) =>
+                        setField("reminder_value", Number(e.target.value))
+                      }
+                    />
+                    <select
+                      className={SELECT}
+                      value={item.reminder_unit}
+                      onChange={(e) =>
+                        setField("reminder_unit", e.target.value as any)
+                      }
+                    >
+                      <option value="day">{t("items.periodUnit.day")}</option>
+                      <option value="hour">{t("items.periodUnit.hour")}</option>
+                    </select>
+                  </div>
+                </Field>
+              </div>
+
+              {item.item_kind === "subscription" && (
+                <div className="grid sm:grid-cols-2 gap-4 border-t pt-6">
+                  <h3 className="sm:col-span-2 text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("detail.sectionCycle")}
+                  </h3>
+                  <Field label={t("items.amount")}>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={INPUT}
+                      value={item.amount ?? ""}
+                      onChange={(e) =>
+                        setField(
+                          "amount",
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    />
+                  </Field>
+
+                  <Field label={t("items.currency")}>
+                    <select
+                      className={SELECT}
+                      value={item.currency}
+                      onChange={(e) => setField("currency", e.target.value)}
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
+
+              <div className="flex gap-6 flex-wrap">
+                <Toggle
+                  checked={!!item.is_active}
+                  onChange={(v) => setField("is_active", v ? 1 : 0)}
+                  label={t("items.enableItem")}
+                />
+                <Toggle
+                  checked={!!item.auto_renew}
+                  onChange={(v) => setField("auto_renew", v ? 1 : 0)}
+                  label={t("items.autoRenew")}
+                />
+              </div>
+
+              {/* Calendar mode selector + action buttons */}
+              <div className="grid sm:grid-cols-2 gap-4 items-end">
+                <Field label={t("items.calendarMode")}>
+                  <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                    {(["solar", "lunar", "both"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          if (
+                            (mode === "lunar" || mode === "both") &&
+                            (item.period_unit === "day" ||
+                              item.period_unit === "week")
+                          ) {
+                            setItem((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    calendar_mode: mode,
+                                    period_unit: "month",
+                                  }
+                                : prev,
+                            );
+                          } else {
+                            setField("calendar_mode", mode);
+                          }
+                        }}
+                        className={cn(
+                          "px-4 py-1.5 rounded-md text-body-sm font-medium transition-colors",
+                          item.calendar_mode === mode
+                            ? "bg-background shadow text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {t(
+                          `items.calendar${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestNotify}
+                    disabled={notifying}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border text-body-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {t("items.testNotify")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRecalcExpiry}
+                    disabled={!item?.start_date}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border text-body-sm font-medium hover:bg-accent disabled:opacity-50 transition-colors"
+                  >
+                    <Calculator className="w-4 h-4" />
+                    {t("items.recalcExpiry")}
+                  </button>
+                  {notifyMsg && (
+                    <span
+                      className={cn(
+                        "text-sm self-center",
+                        notifyError ? "text-destructive" : "text-success",
+                      )}
+                    >
+                      {notifyMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                  {t("detail.sectionReminder")}
+                </h3>
+                <Field label={t("items.notes")}>
+                  <textarea
+                    rows={3}
+                    className={cn(INPUT, "resize-none")}
+                    value={item.notes}
+                    onChange={(e) => setField("notes", e.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <ChannelSelector selected={channels} onChange={setChannels} />
+
+              <NotificationHoursSelector
+                selected={notificationHours}
+                onChange={setNotificationHours}
+                hint={t("items.notificationHoursHint")}
+              />
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? t("common.loading") : t("common.save")}
+                </button>
+                {saveMsg && (
+                  <span className="text-body-sm text-success">{saveMsg}</span>
+                )}
+              </div>
+            </form>
+          </section>
+
+          {/* Renew / Reset */}
+          {item.item_mode === "cycle" ? (
+            <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+              <h2 className="text-title">{t("items.renew")}</h2>
+              <form onSubmit={handleRenew} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {item.item_kind === "subscription" && (
+                    <Field label={t("items.amount")}>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className={INPUT}
+                        value={renewAmount}
+                        onChange={(e) => setRenewAmount(e.target.value)}
+                      />
+                    </Field>
+                  )}
+
+                  <Field label={t("common.date")}>
+                    <input
+                      type="date"
+                      className={INPUT}
+                      value={renewDate}
+                      onChange={(e) => setRenewDate(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t("items.renewMultiplier")}>
+                    <input
+                      type="number"
+                      min={1}
+                      className={INPUT}
+                      value={renewMultiplier}
+                      onChange={(e) => setRenewMultiplier(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t("common.note")}>
+                    <input
+                      className={INPUT}
+                      value={renewNote}
+                      onChange={(e) => setRenewNote(e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={renewing}
+                  className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {renewing ? t("common.loading") : t("items.renew")}
+                </button>
+              </form>
+            </section>
+          ) : (
+            <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+              <h2 className="text-title">{t("items.resetCycle")}</h2>
+              <form onSubmit={handleResetSubmit} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4 border-t pt-6">
+                  <h3 className="sm:col-span-2 text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("detail.sectionCycle")}
+                  </h3>
+                  <Field label={t("items.amount")}>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={INPUT}
+                      value={renewAmount}
+                      onChange={(e) => setRenewAmount(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t("common.date")}>
+                    <input
+                      type="date"
+                      className={INPUT}
+                      value={renewDate}
+                      onChange={(e) => setRenewDate(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={t("common.note")}>
+                    <input
+                      className={INPUT}
+                      value={renewNote}
+                      onChange={(e) => setRenewNote(e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={resetting}
+                  className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-body-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {resetting ? t("common.loading") : t("items.resetCycle")}
+                </button>
+              </form>
+            </section>
+          )}
+
+          {/* Payment / Renewal history */}
+          <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+            <h2 className="text-title">{t("items.renewHistory")}</h2>
+
+            {payments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("dashboard.noData")}
+              </p>
+            ) : (
+              <>
+                {/* Desktop */}
+                <div className="hidden md:block rounded-lg border overflow-hidden text-sm">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {[
+                          t("common.date"),
+                          t("items.amount"),
+                          t("items.type"),
+                          t("common.note"),
+                          t("common.period"),
+                          t("common.actions"),
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left px-3 py-2 text-caption font-medium text-muted-foreground"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {payments.map((p) =>
+                        editingPayment?.id === p.id ? (
+                          <tr key={p.id} className="bg-muted/20">
+                            <td className="px-3 py-2">
+                              <input
+                                type="date"
+                                className={cn(INPUT, "py-1")}
+                                value={editingPayment.date}
+                                onChange={(e) =>
+                                  setEditingPayment({
+                                    ...editingPayment,
+                                    date: e.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                className={cn(INPUT, "py-1 w-24")}
+                                value={editingPayment.amount}
+                                onChange={(e) =>
+                                  setEditingPayment({
+                                    ...editingPayment,
+                                    amount: e.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {t(`items.paymentType.${p.type}`)}
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className={cn(INPUT, "py-1")}
+                                value={editingPayment.note}
+                                onChange={(e) =>
+                                  setEditingPayment({
+                                    ...editingPayment,
+                                    note: e.target.value,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
+                              {p.period_start && p.period_end
+                                ? `${p.period_start} → ${p.period_end}`
+                                : "—"}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={handleSavePayment}
+                                  className="p-1 rounded hover:bg-accent text-success"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPayment(null)}
+                                  className="p-1 rounded hover:bg-accent"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={p.id} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 tabular-nums">
+                              {p.date.slice(0, 10)}
+                            </td>
+                            <td className="px-3 py-2 font-medium tabular-nums">
+                              {p.currency} {p.amount.toFixed(2)}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {t(`items.paymentType.${p.type}`)}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {p.note || "—"}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
+                              {p.period_start && p.period_end
+                                ? `${p.period_start} → ${p.period_end}`
+                                : "—"}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setEditingPayment({
+                                      id: p.id,
+                                      date: p.date.slice(0, 10),
+                                      amount: String(p.amount),
+                                      note: p.note,
+                                    })
+                                  }
+                                  className="p-1 rounded hover:bg-accent"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePayment(p.id)}
+                                  className="p-1 rounded hover:bg-accent text-destructive"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile */}
+                <div className="md:hidden space-y-2">
+                  {payments.map((p) =>
+                    editingPayment?.id === p.id ? (
+                      <div
+                        key={p.id}
+                        className="rounded-lg border border-primary/30 p-3 text-sm space-y-2 bg-muted/20"
+                      >
+                        <div className="space-y-2">
+                          <input
+                            type="date"
+                            className={cn(INPUT, "py-1.5 w-full")}
                             value={editingPayment.date}
                             onChange={(e) =>
                               setEditingPayment({
@@ -1132,12 +1299,10 @@ export function ItemDetailPage() {
                               })
                             }
                           />
-                        </td>
-                        <td className="px-3 py-2">
                           <input
                             type="number"
                             step="0.01"
-                            className={cn(INPUT, "py-1 w-24")}
+                            className={cn(INPUT, "py-1.5 w-full")}
                             value={editingPayment.amount}
                             onChange={(e) =>
                               setEditingPayment({
@@ -1145,14 +1310,10 @@ export function ItemDetailPage() {
                                 amount: e.target.value,
                               })
                             }
+                            placeholder={t("items.amount")}
                           />
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {t(`items.paymentType.${p.type}`)}
-                        </td>
-                        <td className="px-3 py-2">
                           <input
-                            className={cn(INPUT, "py-1")}
+                            className={cn(INPUT, "py-1.5 w-full")}
                             value={editingPayment.note}
                             onChange={(e) =>
                               setEditingPayment({
@@ -1160,207 +1321,145 @@ export function ItemDetailPage() {
                                 note: e.target.value,
                               })
                             }
+                            placeholder={t("common.note")}
                           />
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
-                          {p.period_start && p.period_end
-                            ? `${p.period_start} → ${p.period_end}`
-                            : "—"}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={handleSavePayment}
-                              className="p-1 rounded hover:bg-accent text-green-600"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingPayment(null)}
-                              className="p-1 rounded hover:bg-accent"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSavePayment}
+                            className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground"
+                          >
+                            {t("common.save")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingPayment(null)}
+                            className="text-xs px-3 py-1.5 rounded bg-accent"
+                          >
+                            {t("common.cancel")}
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <tr key={p.id} className="hover:bg-muted/20">
-                        <td className="px-3 py-2">{p.date.slice(0, 10)}</td>
-                        <td className="px-3 py-2 font-medium tabular-nums">
-                          {p.currency} {p.amount.toFixed(2)}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {t(`items.paymentType.${p.type}`)}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {p.note || "—"}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">
-                          {p.period_start && p.period_end
-                            ? `${p.period_start} → ${p.period_end}`
-                            : "—"}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEditingPayment({
-                                  id: p.id,
-                                  date: p.date.slice(0, 10),
-                                  amount: String(p.amount),
-                                  note: p.note,
-                                })
-                              }
-                              className="p-1 rounded hover:bg-accent"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePayment(p.id)}
-                              className="p-1 rounded hover:bg-accent text-destructive"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                      <div
+                        key={p.id}
+                        className="rounded-lg border p-3 text-sm space-y-1"
+                      >
+                        <div className="flex justify-between font-medium">
+                          <span>{p.date.slice(0, 10)}</span>
+                          <span className="tabular-nums">
+                            {p.currency} {p.amount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground text-xs">
+                          <span>
+                            {t(`items.paymentType.${p.type}`)}
+                            {p.note ? ` · ${p.note}` : ""}
+                          </span>
+                          {p.period_start && p.period_end && (
+                            <span>
+                              {p.period_start} → {p.period_end}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditingPayment({
+                                id: p.id,
+                                date: p.date.slice(0, 10),
+                                amount: String(p.amount),
+                                note: p.note,
+                              })
+                            }
+                            className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/70"
+                          >
+                            {t("common.edit")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePayment(p.id)}
+                            className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20"
+                          >
+                            {t("common.delete")}
+                          </button>
+                        </div>
+                      </div>
                     ),
                   )}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </>
+            )}
+          </section>
 
-            {/* Mobile */}
-            <div className="md:hidden space-y-2">
-              {payments.map((p) =>
-                editingPayment?.id === p.id ? (
-                  <div
-                    key={p.id}
-                    className="rounded-lg border border-primary/30 p-3 text-sm space-y-2 bg-muted/20"
-                  >
-                    <div className="space-y-2">
-                      <input
-                        type="date"
-                        className={cn(INPUT, "py-1.5 w-full")}
-                        value={editingPayment.date}
-                        onChange={(e) =>
-                          setEditingPayment({
-                            ...editingPayment,
-                            date: e.target.value,
-                          })
-                        }
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        className={cn(INPUT, "py-1.5 w-full")}
-                        value={editingPayment.amount}
-                        onChange={(e) =>
-                          setEditingPayment({
-                            ...editingPayment,
-                            amount: e.target.value,
-                          })
-                        }
-                        placeholder={t("items.amount")}
-                      />
-                      <input
-                        className={cn(INPUT, "py-1.5 w-full")}
-                        value={editingPayment.note}
-                        onChange={(e) =>
-                          setEditingPayment({
-                            ...editingPayment,
-                            note: e.target.value,
-                          })
-                        }
-                        placeholder={t("common.note")}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={handleSavePayment}
-                        className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground"
-                      >
-                        {t("common.save")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingPayment(null)}
-                        className="text-xs px-3 py-1.5 rounded bg-accent"
-                      >
-                        {t("common.cancel")}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    key={p.id}
-                    className="rounded-lg border p-3 text-sm space-y-1"
-                  >
-                    <div className="flex justify-between font-medium">
-                      <span>{p.date.slice(0, 10)}</span>
-                      <span className="tabular-nums">
-                        {p.currency} {p.amount.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground text-xs">
-                      <span>
-                        {t(`items.paymentType.${p.type}`)}
-                        {p.note ? ` · ${p.note}` : ""}
-                      </span>
-                      {p.period_start && p.period_end && (
-                        <span>
-                          {p.period_start} → {p.period_end}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingPayment({
-                            id: p.id,
-                            date: p.date.slice(0, 10),
-                            amount: String(p.amount),
-                            note: p.note,
-                          })
-                        }
-                        className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/70"
-                      >
-                        {t("common.edit")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePayment(p.id)}
-                        className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20"
-                      >
-                        {t("common.delete")}
-                      </button>
-                    </div>
-                  </div>
-                ),
+          {/* Delete */}
+          <section className="flex">
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex items-center gap-2 px-4 py-2 rounded-md border border-destructive/30 text-destructive text-body-sm font-medium hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              {t("common.delete")}
+            </button>
+          </section>
+        </div>
+
+        {/* Right rail: due summary card (§5 items/:id) */}
+        <aside className="mt-8 md:mt-0 md:sticky md:top-6">
+          <div className="rounded-lg border bg-card p-4 shadow-1 md:p-6 space-y-4">
+            <h2 className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+              {t("detail.summary")}
+            </h2>
+            <div className="flex items-center gap-4">
+              <DueRing
+                days={daysLeft}
+                progress={Math.max(0, Math.min(1, daysLeft / periodDays))}
+                size={56}
+                strokeWidth={4}
+              />
+              <div className="flex flex-col gap-1">
+                <DueCount
+                  days={daysLeft}
+                  unit={t("dashboard.daysUnit")}
+                  size="lg"
+                />
+              </div>
+            </div>
+            <dl className="space-y-2 border-t pt-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-caption text-muted-foreground">
+                  {t("items.expiryDate")}
+                </dt>
+                <dd className="text-body-strong tabular-nums">
+                  {effectiveExpiry}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-caption text-muted-foreground">
+                  {t("items.period")}
+                </dt>
+                <dd className="text-body-sm tabular-nums">
+                  {item.period_value}
+                  {t(`items.periodUnit.${item.period_unit}`)}
+                </dd>
+              </div>
+              {item.amount != null && (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-caption text-muted-foreground">
+                    {t("items.amount")}
+                  </dt>
+                  <dd className="text-body-strong tabular-nums">
+                    {item.currency} {item.amount.toFixed(2)}
+                  </dd>
+                </div>
               )}
-            </div>
-          </>
-        )}
-      </section>
-
-      {/* Delete */}
-      <section className="flex">
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/10 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          {t("common.delete")}
-        </button>
-      </section>
+            </dl>
+          </div>
+        </aside>
+      </div>
 
       <ConfirmDialog
         open={!!confirm}

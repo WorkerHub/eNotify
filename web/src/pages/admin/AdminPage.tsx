@@ -35,9 +35,7 @@ export function AdminPage() {
   if (isIndex && isMobile) {
     return (
       <div className="max-w-lg mx-auto">
-        <h1 className="text-xl font-bold text-foreground mb-6">
-          {t("admin.title")}
-        </h1>
+        <h1 className="text-heading mb-6">{t("admin.title")}</h1>
         <div className="rounded-lg border overflow-hidden divide-y">
           {tabs.map(({ to, label, icon: Icon }) => (
             <button
@@ -47,7 +45,7 @@ export function AdminPage() {
               className="w-full flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-accent transition-colors"
             >
               <Icon className="w-5 h-5 text-muted-foreground" />
-              <span className="flex-1 text-left text-sm text-foreground">
+              <span className="flex-1 text-left text-body-sm text-foreground">
                 {label}
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
@@ -60,8 +58,8 @@ export function AdminPage() {
 
   // Desktop or mobile sub-route: show tabs + content
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
+    <div className="space-y-8">
+      <h1 className="text-heading">{t("admin.title")}</h1>
 
       <div className="hidden md:flex gap-0 border-b overflow-x-auto no-scrollbar">
         {tabs.map(({ to, label, icon: Icon }) => (
@@ -70,7 +68,7 @@ export function AdminPage() {
             to={to}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "flex items-center gap-2 px-4 py-2.5 text-body-sm font-medium border-b-2 -mb-px transition-colors",
                 isActive
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",

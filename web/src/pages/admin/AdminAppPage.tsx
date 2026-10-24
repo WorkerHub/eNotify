@@ -5,12 +5,12 @@ import { api } from "@/lib/api";
 import type { SystemSettings } from "@/types";
 
 const INPUT =
-  "w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow";
+  "w-full rounded-lg border bg-background px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-body-sm font-medium">{label}</label>
       {children}
     </div>
   );
@@ -52,8 +52,14 @@ export function AdminAppPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse max-w-xl">
-        <div className="h-40 bg-muted rounded-xl" />
+      <div
+        className="max-w-xl space-y-4 rounded-lg border bg-card p-4 md:p-6 stagger"
+        aria-busy="true"
+      >
+        <div className="h-4 w-1/4 animate-pulse rounded bg-muted" />
+        <div className="h-10 w-full animate-pulse rounded-sm bg-muted" />
+        <div className="h-4 w-1/4 animate-pulse rounded bg-muted" />
+        <div className="h-10 w-full animate-pulse rounded-sm bg-muted" />
       </div>
     );
   }
@@ -61,7 +67,7 @@ export function AdminAppPage() {
   return (
     <div className="max-w-xl space-y-6">
       {error && (
-        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-sm">
+        <div className="flex items-center gap-2 text-destructive p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-body-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -89,7 +95,9 @@ export function AdminAppPage() {
           >
             {saving ? t("common.loading") : t("common.save")}
           </button>
-          {saveMsg && <span className="text-sm text-green-600">{saveMsg}</span>}
+          {saveMsg && (
+            <span className="text-body-sm text-success">{saveMsg}</span>
+          )}
         </div>
       </form>
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { api } from "@/lib/api";
+import { AuthShell, FormError } from "@/components/AuthShell";
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -73,24 +74,15 @@ export function ForgotPasswordPage() {
   };
 
   const INPUT =
-    "w-full px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+    "w-full px-3 py-2 rounded-sm border border-input bg-background text-foreground text-body-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-card border rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">
-              {t("app.name")}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t("auth.forgotPassword")}
-            </p>
-          </div>
-
+    <AuthShell title={t("app.name")} subtitle={t("auth.forgotPassword")}>
+      <div>
+        <div>
           {done ? (
             <div className="space-y-4 text-center">
-              <p className="text-sm text-green-600">
+              <p className="text-body-sm text-success">
                 {t("auth.resetPasswordSuccess")}
               </p>
               <Link
@@ -119,18 +111,14 @@ export function ForgotPasswordPage() {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                  {error}
-                </p>
-              )}
+              {error && <FormError>{error}</FormError>}
 
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
-                {loading ? t("common.loading") : t("auth.sendCode")}
+                {loading ? t("auth.loading") : t("auth.sendCode")}
               </button>
 
               <p className="text-center text-sm text-muted-foreground">
@@ -192,18 +180,14 @@ export function ForgotPasswordPage() {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                  {error}
-                </p>
-              )}
+              {error && <FormError>{error}</FormError>}
 
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full py-2 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors"
               >
-                {loading ? t("common.loading") : t("auth.resetPassword")}
+                {loading ? t("auth.loading") : t("auth.resetPassword")}
               </button>
 
               <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -228,6 +212,6 @@ export function ForgotPasswordPage() {
           )}
         </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

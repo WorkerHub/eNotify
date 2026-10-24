@@ -35,7 +35,11 @@
     "period": "Period",
     "confirmDelete": "Delete \"{{name}}\"?",
     "confirmDeletePayment": "Delete this payment?",
-    "notificationSent": "Notification sent!"
+    "notificationSent": "Notification sent!",
+    "retry": "Retry",
+    "more": "More",
+    "daysLeftShort": "{{count}} days left",
+    "overdueBy": "Overdue by {{count}} days"
   },
   "auth": {
     "login": "Login",
@@ -71,7 +75,8 @@
     "resendCode": "Resend code",
     "resendCodeCountdown": "Resend ({{seconds}}s)",
     "resetCodeCooldown": "Too many requests, please try again later",
-    "backToLogin": "Back to login"
+    "backToLogin": "Back to login",
+    "loading": "Please wait…"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -93,7 +98,7 @@
     "yearlyExpense": "Yearly Expense",
     "monthlyAverage": "Monthly Avg",
     "activeCount": "Active Notifications",
-    "expiringSoon": "Expiring Soon",
+    "expiringSoon": "Due in 7 days",
     "upcomingRenewals": "Upcoming Renewals",
     "recentPayments": "Recent Payments",
     "categoryRanking": "By Category",
@@ -105,7 +110,13 @@
     "regularSection": "Regular Reminders",
     "activeRegularCount": "Active Reminders",
     "upcomingReminders": "Upcoming Reminders",
-    "regularCategoryRanking": "By Category (count)"
+    "regularCategoryRanking": "By Category (count)",
+    "daysUnit": "d",
+    "nextDue": "Next due",
+    "monthSpent": "This month",
+    "noUpcoming": "Nothing due soon",
+    "expiring7": "Due in 7 days",
+    "activeTotal": "Active items"
   },
   "items": {
     "title": "Notifications",
@@ -157,7 +168,7 @@
       "expired": "Expired",
       "expiringSoon": "Expiring Soon"
     },
-    "daysRemaining": "{{days}} days remaining",
+    "daysRemaining": "Days left",
     "expired": "Expired {{days}} days ago",
     "notFound": "Notification not found",
     "paymentType": {
@@ -185,7 +196,13 @@
     "filterAll": "All",
     "searchPlaceholder": "Search notifications...",
     "sortExpiry": "Expiry",
-    "statusAll": "All Status"
+    "statusAll": "All Status",
+    "daysShort": "{{count}}d",
+    "overdueShort": "{{count}}d overdue",
+    "emptyTitle": "No entries yet",
+    "emptyDesc": "Add your first subscription or reminder to start your ledger of time.",
+    "amountDue": "Amount",
+    "moreActions": "More actions"
   },
   "settings": {
     "title": "Settings",
@@ -275,7 +292,10 @@
     "noData": "No notification records yet",
     "detail": "Notification Detail",
     "content": "Message Content",
-    "noContent": "No message content for this record"
+    "noContent": "No message content for this record",
+    "emptyTitle": "No history yet",
+    "emptyDesc": "Sent notifications will be recorded here.",
+    "loadError": "Failed to load history"
   },
   "admin": {
     "title": "Admin Panel",
@@ -395,6 +415,21 @@
     "missingSecret": "Please enter the setup secret.",
     "wrongSecret": "Incorrect setup secret.",
     "rateLimited": "Too many requests, please try again later.",
-    "genericError": "Initialization failed, please try again later."
+    "genericError": "Initialization failed, please try again later.",
+    "stepInit": "Initialize",
+    "stepDone": "Done"
+  },
+  "me": {
+    "entries": "entries",
+    "due7": "Due in 7 days"
+  },
+  "detail": {
+    "sectionBasic": "Basic info",
+    "sectionCycle": "Cycle & expiry",
+    "sectionReminder": "Reminder & channels",
+    "sectionNotes": "Notes",
+    "summary": "Due preview",
+    "daysLeft": "remaining",
+    "daysUnit": "d"
   }
 }

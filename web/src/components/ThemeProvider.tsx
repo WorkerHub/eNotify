@@ -9,6 +9,13 @@ import {
 
 type Theme = "light" | "dark" | "system";
 
+// Values mirror the --background token channels in index.css (light n-0, dark n-900);
+// DOM meta API requires a concrete color string, not a CSS var reference.
+const META_THEME_COLOR = {
+  light: "hsl(0 0% 100%)",
+  dark: "hsl(240 9.1% 4.3%)",
+} as const;
+
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -58,7 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           : theme === "dark";
       metaThemeColor.setAttribute(
         "content",
-        isDark ? "hsl(222.2 84% 4.9%)" : "#ffffff",
+        isDark ? META_THEME_COLOR.dark : META_THEME_COLOR.light,
       );
     }
 

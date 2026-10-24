@@ -65,7 +65,7 @@ function AvatarDropdown({
         <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg shadow-lg py-1 z-50">
+        <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg shadow-3 py-1 z-50">
           <div className="px-3 py-2 border-b">
             <p className="text-sm font-medium truncate">{user?.email}</p>
           </div>
@@ -80,8 +80,9 @@ function AvatarDropdown({
           {user?.role === "admin" && (
             <button
               type="button"
+              role="menuitem"
               onClick={() => handleNavigate("/admin")}
-              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm w-full text-muted-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:bg-accent"
             >
               <Shield className="w-4 h-4" />
               {t("nav.admin")}
@@ -199,9 +200,15 @@ export function AppLayout() {
   return (
     <div className="h-dvh flex flex-col md:flex-row md:overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-64 md:flex-col bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 border-r shadow-[1px_0_0_0_hsl(var(--border))]">
+      <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-64 md:flex-col bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 border-r">
         <div className="h-14 flex items-center px-4 border-b">
-          <h1 className="text-xl font-bold text-primary">{appName}</h1>
+          <h1 className="text-title text-primary">
+            {appName}
+            <span
+              aria-hidden="true"
+              className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
+            />
+          </h1>
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {desktopNavItems.map((item) => (
@@ -210,9 +217,9 @@ export function AppLayout() {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                `relative flex items-center gap-3 px-3 py-2 rounded-md text-body-sm transition-colors duration-(--duration-fast) ${
                   isActive
-                    ? "bg-primary/10 text-primary font-medium"
+                    ? "bg-primary/10 text-primary font-medium before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-primary"
                     : "text-muted-foreground hover:bg-accent"
                 }`
               }
@@ -236,7 +243,7 @@ export function AppLayout() {
         </div>
 
         {impersonating && (
-          <div className="bg-yellow-500/90 text-yellow-950 text-sm px-4 py-2 flex items-center justify-between">
+          <div className="bg-warning/90 text-warning-foreground text-body-sm px-4 py-2 flex items-center justify-between">
             <span>
               {t("admin.impersonating", {
                 defaultValue: "Impersonating another user",
@@ -254,7 +261,7 @@ export function AppLayout() {
         )}
 
         {needRefresh && (
-          <div className="bg-blue-500/90 text-white text-sm px-4 py-2 flex items-center justify-between">
+          <div className="bg-info/90 text-info-foreground text-body-sm px-4 py-2 flex items-center justify-between">
             <span>{t("pwa.updateAvailable")}</span>
             <div className="flex items-center gap-2">
               <button
@@ -276,9 +283,9 @@ export function AppLayout() {
           </div>
         )}
 
-        <div className="px-4 pt-2 pb-4 md:p-6 max-w-6xl mx-auto">
-          {/* Desktop: always use Outlet */}
-          <div className="hidden md:block">
+        <div className="px-4 pt-6 pb-4 md:px-6 md:pt-8 md:pb-6 max-w-5xl mx-auto">
+          {/* Desktop: always use Outlet (keyed → page entrance re-runs per route) */}
+          <div key={location.pathname} className="hidden md:block motion-enter">
             <Outlet />
           </div>
           {/* Mobile: KeepAlive for tab pages, Outlet for non-tab pages */}
@@ -324,7 +331,9 @@ export function AppLayout() {
                 </div>
               </>
             ) : (
-              <Outlet />
+              <div key={location.pathname} className="motion-enter">
+                <Outlet />
+              </div>
             )}
           </div>
         </div>
@@ -338,32 +347,59 @@ export function AppLayout() {
           paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
-        <span className="text-base font-bold text-primary">{appName}</span>
+        <span className="text-title text-primary">
+          {appName}
+          <span
+            aria-hidden="true"
+            className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
+          />
+        </span>
       </header>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — shared pill indicator slides to the active tab
+          (design contract §5: 200ms ease-out; transform-only) */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t flex justify-around z-50"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50"
         style={{
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           paddingTop: "0.5rem",
         }}
       >
-        {mobileNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-3 py-1 text-xs ${
-                isActive ? "text-primary" : "text-muted-foreground"
-              }`
-            }
-          >
-            <item.icon className="w-5 h-5" />
-            {item.label}
-          </NavLink>
-        ))}
+        <div className="relative flex justify-around">
+          {(() => {
+            const activeIndex = mobileNavItems.findIndex(
+              (item) => item.to === location.pathname,
+            );
+            return (
+              <span
+                aria-hidden="true"
+                className="absolute top-0 bottom-1 rounded-full bg-primary/10 transition-transform duration-(--duration-standard) ease-(--ease-out)"
+                style={{
+                  width: `${100 / mobileNavItems.length}%`,
+                  transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+                  opacity: activeIndex < 0 ? 0 : 1,
+                }}
+              />
+            );
+          })()}
+          {mobileNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              className={({ isActive }) =>
+                `relative z-10 flex flex-col items-center justify-center gap-1 px-3 py-1 min-h-11 min-w-11 text-caption transition-colors duration-(--duration-fast) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-full ${
+                  isActive
+                    ? "text-primary font-medium"
+                    : "text-muted-foreground"
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   );

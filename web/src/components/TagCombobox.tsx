@@ -54,7 +54,7 @@ export function TagCombobox({
         }}
       />
       {open && (filtered.length > 0 || showCreate) && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-3 overflow-hidden animate-popover">
           {filtered.length > 0 && (
             <ul className="max-h-48 overflow-y-auto py-1">
               {filtered.map((option) => (
