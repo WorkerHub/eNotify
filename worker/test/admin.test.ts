@@ -24,7 +24,7 @@ describe("POST /api/admin/setup", () => {
       headers: cookieHeader(token),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true });
+    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("users")).toBe(true);
@@ -52,7 +52,11 @@ describe("POST /api/admin/setup", () => {
       headers: cookieHeader(token),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, alreadyInitialized: true });
+    expect(res.body).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "",
+    });
   });
 
   it("returns 403 for a non-admin user", async () => {
@@ -90,6 +94,6 @@ describe("POST /api/admin/setup", () => {
       headers: cookieHeader(token),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true });
+    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
   });
 });

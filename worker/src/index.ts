@@ -40,7 +40,7 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 app.use("*", async (c, next) => {
-  const prefix = c.env.TABLE_PREFIX || "";
+  const prefix = getTablePrefix(c.env);
   if (prefix && !/^[a-zA-Z0-9_]+$/.test(prefix)) {
     return c.json({ error: "Invalid TABLE_PREFIX configuration" }, 500);
   }

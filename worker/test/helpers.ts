@@ -102,6 +102,13 @@ export class MockD1 {
     const s = sql.trim();
 
     if (s.includes("sqlite_master")) {
+      // Full-table scan (no "name=?" filter) enumerates every table, as the
+      // prefix-detection query in runSetup does.
+      if (!/name\s*=\s*\?/.test(s)) {
+        const rows = [...this.tables.keys()].map((name) => ({ name }));
+        if (mode === "first") return rows[0] ?? null;
+        return rows;
+      }
       const name = String(args[0] ?? "");
       const exists = this.tables.has(name);
       if (mode === "first") return exists ? { name } : null;
