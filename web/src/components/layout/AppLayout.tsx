@@ -202,13 +202,7 @@ export function AppLayout() {
       {/* Desktop sidebar */}
       <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-64 md:flex-col bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 border-r">
         <div className="h-14 flex items-center px-4 border-b">
-          <h1 className="text-title text-primary">
-            {appName}
-            <span
-              aria-hidden="true"
-              className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
-            />
-          </h1>
+          <h1 className="text-title text-primary">{appName}</h1>
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {desktopNavItems.map((item) => (
@@ -347,13 +341,7 @@ export function AppLayout() {
           paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
-        <span className="text-title text-primary">
-          {appName}
-          <span
-            aria-hidden="true"
-            className="ml-0.5 inline-block h-1 w-1 rounded-full bg-primary align-baseline"
-          />
-        </span>
+        <span className="text-title text-primary">{appName}</span>
       </header>
 
       {/* Mobile bottom nav — shared pill indicator slides to the active tab
