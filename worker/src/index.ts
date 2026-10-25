@@ -10,6 +10,7 @@ import { meRoutes } from "./routes/me";
 import { itemRoutes } from "./routes/items";
 import { dashboardRoutes } from "./routes/dashboard";
 import { adminRoutes } from "./routes/admin";
+import { adminBackupRoutes, meBackupRoutes } from "./routes/backup";
 import { notifyRoutes } from "./routes/notify";
 import { setupRoutes } from "./routes/setup";
 import { handleScheduled } from "./services/scheduler";
@@ -60,6 +61,11 @@ app.use(
 
 app.route("/api/auth", authRoutes);
 app.route("/api/auth/2fa", auth2faRoutes);
+// Export/import (backup) routers are registered before the regular me/admin
+// routers so their session-only guard runs first (an API-key request must be
+// rejected explicitly, not merely fail cookie auth).
+app.route("/api/me", meBackupRoutes);
+app.route("/api/admin", adminBackupRoutes);
 app.route("/api/me", meRoutes);
 app.route("/api/items", itemRoutes);
 app.route("/api/dashboard", dashboardRoutes);
