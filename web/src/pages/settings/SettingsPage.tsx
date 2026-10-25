@@ -20,6 +20,7 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  DatabaseBackup,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api } from "@/lib/api";
@@ -28,6 +29,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { BackupSection } from "@/components/backup/BackupSection";
 import {
   cn,
   serializeRegistrationCredential,
@@ -38,7 +40,13 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type TabId = "account" | "security" | "sessions" | "apiKeys" | "preferences";
+type TabId =
+  | "account"
+  | "security"
+  | "sessions"
+  | "apiKeys"
+  | "backup"
+  | "preferences";
 
 function StatusBadge({ ok }: { ok: boolean }) {
   const { t } = useTranslation();
@@ -1331,6 +1339,7 @@ export function SettingsPage() {
     "account",
     "security",
     "apiKeys",
+    "backup",
     "sessions",
     "preferences",
   ];
@@ -1375,6 +1384,11 @@ export function SettingsPage() {
       icon: <KeyRound className="w-4 h-4" />,
     },
     {
+      id: "backup",
+      label: t("settings.backup"),
+      icon: <DatabaseBackup className="w-4 h-4" />,
+    },
+    {
       id: "sessions",
       label: t("settings.sessions"),
       icon: <Monitor className="w-4 h-4" />,
@@ -1390,6 +1404,11 @@ export function SettingsPage() {
     { id: "account" as TabId, label: t("settings.account"), icon: User },
     { id: "security" as TabId, label: t("settings.security"), icon: Shield },
     { id: "apiKeys" as TabId, label: t("settings.apiKeys"), icon: KeyRound },
+    {
+      id: "backup" as TabId,
+      label: t("settings.backup"),
+      icon: DatabaseBackup,
+    },
     { id: "sessions" as TabId, label: t("settings.sessions"), icon: Monitor },
     {
       id: "preferences" as TabId,
@@ -1472,6 +1491,7 @@ export function SettingsPage() {
         {activeTab === "account" && <AccountTab />}
         {activeTab === "security" && <SecurityTab />}
         {activeTab === "apiKeys" && <ApiKeysTab />}
+        {activeTab === "backup" && <BackupSection scope="user" />}
         {activeTab === "sessions" && <SessionsTab />}
         {activeTab === "preferences" && <PreferencesTab />}
       </div>

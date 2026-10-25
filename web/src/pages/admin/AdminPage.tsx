@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import { Users, Settings, Mail, ShieldCheck, ChevronRight } from "lucide-react";
+import {
+  Users,
+  Settings,
+  Mail,
+  ShieldCheck,
+  ChevronRight,
+  DatabaseBackup,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
@@ -16,6 +23,7 @@ export function AdminPage() {
   const tabs = [
     { to: "/admin/users", label: t("admin.users"), icon: Users },
     { to: "/admin/app", label: t("admin.appSettings"), icon: Settings },
+    { to: "/admin/backup", label: t("admin.backup"), icon: DatabaseBackup },
     { to: "/admin/email", label: t("admin.emailProvider"), icon: Mail },
     {
       to: "/admin/security",

@@ -6,6 +6,8 @@ class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
+    public details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -44,10 +46,15 @@ async function parseBody<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-async function request<T>(
+/**
+ * Performs the request and returns the raw `Response` (after the shared
+ * session/refresh handling). Used for endpoints whose body is not JSON —
+ * e.g. the export endpoints, which stream the download file itself.
+ */
+async function requestResponse(
   path: string,
   options: RequestInit & { skipRedirect?: boolean } = {},
-): Promise<T> {
+): Promise<Response> {
   const { skipRedirect: skip, ...fetchOptions } = options;
   const skipRedirect = skip || isPublicAuthPath(path);
   const impersonateId = sessionStorage.getItem("impersonate_user_id");
@@ -86,7 +93,7 @@ async function request<T>(
         credentials: "include",
         headers,
       });
-      if (retryRes.ok) return parseBody<T>(retryRes);
+      if (retryRes.ok) return retryRes;
       if (retryRes.status === 401) {
         window.location.href = "/login";
         throw new ApiError(401, "Unauthorized");
@@ -94,7 +101,12 @@ async function request<T>(
       const retryBody = await retryRes
         .json()
         .catch(() => ({ error: "Unknown error" }));
-      throw new ApiError(retryRes.status, retryBody.error || "Request failed");
+      throw new ApiError(
+        retryRes.status,
+        retryBody.error || "Request failed",
+        retryBody.code,
+        retryBody.details,
+      );
     }
 
     window.location.href = "/login";
@@ -105,10 +117,22 @@ async function request<T>(
     const body = await response
       .json()
       .catch(() => ({ error: "Unknown error" }));
-    throw new ApiError(response.status, body.error || "Request failed");
+    throw new ApiError(
+      response.status,
+      body.error || "Request failed",
+      body.code,
+      body.details,
+    );
   }
 
-  return parseBody<T>(response);
+  return response;
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit & { skipRedirect?: boolean } = {},
+): Promise<T> {
+  return parseBody<T>(await requestResponse(path, options));
 }
 
 export const api = {
@@ -116,6 +140,13 @@ export const api = {
     request<T>(path, opts),
   post: <T>(path: string, data?: unknown, opts?: { skipRedirect?: boolean }) =>
     request<T>(path, {
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+      ...opts,
+    }),
+  /** POST returning the unparsed `Response` (file downloads, streams). */
+  postRaw: (path: string, data?: unknown, opts?: { skipRedirect?: boolean }) =>
+    requestResponse(path, {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
       ...opts,
