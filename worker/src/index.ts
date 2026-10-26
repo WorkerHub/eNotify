@@ -15,6 +15,7 @@ import { notifyRoutes } from "./routes/notify";
 import { setupRoutes } from "./routes/setup";
 import { handleScheduled } from "./services/scheduler";
 import { getAllSettings } from "./db/queries/settings";
+import { isEmailConfigured } from "./services/email";
 
 const app = new Hono<HonoEnv>();
 
@@ -85,12 +86,15 @@ app.get("/api/system/info", async (c) => {
       app_name: settings.app_name || "eNotify",
       version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "0.0.0",
       registration_enabled: settings.registration_enabled !== "false",
+      email_configured: await isEmailConfigured(c.env),
     });
   } catch {
+    // Fail closed: never advertise an email entry point we cannot serve.
     return c.json({
       app_name: "eNotify",
       version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "0.0.0",
       registration_enabled: true,
+      email_configured: false,
     });
   }
 });

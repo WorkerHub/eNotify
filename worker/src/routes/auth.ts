@@ -20,7 +20,7 @@ import { upsertNotificationConfig } from "../db/queries/notifications";
 import { getSetting } from "../db/queries/settings";
 import { get2FAConfig } from "../db/queries/twofa";
 import { getAvailable2FAMethods } from "../services/twofa";
-import { sendEmail } from "../services/email";
+import { isEmailConfigured, sendEmail } from "../services/email";
 import { rateLimit } from "../middleware/ratelimit";
 
 export const authRoutes = new Hono<HonoEnv>();
@@ -171,7 +171,12 @@ authRoutes.post("/login", async (c) => {
 
   const require2FA = await getSetting(c.env.DB, prefix, "require_2fa");
   const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id);
-  const methods = getAvailable2FAMethods(twoFAConfig);
+  // What the user actually enabled, and what we may offer right now: an
+  // unconfigured instance can never deliver an email code, so email_otp is
+  // filtered out of the offer (the switches themselves stay untouched).
+  const enabledMethods = getAvailable2FAMethods(twoFAConfig);
+  const emailConfigured = await isEmailConfigured(c.env);
+  const methods = getAvailable2FAMethods(twoFAConfig, { emailConfigured });
 
   if (methods.length > 0) {
     const tempToken = generateId();
@@ -181,6 +186,21 @@ authRoutes.post("/login", async (c) => {
       tempToken,
       availableMethods: methods,
     });
+  }
+
+  // Fail closed: the user has 2FA enabled, but every method they enabled is
+  // unavailable right now (only email_otp, and email delivery is off). Never
+  // silently downgrade to password-only — that would let an admin switch off
+  // email sending and thereby switch off the user's second factor.
+  if (enabledMethods.length > 0) {
+    return c.json(
+      {
+        error:
+          "Your enabled two-factor method is currently unavailable (email delivery is not configured on this site). Please contact an administrator.",
+        code: "2FA_METHOD_UNAVAILABLE",
+      },
+      403,
+    );
   }
 
   if (require2FA === "true") {
@@ -267,7 +287,9 @@ authRoutes.post("/refresh", async (c) => {
   let needs2faSetup = false;
   if (require2FA === "true") {
     const twoFAConfig = await get2FAConfig(c.env.DB, prefix, user.id);
-    needs2faSetup = getAvailable2FAMethods(twoFAConfig).length === 0;
+    const emailConfigured = await isEmailConfigured(c.env);
+    needs2faSetup =
+      getAvailable2FAMethods(twoFAConfig, { emailConfigured }).length === 0;
   }
 
   await issueTokens(c, user.id, user.role, needs2faSetup, payload.sid);
@@ -315,6 +337,21 @@ authRoutes.post("/email/resend", async (c) => {
 authRoutes.post("/password/forgot", async (c) => {
   const { email } = await c.req.json<{ email: string }>();
   if (!email) return c.json({ error: "Email required" }, 400);
+
+  // Site-level, already-public fact (see /api/system/info): when email
+  // delivery is not configured, no reset code can ever reach anyone. Answer
+  // identically for registered and unregistered addresses, before the
+  // cooldown and the user lookup, and write nothing to KV.
+  if (!(await isEmailConfigured(c.env))) {
+    return c.json(
+      {
+        error:
+          "Email delivery is not configured on this site, so password recovery by email is unavailable. Please contact an administrator to reset your password.",
+        code: "EMAIL_NOT_CONFIGURED",
+      },
+      503,
+    );
+  }
 
   // Per-email cooldown: 60s between resend
   // Check & set cooldown before user lookup to avoid email enumeration

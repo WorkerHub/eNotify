@@ -106,12 +106,23 @@ export async function sendOTPEmail(
   await sendEmail(env, { to: email, subject, html });
 }
 
-export function getAvailable2FAMethods(config: User2FA | null): string[] {
+/**
+ * Projects the user's 2FA switches onto the methods login may offer.
+ *
+ * `emailConfigured` comes from `isEmailConfigured()`; pass it `false` and
+ * `email_otp` is dropped, because an unconfigured instance can never deliver
+ * the code. Leaving the option out keeps the raw switch view (no filtering).
+ */
+export function getAvailable2FAMethods(
+  config: User2FA | null,
+  options: { emailConfigured?: boolean } = {},
+): string[] {
   if (!config) return [];
   const methods: string[] = [];
   if (config.totp_enabled) methods.push("totp");
   if (config.passkey_enabled) methods.push("passkey");
-  if (config.email_otp_enabled) methods.push("email_otp");
+  if (config.email_otp_enabled && options.emailConfigured !== false)
+    methods.push("email_otp");
   return methods;
 }
 
