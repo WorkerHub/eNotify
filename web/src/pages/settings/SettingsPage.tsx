@@ -27,6 +27,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/ThemeProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useEmailConfigured } from "@/hooks/useEmailConfigured";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { BackupSection } from "@/components/backup/BackupSection";
@@ -181,6 +182,9 @@ function SecurityTab() {
   const { user, refreshUser } = useAuth();
 
   const twofa = user?.twofa;
+
+  const { configured: emailConfigured, loading: emailInfoLoading } =
+    useEmailConfigured();
 
   const [pendingDisable, setPendingDisable] = useState<
     "totp" | "passkey" | "email_otp" | null
@@ -441,16 +445,35 @@ function SecurityTab() {
           </p>
         )}
 
-        {!twofa?.email_otp_enabled && !emailOtpVerifying && (
-          <button
-            type="button"
-            onClick={sendEmailOtpVerify}
-            disabled={emailOtpSending}
-            className="py-1.5 px-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-medium rounded-md transition-colors"
-          >
-            {emailOtpSending ? t("common.loading") : t("common.enable")}
-          </button>
+        {/* §3.9: an enabled email OTP record survives a site without email
+            delivery (disable must stay possible), so warn instead of hiding. */}
+        {!emailInfoLoading && !emailConfigured && twofa?.email_otp_enabled && (
+          <div className="flex items-start gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.emailOtpUnavailableWarning")}
+            </p>
+          </div>
         )}
+
+        {!twofa?.email_otp_enabled &&
+          !emailOtpVerifying &&
+          !emailInfoLoading &&
+          (emailConfigured ? (
+            <button
+              type="button"
+              onClick={sendEmailOtpVerify}
+              disabled={emailOtpSending}
+              className="py-1.5 px-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-medium rounded-md transition-colors"
+            >
+              {emailOtpSending ? t("common.loading") : t("common.enable")}
+            </button>
+          ) : (
+            /* §3.9: no email delivery → no enable affordance, muted note only. */
+            <p className="text-xs text-muted-foreground">
+              {t("settings.emailOtpUnavailable")}
+            </p>
+          ))}
 
         {!twofa?.email_otp_enabled && emailOtpVerifying && (
           <div className="space-y-3">

@@ -46,7 +46,14 @@ export function LoginPage() {
         navigate("/");
       }
     } catch (err: any) {
-      setError(err.message || t("common.error"));
+      // §3.3: the site's only enabled 2FA method became unavailable (email
+      // delivery not configured) — backend answers 403 with a machine-readable
+      // code, mapped here so the notice is localized (spec §3.10).
+      setError(
+        err.code === "2FA_METHOD_UNAVAILABLE"
+          ? t("auth.twoFactorUnavailable")
+          : err.message || t("common.error"),
+      );
     } finally {
       setLoading(false);
     }

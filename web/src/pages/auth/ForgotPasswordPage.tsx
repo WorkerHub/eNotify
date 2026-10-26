@@ -2,10 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { api } from "@/lib/api";
+import { useEmailConfigured } from "@/hooks/useEmailConfigured";
 import { AuthShell, FormError } from "@/components/AuthShell";
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
+
+  const { configured: emailConfigured, loading: emailInfoLoading } =
+    useEmailConfigured();
+  // Race fallback: the site may lose its email configuration between page load
+  // and submit — the backend then answers 503 EMAIL_NOT_CONFIGURED and we swap
+  // to the same notice instead of a generic error.
+  const [emailNotConfigured, setEmailNotConfigured] = useState(false);
 
   const [step, setStep] = useState<"email" | "reset">("email");
   const [email, setEmail] = useState("");
@@ -40,6 +48,10 @@ export function ForgotPasswordPage() {
       setStep("reset");
       startCountdown();
     } catch (err: any) {
+      if (err.code === "EMAIL_NOT_CONFIGURED") {
+        setEmailNotConfigured(true);
+        return;
+      }
       if (err.status === 429) {
         setError(t("auth.resetCodeCooldown"));
         if (step === "reset") startCountdown();
@@ -80,7 +92,19 @@ export function ForgotPasswordPage() {
     <AuthShell title={t("app.name")} subtitle={t("auth.forgotPassword")}>
       <div>
         <div>
-          {done ? (
+          {emailInfoLoading ? null : emailNotConfigured || !emailConfigured ? (
+            <div className="space-y-4 text-center">
+              <p className="text-body-sm text-muted-foreground">
+                {t("auth.forgotPasswordUnavailable")}
+              </p>
+              <Link
+                to="/login"
+                className="block text-sm text-primary hover:underline font-medium"
+              >
+                {t("auth.backToLogin")}
+              </Link>
+            </div>
+          ) : done ? (
             <div className="space-y-4 text-center">
               <p className="text-body-sm text-success">
                 {t("auth.resetPasswordSuccess")}
