@@ -24,7 +24,11 @@ describe("POST /api/admin/setup", () => {
       headers: cookieHeader(token),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("users")).toBe(true);
@@ -35,8 +39,18 @@ describe("POST /api/admin/setup", () => {
       DB: new MockD1({
         tables: {
           users: ["id", "email"],
-          notification_history: ["id", "body"],
+          user_2fa: ["user_id"],
           items: ["id", "calendar_mode", "lunar_expiry_date"],
+          payment_history: ["id"],
+          notification_configs: [
+            "user_id",
+            "slack_config",
+            "feishu_config",
+            "discord_config",
+            "default_channel",
+          ],
+          system_settings: ["key", "value", "updated_at"],
+          notification_history: ["id", "body"],
         },
       }),
     });
@@ -56,6 +70,7 @@ describe("POST /api/admin/setup", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "",
+      migrations: [{ name: "schema_v1", status: "stamped" }],
     });
   });
 
@@ -94,6 +109,10 @@ describe("POST /api/admin/setup", () => {
       headers: cookieHeader(token),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
   });
 });

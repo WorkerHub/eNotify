@@ -65,14 +65,16 @@ export class MockKV {
 // ─── D1 mock ──────────────────────────────────────────────────────────────────
 //
 // A minimal in-memory stand-in for the D1 operations used by the setup and
-// system-settings code paths. It models table existence, columns, and the
-// system_settings key/value rows — nothing more.
+// system-settings code paths. It models table existence, columns, the
+// system_settings key/value rows and the migration ledger — nothing more.
 
 type Column = { name: string };
 
 export class MockD1 {
   tables = new Map<string, string[]>();
   settings = new Map<string, string>();
+  /** Applied migration names, keyed by ledger table name. */
+  ledger = new Map<string, string[]>();
 
   constructor(init?: {
     tables?: Record<string, string[]>;
@@ -129,10 +131,33 @@ export class MockD1 {
     );
     if (create) {
       this.tables.set(create[1], parseColumns(create[2]));
+      // Ledger tables start empty; their rows are tracked in `ledger`.
+      if (create[1].endsWith("_schema_migrations")) {
+        this.ledger.set(create[1], this.ledger.get(create[1]) ?? []);
+      }
       return null;
     }
 
     if (/^CREATE (UNIQUE )?INDEX/i.test(s)) return null;
+
+    const ledgerInsert = s.match(
+      /^INSERT INTO\s+(\w+)\s*\(\s*name\s*\)\s*VALUES/i,
+    );
+    if (ledgerInsert) {
+      const names = this.ledger.get(ledgerInsert[1]) ?? [];
+      names.push(String(args[0] ?? ""));
+      this.ledger.set(ledgerInsert[1], names);
+      return null;
+    }
+
+    const ledgerSelect = s.match(/^SELECT name FROM\s+(\w+)$/i);
+    if (ledgerSelect) {
+      const rows = (this.ledger.get(ledgerSelect[1]) ?? []).map((name) => ({
+        name,
+      }));
+      if (mode === "first") return rows[0] ?? null;
+      return rows;
+    }
 
     const addCol = s.match(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/i);
     if (addCol) {

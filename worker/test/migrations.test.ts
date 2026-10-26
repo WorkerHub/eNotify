@@ -1,46 +1,14 @@
-import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runSetup } from "../src/lib/setup";
 import { sendNotifications } from "../src/services/notify/index";
 import type { Env, NotificationConfig } from "../src/types";
-
-/**
- * Minimal D1 stand-in backed by a real in-memory SQLite database. Unlike the
- * MockD1 in helpers.ts this keeps real column defaults and row data, which is
- * what the slack_config migration needs to be verified against.
- */
-class SqliteD1 {
-  readonly db = new DatabaseSync(":memory:");
-
-  prepare(sql: string): any {
-    const db = this.db;
-    const statement = () => db.prepare(sql);
-
-    return {
-      bind: (...args: unknown[]) => ({
-        first: async <T>() =>
-          (statement().get(...(args as any[])) ?? null) as T | null,
-        all: async <T>() => ({
-          results: statement().all(...(args as any[])) as T[],
-        }),
-        run: async () => {
-          statement().run(...(args as any[]));
-          return { success: true };
-        },
-      }),
-      first: async <T>() => (statement().get() ?? null) as T | null,
-      all: async <T>() => ({ results: statement().all() as T[] }),
-      run: async () => {
-        statement().run();
-        return { success: true };
-      },
-    };
-  }
-}
+import { SqliteD1 } from "./support/sqlite-d1";
 
 const PREFIX = "en_";
 
 // Schema as deployed before the Slack channel existed: no slack_config column.
+// All 7 core tables are present, so runSetup takes the pre-ledger transition
+// path (legacy patches → shape verification → stamp).
 const OLD_SCHEMA = `
 CREATE TABLE ${PREFIX}users (
   id TEXT PRIMARY KEY,
@@ -89,6 +57,29 @@ CREATE TABLE ${PREFIX}items (
   id TEXT PRIMARY KEY,
   calendar_mode TEXT NOT NULL DEFAULT 'solar',
   lunar_expiry_date TEXT
+);
+
+CREATE TABLE ${PREFIX}user_2fa (
+  user_id TEXT PRIMARY KEY REFERENCES ${PREFIX}users(id) ON DELETE CASCADE,
+  totp_secret TEXT,
+  totp_enabled INTEGER NOT NULL DEFAULT 0,
+  passkey_credentials TEXT,
+  passkey_enabled INTEGER NOT NULL DEFAULT 0,
+  email_otp_enabled INTEGER NOT NULL DEFAULT 0,
+  preferred_method TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE ${PREFIX}payment_history (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL,
+  user_id TEXT NOT NULL
+);
+
+CREATE TABLE ${PREFIX}system_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
 );
 
 INSERT INTO ${PREFIX}users
@@ -186,10 +177,12 @@ describe("notification_configs slack_config migration", () => {
     d1.db.exec(OLD_SCHEMA);
 
     const result = await runSetup(makeEnv(d1));
+    // Legacy database transition stamps the collapsed history as schema_v1.
     expect(result).toEqual({
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "en_",
+      migrations: [{ name: "schema_v1", status: "stamped" }],
     });
 
     const columns = d1.db
@@ -238,6 +231,7 @@ describe("notification_configs slack_config migration", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "en_",
+      migrations: [{ name: "schema_v1", status: "skipped" }],
     });
 
     const rows = d1.db
@@ -410,6 +404,7 @@ describe("retired channel cleanup migration", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "en_",
+      migrations: [{ name: "schema_v1", status: "skipped" }],
     });
 
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
@@ -460,7 +455,11 @@ describe("fresh install schema", () => {
     const d1 = new SqliteD1();
 
     const result = await runSetup(makeEnv(d1));
-    expect(result).toEqual({ success: true, effectivePrefix: "en_" });
+    expect(result).toEqual({
+      success: true,
+      effectivePrefix: "en_",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
 
     const columns = d1.db
       .prepare(`PRAGMA table_info(${PREFIX}notification_configs)`)

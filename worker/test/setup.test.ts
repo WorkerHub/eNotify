@@ -160,10 +160,15 @@ describe("POST /api/setup (regression)", () => {
       headers: secretHeader(),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("users")).toBe(true);
+    expect(db.ledger.get("_schema_migrations")).toEqual(["schema_v1"]);
   });
 
   it("reports alreadyInitialized on a second call", async () => {
@@ -183,6 +188,7 @@ describe("POST /api/setup (regression)", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "",
+      migrations: [{ name: "schema_v1", status: "skipped" }],
     });
   });
 

@@ -219,6 +219,7 @@ describe("runSetup anti-silent-switch guard", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "old_",
+      migrations: [{ name: "schema_v1", status: "stamped" }],
     });
   });
 
@@ -231,7 +232,11 @@ describe("runSetup anti-silent-switch guard", () => {
       headers: secretHeader(),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "enotify_" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "enotify_",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("enotify_users")).toBe(true);
@@ -251,7 +256,11 @@ describe("runSetup anti-silent-switch guard", () => {
       headers: secretHeader(),
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "enotify_" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "enotify_",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("enotify_users")).toBe(true);
@@ -291,7 +300,11 @@ describe("admin setup route surfaces prefix conflicts", () => {
 
     const res = await adminSetup(env);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, effectivePrefix: "eNotify_" });
+    expect(res.body).toEqual({
+      success: true,
+      effectivePrefix: "eNotify_",
+      migrations: [{ name: "schema_v1", status: "applied" }],
+    });
   });
 });
 
