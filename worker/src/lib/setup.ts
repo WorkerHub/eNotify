@@ -4,9 +4,30 @@ import {
   getTablePrefix,
 } from "../types";
 import type { Env } from "../types";
+import {
+  ensureLedgerTable,
+  migrationsTable,
+  recordMigration,
+  runLedgerMigrations,
+} from "./migrations-runner";
+
+/**
+ * A migration as reported back to the admin UI. `applied`/`skipped` come from
+ * the ledger runner; `stamped` only happens when a pre-ledger database is
+ * verified and its history is collapsed into `schema_v1` for the first time.
+ */
+export type SetupMigration = {
+  name: string;
+  status: "applied" | "skipped" | "stamped";
+};
 
 export type SetupResult =
-  | { success: true; alreadyInitialized?: true; effectivePrefix: string }
+  | {
+      success: true;
+      alreadyInitialized?: true;
+      effectivePrefix: string;
+      migrations?: SetupMigration[];
+    }
   | {
       success: false;
       code: "PREFIX_CONFLICT";
@@ -14,6 +35,21 @@ export type SetupResult =
       message: string;
       resolvedPrefix: string;
       detectedPrefixes: string[];
+    }
+  | {
+      success: false;
+      code: "LEDGER_INCONSISTENT";
+      error: string;
+      message: string;
+      resolvedPrefix: string;
+    }
+  | {
+      success: false;
+      code: "SCHEMA_VERIFY_FAILED";
+      error: string;
+      message: string;
+      resolvedPrefix: string;
+      missing: string[];
     };
 
 // Unprefixed names of the tables that make up an initialized eNotify schema.
@@ -74,7 +110,33 @@ const DEFAULT_SETTINGS: Record<string, string> = {
 // enabled_channels is stripped so it cannot fail every push.
 const RETIRED_CHANNELS = ["serverchan", "pushplus", "gotify", "notifyx"];
 
-async function runMigrations(db: D1Database, prefix: string): Promise<void> {
+// The single collapsed migration name, see `worker/src/lib/migrations.ts`.
+const SCHEMA_V1_MIGRATION = "schema_v1";
+
+// Incremental columns the legacy patch set was supposed to have produced. Used
+// to verify a pre-ledger database before stamping it (see runSetup).
+const LEGACY_REQUIRED_COLUMNS: Record<string, string[]> = {
+  notification_history: ["body"],
+  notification_configs: [
+    "slack_config",
+    "feishu_config",
+    "discord_config",
+    "default_channel",
+  ],
+  items: ["calendar_mode", "lunar_expiry_date"],
+};
+
+/**
+ * The pre-ledger patch set, kept unchanged and now run only once, as the last
+ * step before a pre-ledger database is verified and stamped. It is a
+ * best-effort catch-up: it swallows its own errors (one block at a time) and
+ * the shape verification afterwards is what decides whether the database may
+ * be stamped. The ledger path and the fresh-install path never call it.
+ */
+async function runLegacyMigrations(
+  db: D1Database,
+  prefix: string,
+): Promise<void> {
   // Migration: add body column to notification_history
   try {
     const histCols = await db
@@ -225,6 +287,23 @@ async function runMigrations(db: D1Database, prefix: string): Promise<void> {
   }
 }
 
+/**
+ * Initialize or upgrade the database under the resolved table prefix.
+ *
+ * The prefix-conflict guard runs first and never touches a database that
+ * belongs to another prefix. After it, the state of the resolved prefix
+ * decides what happens:
+ *
+ * 1. the migration ledger exists → apply whatever it does not record yet (and
+ *    refuse a ledger that describes tables which are gone);
+ * 2. no ledger but business tables → pre-ledger database: run the legacy patch
+ *    set one last time, verify the resulting shape, then stamp `schema_v1`;
+ * 3. neither → fresh install through the ledger, then seed the default
+ *    settings.
+ *
+ * A failing migration propagates as an error (setup reports a failure instead
+ * of pretending it succeeded); the recorded migrations make it resumable.
+ */
 export async function runSetup(env: Env): Promise<SetupResult> {
   const prefix = getTablePrefix(env);
   const db = env.DB;
@@ -268,29 +347,129 @@ export async function runSetup(env: Env): Promise<SetupResult> {
     };
   }
 
-  // Check if already initialized under the resolved prefix
-  const existing = await db
+  // State machine, resolved prefix, after the guard above:
+  //   1. ledger exists              → run whatever is not recorded yet
+  //   2. no ledger, business tables → in-place transition: legacy patches →
+  //                                   shape verification → stamp
+  //   3. no ledger, no tables       → fresh install through the ledger
+  const ledger = migrationsTable(prefix);
+  const ledgerExists = await tableExists(db, ledger);
+  const hasBusinessTables = await tableExists(db, `${prefix}users`);
+
+  if (ledgerExists) {
+    // A ledger that records migrations while the tables it describes are gone
+    // is inconsistent: never silently re-run the runner over that database.
+    const recorded = await db
+      .prepare(`SELECT name FROM ${ledger}`)
+      .all<{ name: string }>();
+    if (recorded.results.length > 0 && !hasBusinessTables) {
+      const error =
+        `Migration ledger "${ledger}" records applied migrations, but the business ` +
+        `tables ("${prefix}users") are missing. If the tables were deleted on ` +
+        `purpose, drop the ledger table as well and run setup again; otherwise ` +
+        `restore the tables.`;
+      return {
+        success: false,
+        code: "LEDGER_INCONSISTENT",
+        error,
+        message: error,
+        resolvedPrefix: prefix,
+      };
+    }
+
+    // Recorded migrations are skipped; anything unrecorded (including a ledger
+    // that is still empty after an interrupted run) is applied now.
+    const migrations = await runLedgerMigrations(db, prefix);
+    return {
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: prefix,
+      migrations,
+    };
+  }
+
+  if (hasBusinessTables) {
+    // Pre-ledger database: it may sit at any historical migration state, so it
+    // must not be stamped blindly. Catch it up, verify the shape, then stamp.
+    await runLegacyMigrations(db, prefix);
+
+    const missing = await verifyLegacyShape(db, prefix);
+    if (missing.length > 0) {
+      const error =
+        `Existing database is missing schema the legacy patch set should have ` +
+        `provided: ${missing.join(", ")}. The migration ledger was not stamped; ` +
+        `fix the database and run setup again.`;
+      return {
+        success: false,
+        code: "SCHEMA_VERIFY_FAILED",
+        error,
+        message: error,
+        resolvedPrefix: prefix,
+        missing,
+      };
+    }
+
+    await ensureLedgerTable(db, prefix);
+    await recordMigration(db, prefix, SCHEMA_V1_MIGRATION);
+    return {
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: prefix,
+      migrations: [{ name: SCHEMA_V1_MIGRATION, status: "stamped" }],
+    };
+  }
+
+  const migrations = await runLedgerMigrations(db, prefix);
+  await seedDefaultSettings(db, prefix);
+
+  return { success: true, effectivePrefix: prefix, migrations };
+}
+
+async function tableExists(db: D1Database, name: string): Promise<boolean> {
+  const row = await db
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
-    .bind(`${prefix}users`)
+    .bind(name)
     .first();
+  return row !== null;
+}
 
-  if (existing) {
-    await runMigrations(db, prefix);
-    return { success: true, alreadyInitialized: true, effectivePrefix: prefix };
+/**
+ * Verify that a pre-ledger database really carries everything the legacy patch
+ * set promised, before its history is collapsed to schema_v1. Returns the list
+ * of missing tables/columns (empty when the shape is complete).
+ */
+async function verifyLegacyShape(
+  db: D1Database,
+  prefix: string,
+): Promise<string[]> {
+  const missing: string[] = [];
+
+  for (const table of EONOTIFY_TABLES) {
+    const full = `${prefix}${table}`;
+    if (!(await tableExists(db, full))) {
+      missing.push(`table ${full}`);
+      continue;
+    }
+
+    const required = LEGACY_REQUIRED_COLUMNS[table] ?? [];
+    if (required.length === 0) continue;
+
+    const columns = await db
+      .prepare(`PRAGMA table_info(${full})`)
+      .all<{ name: string }>();
+    const present = new Set(columns.results.map((c) => c.name));
+    for (const column of required) {
+      if (!present.has(column)) missing.push(`column ${full}.${column}`);
+    }
   }
 
-  const schemaSQL = getSchema();
-  const resolvedSQL = schemaSQL.replace(/\{prefix\}/g, prefix);
+  return missing;
+}
 
-  const statements = resolvedSQL
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  for (const stmt of statements) {
-    await db.prepare(stmt).run();
-  }
-
+async function seedDefaultSettings(
+  db: D1Database,
+  prefix: string,
+): Promise<void> {
   const now = new Date().toISOString();
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     await db
@@ -300,120 +479,4 @@ export async function runSetup(env: Env): Promise<SetupResult> {
       .bind(key, value, now)
       .run();
   }
-
-  return { success: true, effectivePrefix: prefix };
-}
-
-function getSchema(): string {
-  return `CREATE TABLE IF NOT EXISTS {prefix}users (
-  id            TEXT PRIMARY KEY,
-  email         TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'user',
-  is_active     INTEGER NOT NULL DEFAULT 1,
-  email_verified INTEGER NOT NULL DEFAULT 0,
-  base_currency TEXT NOT NULL DEFAULT 'CNY',
-  timezone      TEXT NOT NULL DEFAULT 'UTC',
-  language      TEXT NOT NULL DEFAULT 'zh',
-  theme         TEXT NOT NULL DEFAULT 'system',
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS {prefix}user_2fa (
-  user_id           TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
-  totp_secret       TEXT,
-  totp_enabled      INTEGER NOT NULL DEFAULT 0,
-  passkey_credentials TEXT,
-  passkey_enabled   INTEGER NOT NULL DEFAULT 0,
-  email_otp_enabled INTEGER NOT NULL DEFAULT 0,
-  preferred_method  TEXT,
-  updated_at        TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS {prefix}items (
-  id          TEXT PRIMARY KEY,
-  user_id     TEXT NOT NULL REFERENCES {prefix}users(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  item_mode   TEXT NOT NULL DEFAULT 'cycle',
-  category    TEXT NOT NULL DEFAULT '',
-  start_date  TEXT,
-  expiry_date TEXT NOT NULL,
-  period_value  INTEGER NOT NULL DEFAULT 1,
-  period_unit   TEXT NOT NULL DEFAULT 'month',
-  reminder_unit  TEXT NOT NULL DEFAULT 'day',
-  reminder_value INTEGER NOT NULL DEFAULT 7,
-  notes             TEXT NOT NULL DEFAULT '',
-  amount            REAL,
-  currency          TEXT NOT NULL DEFAULT 'CNY',
-  last_payment_date TEXT,
-  is_active         INTEGER NOT NULL DEFAULT 1,
-  auto_renew        INTEGER NOT NULL DEFAULT 1,
-  calendar_mode     TEXT NOT NULL DEFAULT 'solar',
-  lunar_expiry_date TEXT,
-  channels          TEXT NOT NULL DEFAULT '[]',
-  notification_hours TEXT NOT NULL DEFAULT '[]',
-  item_kind         TEXT NOT NULL DEFAULT 'regular',
-  created_at        TEXT NOT NULL,
-  updated_at        TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_{prefix}items_user_id
-  ON {prefix}items(user_id);
-
-CREATE TABLE IF NOT EXISTS {prefix}payment_history (
-  id          TEXT PRIMARY KEY,
-  item_id     TEXT NOT NULL REFERENCES {prefix}items(id) ON DELETE CASCADE,
-  user_id     TEXT NOT NULL,
-  date        TEXT NOT NULL,
-  amount      REAL NOT NULL DEFAULT 0,
-  currency    TEXT NOT NULL DEFAULT 'CNY',
-  type        TEXT NOT NULL DEFAULT 'manual',
-  note        TEXT NOT NULL DEFAULT '',
-  period_start TEXT,
-  period_end   TEXT,
-  created_at   TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_item_id
-  ON {prefix}payment_history(item_id);
-CREATE INDEX IF NOT EXISTS idx_{prefix}payment_history_user_id
-  ON {prefix}payment_history(user_id);
-
-CREATE TABLE IF NOT EXISTS {prefix}notification_configs (
-  user_id           TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
-  enabled_channels  TEXT NOT NULL DEFAULT '[]',
-  default_channel TEXT NOT NULL DEFAULT '',
-  telegram_config   TEXT NOT NULL DEFAULT '{}',
-  webhook_config    TEXT NOT NULL DEFAULT '{}',
-  wechatbot_config  TEXT NOT NULL DEFAULT '{}',
-  email_config      TEXT NOT NULL DEFAULT '{}',
-  bark_config       TEXT NOT NULL DEFAULT '{}',
-  slack_config      TEXT NOT NULL DEFAULT '{}',
-  feishu_config     TEXT NOT NULL DEFAULT '{}',
-  discord_config    TEXT NOT NULL DEFAULT '{}',
-  notification_hours TEXT NOT NULL DEFAULT '[]',
-  updated_at        TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS {prefix}system_settings (
-  key        TEXT PRIMARY KEY,
-  value      TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS {prefix}notification_history (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL,
-  item_id    TEXT,
-  channel    TEXT NOT NULL,
-  title      TEXT NOT NULL,
-  body       TEXT,
-  success    INTEGER NOT NULL DEFAULT 1,
-  error      TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
-  ON {prefix}notification_history(user_id, created_at)`;
 }
