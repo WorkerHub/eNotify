@@ -34,6 +34,65 @@ interface ResendConfig {
   from_name: string;
 }
 
+/**
+ * Single source of truth for "can this instance actually deliver email?".
+ *
+ * Every place that needs to know whether email sending is available must call
+ * this instead of reading `email_provider` / the provider config itself.
+ *
+ * The verdict mirrors the points where `sendEmail()` is guaranteed to fail:
+ * - provider unset or "none" → false
+ * - `resend` → `resend_config` must parse and carry a non-empty `api_key`
+ * - `smtp`   → `smtp_config` must parse and carry a non-empty `host`
+ * - unparsable config or unknown provider → false
+ *
+ * Never throws: a broken setting must not break login / password recovery.
+ */
+export async function isEmailConfigured(env: Env): Promise<boolean> {
+  try {
+    const prefix = getTablePrefix(env);
+    const provider = await getSetting(env.DB, prefix, "email_provider");
+
+    if (!provider || provider === "none") return false;
+
+    if (provider === "resend") {
+      const config = await readJsonSetting<ResendConfig>(
+        env,
+        prefix,
+        "resend_config",
+      );
+      return Boolean(config?.api_key);
+    }
+
+    if (provider === "smtp") {
+      const config = await readJsonSetting<SMTPConfig>(
+        env,
+        prefix,
+        "smtp_config",
+      );
+      return Boolean(config?.host);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function readJsonSetting<T>(
+  env: Env,
+  prefix: string,
+  key: string,
+): Promise<T | null> {
+  const raw = await getSetting(env.DB, prefix, key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendEmail(
   env: Env,
   options: EmailOptions,

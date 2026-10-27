@@ -17,7 +17,7 @@ import {
   verifyEmailOTP,
   sendOTPEmail,
 } from "../services/twofa";
-import { getSetting } from "../db/queries/settings";
+import { isEmailConfigured } from "../services/email";
 import { signJWT, generateId, generateJti, verifyPassword } from "../core/auth";
 import { addSessionIndex } from "./auth";
 import { setCookie } from "hono/cookie";
@@ -76,6 +76,19 @@ auth2faRoutes.post("/verify", async (c) => {
   const config = await get2FAConfig(c.env.DB, prefix, userId);
   if (!config) {
     return c.json({ error: "2FA not configured" }, 400);
+  }
+
+  // Defence in depth: an old tempToken must not let anyone try email codes on
+  // an instance that cannot deliver them.
+  if (method === "email_otp" && !(await isEmailConfigured(c.env))) {
+    return c.json(
+      {
+        error:
+          "Email delivery is not configured on this site. Please contact an administrator.",
+        code: "EMAIL_NOT_CONFIGURED",
+      },
+      503,
+    );
   }
 
   let verified = false;
@@ -181,6 +194,18 @@ auth2faRoutes.post("/otp/send", async (c) => {
   const { tempToken } = await c.req.json<{ tempToken: string }>();
   if (!tempToken) return c.json({ error: "tempToken required" }, 400);
 
+  // Checked before the code is generated: no KV write, no send attempt.
+  if (!(await isEmailConfigured(c.env))) {
+    return c.json(
+      {
+        error:
+          "Email delivery is not configured on this site. Please contact an administrator.",
+        code: "EMAIL_NOT_CONFIGURED",
+      },
+      503,
+    );
+  }
+
   const userId = await c.env.KV.get(`2fa:${tempToken}`);
   if (!userId) return c.json({ error: "Invalid session" }, 401);
 
@@ -280,6 +305,18 @@ auth2faRoutes.post("/email-otp/send-verify", async (c) => {
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
 
+  // Checked before the code is generated: no KV write, no send attempt.
+  if (!(await isEmailConfigured(c.env))) {
+    return c.json(
+      {
+        error:
+          "Email delivery is not configured on this site. Please contact an administrator.",
+        code: "EMAIL_NOT_CONFIGURED",
+      },
+      503,
+    );
+  }
+
   const user = await findUserById(c.env.DB, prefix, userId);
   if (!user) return c.json({ error: "User not found" }, 404);
 
@@ -289,7 +326,9 @@ auth2faRoutes.post("/email-otp/send-verify", async (c) => {
   return c.json({ success: true });
 });
 
-// Email OTP enable — requires verification code if email provider is configured
+// Email OTP enable — requires the verification code, and email delivery must
+// actually work. (An unconfigured instance used to let this through without a
+// code, which is how users ended up with a method that can never log them in.)
 auth2faRoutes.post("/email-otp/enable", async (c) => {
   const userId = c.get("userId");
   const prefix = getTablePrefix(c.env);
@@ -298,14 +337,21 @@ auth2faRoutes.post("/email-otp/enable", async (c) => {
     .catch(() => ({ code: undefined }));
   const code = body?.code;
 
-  const provider = await getSetting(c.env.DB, prefix, "email_provider");
-
-  if (provider && provider !== "none") {
-    if (!code) return c.json({ error: "Verification code required" }, 400);
-    const valid = await verifyEmailOTP(c.env, userId, code, "email_otp_setup");
-    if (!valid)
-      return c.json({ error: "Invalid or expired verification code" }, 400);
+  if (!(await isEmailConfigured(c.env))) {
+    return c.json(
+      {
+        error:
+          "Email delivery is not configured on this site. Please contact an administrator.",
+        code: "EMAIL_NOT_CONFIGURED",
+      },
+      503,
+    );
   }
+
+  if (!code) return c.json({ error: "Verification code required" }, 400);
+  const valid = await verifyEmailOTP(c.env, userId, code, "email_otp_setup");
+  if (!valid)
+    return c.json({ error: "Invalid or expired verification code" }, 400);
 
   await upsert2FAConfig(c.env.DB, prefix, userId, { email_otp_enabled: 1 });
   return c.json({ success: true });
