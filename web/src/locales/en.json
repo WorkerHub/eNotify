@@ -300,7 +300,20 @@
     "noContent": "No message content for this record",
     "emptyTitle": "No history yet",
     "emptyDesc": "Sent notifications will be recorded here.",
-    "loadError": "Failed to load history"
+    "loadError": "Failed to load history",
+    "sourceItem": "Item",
+    "sourceApi": "API",
+    "sourceTest": "Test",
+    "filterChannel": "Channel",
+    "allChannels": "All channels",
+    "filterAll": "All",
+    "filterSuccess": "Success only",
+    "filterFailed": "Failed only",
+    "filterStatus": "Filter by status",
+    "failureReason": "Failure reason",
+    "clearFilters": "Clear filters",
+    "emptyFilteredTitle": "No records match these filters",
+    "emptyFilteredDesc": "Try another channel or status."
   },
   "admin": {
     "title": "Admin Panel",
