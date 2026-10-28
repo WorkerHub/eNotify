@@ -163,12 +163,18 @@ describe("POST /api/setup (regression)", () => {
     expect(res.body).toEqual({
       success: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
 
     const db = env.DB as MockD1;
     expect(db.tables.has("users")).toBe(true);
-    expect(db.ledger.get("_schema_migrations")).toEqual(["schema_v1"]);
+    expect(db.ledger.get("_schema_migrations")).toEqual([
+      "schema_v1",
+      "schema_v2",
+    ]);
   });
 
   it("reports alreadyInitialized on a second call", async () => {
@@ -188,7 +194,10 @@ describe("POST /api/setup (regression)", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "skipped" }],
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "skipped" },
+      ],
     });
   });
 

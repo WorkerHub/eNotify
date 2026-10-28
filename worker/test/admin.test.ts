@@ -27,7 +27,10 @@ describe("POST /api/admin/setup", () => {
     expect(res.body).toEqual({
       success: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
 
     const db = env.DB as MockD1;
@@ -112,7 +115,10 @@ describe("POST /api/admin/setup", () => {
     expect(res.body).toEqual({
       success: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
   });
 });

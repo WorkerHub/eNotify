@@ -340,6 +340,7 @@ async function processSubscription(
           prefix,
           userId,
           itemId: sub.id,
+          triggerSource: "item",
         },
         channels,
       );

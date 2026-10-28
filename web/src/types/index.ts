@@ -111,5 +111,6 @@ export interface NotificationHistory {
   body: string | null;
   success: number;
   error: string | null;
+  trigger_source: string | null;
   created_at: string;
 }

@@ -446,6 +446,7 @@ meRoutes.post("/notifications/test", async (c) => {
       title: message.title,
       success: result.success,
       error: result.error,
+      trigger_source: "test",
     });
   } catch (err) {
     console.error("Failed to insert notification history:", err);
@@ -457,13 +458,23 @@ meRoutes.post("/notifications/test", async (c) => {
 meRoutes.get("/notification-history", async (c) => {
   const userId = getEffectiveUserId(c);
   const prefix = getTablePrefix(c.env);
-  const limit = Math.min(Number(c.req.query("limit") || 50), 200);
-  const history = await listNotificationHistory(
-    c.env.DB,
-    prefix,
-    userId,
-    limit,
-  );
+  const limitParam = c.req.query("limit");
+  const limit =
+    limitParam === undefined || limitParam.trim() === ""
+      ? undefined
+      : Number(limitParam);
+  const successParam = c.req.query("success");
+  const history = await listNotificationHistory(c.env.DB, prefix, userId, {
+    limit: Number.isFinite(limit) ? limit : undefined,
+    channel: c.req.query("channel") || undefined,
+    success:
+      successParam === "true"
+        ? true
+        : successParam === "false"
+          ? false
+          : undefined,
+    triggerSource: c.req.query("trigger_source") || undefined,
+  });
   return c.json(history);
 });
 
