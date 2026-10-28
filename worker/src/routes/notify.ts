@@ -73,7 +73,13 @@ notifyRoutes.post("/", async (c) => {
       notifyConfig,
       message,
       c.env,
-      undefined,
+      {
+        db: c.env.DB,
+        prefix,
+        userId,
+        itemId: null,
+        triggerSource: "api",
+      },
       channels,
     );
     return c.json({ success: true, results });

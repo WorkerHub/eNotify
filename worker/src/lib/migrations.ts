@@ -136,11 +136,24 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_history (
 CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
   ON {prefix}notification_history(user_id, created_at)`;
 
+/**
+ * schema_v2 — notification history provenance. `trigger_source` is nullable so
+ * rows written before this migration keep their meaning (unknown source), and
+ * the composite index serves the history page's channel/success/source filters.
+ */
+const SCHEMA_V2 = `ALTER TABLE {prefix}notification_history ADD COLUMN trigger_source TEXT;
+CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_filter
+  ON {prefix}notification_history(user_id, channel, success, created_at)`;
+
 export function getMigrations(prefix: string): Migration[] {
   return [
     {
       name: "schema_v1",
       sql: SCHEMA_V1.replace(/\{prefix\}/g, prefix),
+    },
+    {
+      name: "schema_v2",
+      sql: SCHEMA_V2.replace(/\{prefix\}/g, prefix),
     },
   ];
 }

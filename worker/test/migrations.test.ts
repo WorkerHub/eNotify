@@ -231,8 +231,17 @@ describe("notification_configs slack_config migration", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "en_",
-      migrations: [{ name: "schema_v1", status: "skipped" }],
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
+
+    const third = await runSetup(makeEnv(d1));
+    expect(third.migrations).toEqual([
+      { name: "schema_v1", status: "skipped" },
+      { name: "schema_v2", status: "skipped" },
+    ]);
 
     const rows = d1.db
       .prepare(`SELECT * FROM ${PREFIX}notification_configs`)
@@ -404,8 +413,17 @@ describe("retired channel cleanup migration", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "en_",
-      migrations: [{ name: "schema_v1", status: "skipped" }],
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
+
+    const third = await runSetup(makeEnv(d1));
+    expect(third.migrations).toEqual([
+      { name: "schema_v1", status: "skipped" },
+      { name: "schema_v2", status: "skipped" },
+    ]);
 
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
     expect(enabledChannelsOf(d1, "u2")).toBe('["bark"]');
@@ -417,6 +435,9 @@ describe("retired channel cleanup migration", () => {
   it("no longer reports unknown channels after the migration", async () => {
     const d1 = new SqliteD1();
     seedLegacyChannels(d1);
+    // First setup stamps schema_v1 on a pre-ledger database; the second one
+    // applies the migrations appended after it (schema_v2).
+    await runSetup(makeEnv(d1));
     await runSetup(makeEnv(d1));
 
     const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
@@ -458,7 +479,10 @@ describe("fresh install schema", () => {
     expect(result).toEqual({
       success: true,
       effectivePrefix: "en_",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
 
     const columns = d1.db

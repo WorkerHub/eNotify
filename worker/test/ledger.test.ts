@@ -107,6 +107,13 @@ function seedCurrentShape(d1: SqliteD1, prefix = ""): void {
   execSQL(d1, CURRENT_SCHEMA.replace(/\{prefix\}/g, prefix));
 }
 
+/** Apply only `schema_v1`, for parity checks against the pre-ledger fixture. */
+function seedSchemaV1(d1: SqliteD1, prefix = ""): void {
+  const migration = getMigrations(prefix).find((m) => m.name === "schema_v1");
+  if (!migration) throw new Error("schema_v1 migration missing");
+  execSQL(d1, migration.sql);
+}
+
 /**
  * The oldest shape the legacy patch set still has to fix: no
  * notification_history.body, no slack/feishu/discord/default_channel columns,
@@ -273,14 +280,18 @@ describe("migrationsTable name formula", () => {
 });
 
 describe("migration list", () => {
-  it("collapses the pre-ledger history into a single schema_v1 entry", () => {
+  it("keeps schema_v1 as the base and appends schema_v2", () => {
     const migrations = getMigrations("enotify_");
-    expect(migrations.map((m) => m.name)).toEqual(["schema_v1"]);
+    expect(migrations.map((m) => m.name)).toEqual(["schema_v1", "schema_v2"]);
     // `{prefix}` is resolved for the caller, the DDL itself carries no placeholder.
     expect(migrations[0].sql).toContain(
       "CREATE TABLE IF NOT EXISTS enotify_users",
     );
     expect(migrations[0].sql).not.toContain("{prefix}");
+    expect(migrations[1].sql).toContain(
+      "ALTER TABLE enotify_notification_history ADD COLUMN trigger_source TEXT",
+    );
+    expect(migrations[1].sql).not.toContain("{prefix}");
   });
 
   it("migration SQL contains no ';' inside string literals", () => {
@@ -306,7 +317,10 @@ describe("fresh install through the ledger", () => {
     expect(result).toEqual({
       success: true,
       effectivePrefix: "enotify_",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
 
     const tables = tableNames(d1);
@@ -324,7 +338,14 @@ describe("fresh install through the ledger", () => {
     expect(tables).toContain("_enotify_schema_migrations");
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
+    expect(
+      columnsOf(d1, "enotify_notification_history").map((c) => c.name),
+    ).toContain("trigger_source");
+    expect(
+      indexesOf(d1, "enotify_notification_history").map((i) => i.name),
+    ).toContain("idx_enotify_notification_history_filter");
 
     const settings = rowsOf(d1, "enotify_system_settings", "key").map(
       (r) => r.key,
@@ -351,7 +372,10 @@ describe("fresh install through the ledger", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "enotify_",
-      migrations: [{ name: "schema_v1", status: "skipped" }],
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "skipped" },
+      ],
     });
     expect(snapshot(d1)).toEqual(before);
   });
@@ -376,7 +400,7 @@ describe("schema_v1 structure parity with the pre-ledger install", () => {
 
   it("matches the pre-ledger snapshot table by table (PRAGMA table_info + indexes)", async () => {
     const d1 = new SqliteD1();
-    await runSetup(makeEnv(d1, ""));
+    seedSchemaV1(d1);
 
     // Only the ledger table is new; every pre-existing table is described below.
     const businessTables = tableNames(d1).filter(
@@ -399,7 +423,7 @@ describe("schema_v1 structure parity with the pre-ledger install", () => {
 
   it("keeps the structure of a pre-ledger database after the in-place transition", async () => {
     const d1 = new SqliteD1();
-    await runSetup(makeEnv(d1, ""));
+    seedSchemaV1(d1);
 
     // Same 7 tables, same columns/indexes as the legacy patch set produced.
     for (const expected of fixture.tables) {
@@ -497,7 +521,7 @@ describe("legacy database transition", () => {
     );
   });
 
-  it("stamps an already up-to-date database and is a no-op on the next run", async () => {
+  it("stamps an already up-to-date database, applies pending migrations, then no-ops", async () => {
     const d1 = new SqliteD1();
     seedCurrentShape(d1);
     execSQL(
@@ -523,15 +547,29 @@ describe("legacy database transition", () => {
     expect(rowsOf(d1, "users")).toEqual(before.users);
     expect(rowsOf(d1, "notification_configs")).toEqual(before.configs);
 
-    const afterFirst = snapshot(d1);
     const second = await runSetup(makeEnv(d1, ""));
     expect(second).toEqual({
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "skipped" }],
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
-    expect(snapshot(d1)).toEqual(afterFirst);
+
+    const afterSecond = snapshot(d1);
+    const third = await runSetup(makeEnv(d1, ""));
+    expect(third).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "",
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "skipped" },
+      ],
+    });
+    expect(snapshot(d1)).toEqual(afterSecond);
   });
 
   it("clears retired channel IDs during the transition (same behaviour as before)", async () => {
@@ -658,10 +696,14 @@ describe("ledger consistency check", () => {
       success: true,
       alreadyInitialized: true,
       effectivePrefix: "",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
     expect(ledgerRows(d1, "_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
     expect(exists(d1, "users")).toBe(true);
   });
@@ -678,6 +720,7 @@ describe("prefix variants", () => {
     expect(exists(d1, "_enotify_schema_migrations")).toBe(true);
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
     expect(exists(d1, "enotify_users")).toBe(true);
   });
@@ -689,6 +732,7 @@ describe("prefix variants", () => {
     expect(exists(d1, "_schema_migrations")).toBe(true);
     expect(ledgerRows(d1, "_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
     expect(exists(d1, "users")).toBe(true);
   });
@@ -700,6 +744,7 @@ describe("prefix variants", () => {
     expect(exists(d1, "_X_schema_migrations")).toBe(true);
     expect(ledgerRows(d1, "_X_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
     expect(exists(d1, "X_users")).toBe(true);
   });
@@ -766,12 +811,16 @@ describe("prefix conflict guard with the ledger", () => {
     expect(result).toEqual({
       success: true,
       effectivePrefix: "enotify_",
-      migrations: [{ name: "schema_v1", status: "applied" }],
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+      ],
     });
     // The foreign ledger is neither read nor written.
     expect(ledgerRows(d1, "_ZETA_schema_migrations")).toEqual([]);
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
+      { name: "schema_v2" },
     ]);
   });
 

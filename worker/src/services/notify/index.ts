@@ -28,6 +28,8 @@ export interface NotifyContext {
   prefix: string;
   userId: string;
   itemId?: string | null;
+  /** Why this notification was sent: "item", "api" or "test". */
+  triggerSource?: string;
 }
 
 const CHANNEL_SENDERS: Record<
@@ -80,6 +82,7 @@ async function recordHistory(
       body,
       success,
       error,
+      trigger_source: context.triggerSource ?? null,
     });
   } catch (err) {
     console.error("Failed to insert notification history:", err);
