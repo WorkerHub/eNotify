@@ -1,17 +1,49 @@
-import { Fragment, useEffect, useState, useCallback } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { CheckCircle, XCircle, History, X, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Skeleton, EmptyState, ErrorState } from "@/components/states";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getChannelLabel } from "@/lib/channels";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { cn } from "@/lib/utils";
 import type { NotificationHistory } from "@/types";
+
+type StatusFilter = "all" | "true" | "false";
+
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  item: "history.sourceItem",
+  api: "history.sourceApi",
+  test: "history.sourceTest",
+};
+
+function SourceBadge({ source }: { source: string | null }) {
+  const { t } = useTranslation();
+  const labelKey = source ? SOURCE_LABEL_KEYS[source] : undefined;
+  if (!labelKey) return null;
+  return (
+    <span className="shrink-0 rounded-xs border border-border px-1.5 py-0.5 text-caption text-muted-foreground">
+      {t(labelKey)}
+    </span>
+  );
+}
 
 interface GroupedHistory {
   id: string;
   title: string;
   body: string | null;
   item_name?: string;
+  trigger_source: string | null;
   channels: { channel: string; success: boolean; error: string | null }[];
   created_at: string;
   allSuccess: boolean;
@@ -35,6 +67,9 @@ function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
         success: !!r.success,
         error: r.error,
       });
+      if (!last.trigger_source && r.trigger_source) {
+        last.trigger_source = r.trigger_source;
+      }
       if (!r.success) last.allSuccess = false;
     } else {
       groups.push({
@@ -42,6 +77,7 @@ function groupHistory(records: NotificationHistory[]): GroupedHistory[] {
         title: r.title,
         body: r.body,
         item_name: r.item_name,
+        trigger_source: r.trigger_source,
         channels: [
           { channel: r.channel, success: !!r.success, error: r.error },
         ],
@@ -67,37 +103,109 @@ function groupByDay(groups: GroupedHistory[]): [string, GroupedHistory[]][] {
 
 export function HistoryPage() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filter state lives in the URL so a refresh (or a shared link) keeps it.
+  const rawSuccess = searchParams.get("success");
+  const status: StatusFilter =
+    rawSuccess === "true" || rawSuccess === "false" ? rawSuccess : "all";
+  // `all` is the Select's sentinel, never a real channel id; treat a hand-typed
+  // `?channel=all` as "no channel filter" instead of querying a channel named all.
+  const rawChannel = searchParams.get("channel");
+  const channel = rawChannel && rawChannel !== "all" ? rawChannel : "";
+  const hasFilters = !!channel || status !== "all";
+
   const [history, setHistory] = useState<NotificationHistory[]>([]);
+  const [channelOptions, setChannelOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<GroupedHistory | null>(null);
   const [confirm, setConfirm] = useState<{
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const requestIdRef = useRef(0);
+  const seededOptionsRef = useRef(false);
   const detailTrapRef = useFocusTrap<HTMLDivElement>(!!selected, () =>
     setSelected(null),
   );
 
+  const mergeChannelOptions = useCallback((records: NotificationHistory[]) => {
+    setChannelOptions((prev) =>
+      Array.from(new Set([...prev, ...records.map((r) => r.channel)])).sort(),
+    );
+  }, []);
+
   const fetchHistory = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    setFetching(true);
     try {
+      const query = new URLSearchParams({ limit: "200" });
+      if (channel) query.set("channel", channel);
+      if (status !== "all") query.set("success", status);
       const data = await api.get<NotificationHistory[]>(
-        "/me/notification-history?limit=200",
+        `/me/notification-history?${query.toString()}`,
       );
+      if (requestId !== requestIdRef.current) return;
       setHistory(data);
+      mergeChannelOptions(data);
+      setError("");
     } catch (e: any) {
+      if (requestId !== requestIdRef.current) return;
       setError(e.message || t("common.error"));
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setFetching(false);
+        setLoading(false);
+      }
     }
-  }, [t]);
+  }, [channel, status, t, mergeChannelOptions]);
 
   useEffect(() => {
+    // First load only: when the URL already carries a filter, the list request
+    // returns just the matching channels. Fetch the unfiltered set once so the
+    // channel dropdown can still offer every channel that appears in history.
+    if (!seededOptionsRef.current) {
+      seededOptionsRef.current = true;
+      if (hasFilters) {
+        api
+          .get<NotificationHistory[]>("/me/notification-history?limit=200")
+          .then(mergeChannelOptions)
+          .catch(() => {
+            /* the candidate list is best-effort; the list request owns errors */
+          });
+      }
+    }
     fetchHistory();
-  }, [fetchHistory]);
+  }, [fetchHistory, hasFilters, mergeChannelOptions]);
+
+  const setFilters = (next: { channel?: string; status?: StatusFilter }) => {
+    const nextChannel = next.channel ?? channel;
+    const nextStatus = next.status ?? status;
+    const params = new URLSearchParams(searchParams);
+    if (nextChannel) params.set("channel", nextChannel);
+    else params.delete("channel");
+    if (nextStatus !== "all") params.set("success", nextStatus);
+    else params.delete("success");
+    setSearchParams(params, { replace: true });
+  };
+
+  const clearFilters = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("channel");
+    params.delete("success");
+    setSearchParams(params, { replace: true });
+  };
+
+  const channelLabel = (id: string) =>
+    t(`channels.${id}`, { defaultValue: getChannelLabel(id) });
 
   const grouped = groupHistory(history);
   const groupedByDay = groupByDay(grouped);
+  const selectableChannels = Array.from(
+    new Set([...channelOptions, channel].filter(Boolean)),
+  ).sort((a, b) => channelLabel(a).localeCompare(channelLabel(b)));
 
   const handleClear = (e: React.MouseEvent, g: GroupedHistory) => {
     e.stopPropagation();
@@ -130,11 +238,63 @@ export function HistoryPage() {
     <div className="space-y-6">
       <h1 className="text-heading">{t("history.title")}</h1>
 
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
+          <span className="text-caption font-medium text-muted-foreground md:text-body-sm">
+            {t("history.filterChannel")}
+          </span>
+          <Select
+            value={channel || "all"}
+            onValueChange={(value) =>
+              setFilters({ channel: value === "all" ? "" : value })
+            }
+          >
+            <SelectTrigger
+              className="w-full md:w-44"
+              aria-label={t("history.filterChannel")}
+            >
+              <SelectValue placeholder={t("history.allChannels")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("history.allChannels")}</SelectItem>
+              {selectableChannels.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {channelLabel(id)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Tabs
+          value={status}
+          onValueChange={(value) =>
+            setFilters({ status: value as StatusFilter })
+          }
+          className="w-full md:w-auto"
+        >
+          <TabsList
+            aria-label={t("history.filterStatus")}
+            className="w-full md:w-auto"
+          >
+            <TabsTrigger value="all" className="flex-1 md:flex-none">
+              {t("history.filterAll")}
+            </TabsTrigger>
+            <TabsTrigger value="true" className="flex-1 md:flex-none">
+              {t("history.filterSuccess")}
+            </TabsTrigger>
+            <TabsTrigger value="false" className="flex-1 md:flex-none">
+              {t("history.filterFailed")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {error && (
         <ErrorState
           message={error}
           onRetry={() => {
-            setLoading(true);
+            setLoading(history.length === 0);
             fetchHistory();
           }}
           retryLabel={t("common.retry")}
@@ -160,13 +320,33 @@ export function HistoryPage() {
           )}
         </div>
       ) : grouped.length === 0 ? (
-        <EmptyState
-          icon={<History className="w-6 h-6" />}
-          title={t("history.emptyTitle")}
-          description={t("history.emptyDesc")}
-        />
+        !error &&
+        (hasFilters ? (
+          <EmptyState
+            icon={<History className="w-6 h-6" />}
+            title={t("history.emptyFilteredTitle")}
+            description={t("history.emptyFilteredDesc")}
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                {t("history.clearFilters")}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<History className="w-6 h-6" />}
+            title={t("history.emptyTitle")}
+            description={t("history.emptyDesc")}
+          />
+        ))
       ) : (
-        <>
+        <div
+          aria-busy={fetching}
+          className={cn(
+            "transition-opacity duration-(--duration-standard)",
+            fetching && "opacity-60",
+          )}
+        >
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
@@ -207,9 +387,10 @@ export function HistoryPage() {
                         onClick={() => setSelected(g)}
                       >
                         <td className="px-4 py-3">
-                          <p className="font-medium truncate max-w-xs">
-                            {g.title}
-                          </p>
+                          <div className="flex min-w-0 max-w-xs items-center gap-1.5">
+                            <p className="truncate font-medium">{g.title}</p>
+                            <SourceBadge source={g.trigger_source} />
+                          </div>
                           {g.item_name && (
                             <p className="text-xs text-muted-foreground">
                               {g.item_name}
@@ -281,14 +462,17 @@ export function HistoryPage() {
                   <button
                     type="button"
                     key={g.id}
-                    className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors"
+                    className="bg-card rounded-xl border p-4 space-y-2 cursor-pointer active:bg-muted/30 transition-colors w-full min-w-0"
                     onClick={() => setSelected(g)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">
-                          {g.title}
-                        </p>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p className="truncate text-sm font-medium">
+                            {g.title}
+                          </p>
+                          <SourceBadge source={g.trigger_source} />
+                        </div>
                         {g.item_name && (
                           <p className="text-xs text-muted-foreground">
                             {g.item_name}
@@ -345,7 +529,7 @@ export function HistoryPage() {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {selected && (
@@ -384,7 +568,12 @@ export function HistoryPage() {
                 <p className="text-xs text-muted-foreground mb-1">
                   {t("history.title_col")}
                 </p>
-                <p className="text-sm font-medium">{selected.title}</p>
+                <div className="flex items-start gap-1.5">
+                  <p className="min-w-0 flex-1 break-words text-sm font-medium">
+                    {selected.title}
+                  </p>
+                  <SourceBadge source={selected.trigger_source} />
+                </div>
                 {selected.item_name && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {selected.item_name}
@@ -421,12 +610,28 @@ export function HistoryPage() {
                 </span>
               </div>
               {selected.channels.some((c) => c.error) && (
-                <p className="text-xs text-destructive">
-                  {selected.channels
-                    .filter((c) => c.error)
-                    .map((c) => `${c.channel}: ${c.error}`)
-                    .join("\n")}
-                </p>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {t("history.failureReason")}
+                  </p>
+                  <div className="space-y-2">
+                    {selected.channels
+                      .filter((c) => c.error)
+                      .map((c) => (
+                        <div
+                          key={`${c.channel}-${c.error}`}
+                          className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2"
+                        >
+                          <span className="inline-flex uppercase text-caption px-1.5 py-0.5 rounded-xs bg-destructive/10 text-destructive">
+                            {c.channel}
+                          </span>
+                          <pre className="mt-1.5 whitespace-pre-wrap break-words font-mono text-body-sm leading-relaxed text-destructive">
+                            {c.error}
+                          </pre>
+                        </div>
+                      ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

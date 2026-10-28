@@ -300,7 +300,20 @@
     "noContent": "该记录无消息内容",
     "emptyTitle": "还没有发送记录",
     "emptyDesc": "通知发出后会在这里留下账目。",
-    "loadError": "发送记录加载失败"
+    "loadError": "发送记录加载失败",
+    "sourceItem": "事项",
+    "sourceApi": "API",
+    "sourceTest": "测试",
+    "filterChannel": "渠道",
+    "allChannels": "全部渠道",
+    "filterAll": "全部",
+    "filterSuccess": "仅成功",
+    "filterFailed": "仅失败",
+    "filterStatus": "状态筛选",
+    "failureReason": "失败原因",
+    "clearFilters": "清除筛选",
+    "emptyFilteredTitle": "没有符合筛选条件的记录",
+    "emptyFilteredDesc": "换一个渠道或状态试试。"
   },
   "admin": {
     "title": "管理后台",

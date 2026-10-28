@@ -8,3 +8,11 @@ export const CHANNELS = [
   { id: "feishu", label: "Lark Bot" },
   { id: "discord", label: "Discord" },
 ] as const;
+
+/**
+ * Friendly label for a channel id. Unknown ids (retired channels, or names
+ * written by another build) fall back to the id itself so nothing is hidden.
+ */
+export function getChannelLabel(id: string): string {
+  return CHANNELS.find((channel) => channel.id === id)?.label ?? id;
+}
