@@ -8,7 +8,8 @@
       "!**/.wrangler",
       "!**/web/public",
       "!**/web/dist",
-      "!**/worker/.wrangler"
+      "!**/worker/.wrangler",
+      "!**/worker/src/waker"
     ]
   },
   "formatter": {

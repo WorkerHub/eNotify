@@ -145,6 +145,36 @@ const SCHEMA_V2 = `ALTER TABLE {prefix}notification_history ADD COLUMN trigger_s
 CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_filter
   ON {prefix}notification_history(user_id, channel, success, created_at)`;
 
+/**
+ * schema_v3 — waker migration: the SDK executionId idempotency ledger and the
+ * cross-entry hourly tick claim.
+ *
+ * `waker_executions`: the eight columns are frozen verbatim from the SDK's
+ * `executionLedgerDdl()` (waker-client 2.0.0). It is inlined as literal SQL on
+ * purpose — a merged migration is never edited again, not even if the SDK DDL
+ * changes later.
+ *
+ * `scheduler_tick_claims`: one row per claimed UTC hour; both the native cron
+ * and the waker callback claim here first, so an hour is never swept twice.
+ */
+const SCHEMA_V3 = `CREATE TABLE IF NOT EXISTS {prefix}waker_executions (
+  execution_id   TEXT PRIMARY KEY,
+  job_id         TEXT NOT NULL,
+  job_name       TEXT NOT NULL,
+  scheduled_for  INTEGER NOT NULL,
+  status         TEXT NOT NULL,
+  response_json  TEXT,
+  claimed_at     INTEGER NOT NULL,
+  completed_at   INTEGER
+);
+CREATE TABLE IF NOT EXISTS {prefix}scheduler_tick_claims (
+  tick_key   TEXT PRIMARY KEY,
+  source     TEXT NOT NULL,
+  claimed_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_{prefix}scheduler_tick_claims_claimed_at
+  ON {prefix}scheduler_tick_claims(claimed_at)`;
+
 export function getMigrations(prefix: string): Migration[] {
   return [
     {
@@ -154,6 +184,10 @@ export function getMigrations(prefix: string): Migration[] {
     {
       name: "schema_v2",
       sql: SCHEMA_V2.replace(/\{prefix\}/g, prefix),
+    },
+    {
+      name: "schema_v3",
+      sql: SCHEMA_V3.replace(/\{prefix\}/g, prefix),
     },
   ];
 }

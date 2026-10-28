@@ -166,6 +166,7 @@ describe("POST /api/setup (regression)", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -174,6 +175,7 @@ describe("POST /api/setup (regression)", () => {
     expect(db.ledger.get("_schema_migrations")).toEqual([
       "schema_v1",
       "schema_v2",
+      "schema_v3",
     ]);
   });
 
@@ -197,6 +199,7 @@ describe("POST /api/setup (regression)", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
+        { name: "schema_v3", status: "skipped" },
       ],
     });
   });

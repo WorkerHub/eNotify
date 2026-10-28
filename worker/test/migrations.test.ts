@@ -234,6 +234,7 @@ describe("notification_configs slack_config migration", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -241,6 +242,7 @@ describe("notification_configs slack_config migration", () => {
     expect(third.migrations).toEqual([
       { name: "schema_v1", status: "skipped" },
       { name: "schema_v2", status: "skipped" },
+      { name: "schema_v3", status: "skipped" },
     ]);
 
     const rows = d1.db
@@ -416,6 +418,7 @@ describe("retired channel cleanup migration", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -423,6 +426,7 @@ describe("retired channel cleanup migration", () => {
     expect(third.migrations).toEqual([
       { name: "schema_v1", status: "skipped" },
       { name: "schema_v2", status: "skipped" },
+      { name: "schema_v3", status: "skipped" },
     ]);
 
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
@@ -436,7 +440,7 @@ describe("retired channel cleanup migration", () => {
     const d1 = new SqliteD1();
     seedLegacyChannels(d1);
     // First setup stamps schema_v1 on a pre-ledger database; the second one
-    // applies the migrations appended after it (schema_v2).
+    // applies the migrations appended after it (schema_v2 / schema_v3).
     await runSetup(makeEnv(d1));
     await runSetup(makeEnv(d1));
 
@@ -482,6 +486,7 @@ describe("fresh install schema", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 

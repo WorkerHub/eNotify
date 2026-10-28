@@ -41,7 +41,7 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 
 ### Backend (`worker/`)
 
-**Entry point**: `worker/src/index.ts` — registers all Hono routes and the scheduled handler.
+**Entry point**: `worker/src/index.ts` — registers all Hono routes, the `/_waker` callback mount (before the SPA fallback) and the native scheduled handler.
 
 **Route structure** (`worker/src/routes/`):
 
@@ -52,12 +52,13 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 - `dashboard.ts` — spending stats, expiry summary
 - `admin.ts` — user management, system settings; also manages items per user at `/api/admin/users/:uid/items`
 - `notify.ts` — manual notification test trigger
+- `waker.ts` — `/_waker` mount for the waker callback receiver (SDK paths, signature and idempotency only; mounted before `app.get("*")` so a callback can never be answered with 200 HTML)
 - `setup.ts` — one-time DB initialization via `SETUP_SECRET` (rate-limited, 3/10min per IP); also exposes `GET /api/setup/state` (public setup-page toggle) and `POST /api/admin/setup` (admin-only, no secret). Core setup/migration logic lives in `worker/src/lib/setup.ts`. `runSetup` is a three-branch state machine after the prefix guard: ledger present → apply unrecorded migrations; no ledger but business tables present → pre-ledger in-place transition (legacy patches → shape verification → stamp `schema_v1`); neither → fresh install through the ledger.
 
 **Database** (`worker/src/db/`):
 
 - Cloudflare D1 (SQLite). `worker/src/db/schema.sql` is the readable full schema (used by tests); the runtime source of truth is the migration list below.
-- **Migrations are ledger-based.** The ordered list lives in `worker/src/lib/migrations.ts` (`getMigrations(prefix)`, currently a single collapsed `schema_v1` = the whole schema); `worker/src/lib/migrations-runner.ts` applies the not-yet-recorded ones in order and records each name in the ledger, throwing on the first failure (a migration is recorded only after all of its statements succeeded). Append new migrations only at the END of the list as `schema_vN`; never rename, edit or reorder a merged migration; migrations must be additive (`CREATE TABLE/INDEX IF NOT EXISTS`, `ADD COLUMN`, `INSERT OR IGNORE` — no `DROP`/`RENAME`/data rewrites); migration SQL string literals must not contain `;` (the runner splits on `;` and runs the statements one by one).
+- **Migrations are ledger-based.** The ordered list lives in `worker/src/lib/migrations.ts` (`getMigrations(prefix)`: `schema_v1` = the whole schema at ledger introduction, `schema_v2` = notification-history `trigger_source`, `schema_v3` = `{prefix}waker_executions` + `{prefix}scheduler_tick_claims`); `worker/src/lib/migrations-runner.ts` applies the not-yet-recorded ones in order and records each name in the ledger, throwing on the first failure (a migration is recorded only after all of its statements succeeded). Append new migrations only at the END of the list as `schema_vN`; never rename, edit or reorder a merged migration; migrations must be additive (`CREATE TABLE/INDEX IF NOT EXISTS`, `ADD COLUMN`, `INSERT OR IGNORE` — no `DROP`/`RENAME`/data rewrites); migration SQL string literals must not contain `;` (the runner splits on `;` and runs the statements one by one).
 - The ledger table name is built only by `migrationsTable()`: `_` + prefix core (trailing `_` stripped, case preserved) + `_schema_migrations`, i.e. `_enotify_schema_migrations` for the default prefix and `_schema_migrations` with no prefix. Ledger tables are not part of the eNotify table family and are ignored by `detectTablePrefixes()` (other projects' ledgers coexist in a shared D1).
 - Transitioning a pre-ledger database, production cutover and rollback: `docs/migration-ledger-cutover-runbook.md`.
 - All table names use a `{prefix}` placeholder at definition time, resolved at runtime via `TABLE_PREFIX` env var and the `getTablePrefix()` helper in `types.ts` (the ONLY resolution point). Three states: unset/null → default `enotify` (`enotify_`); custom non-empty value → verbatim with trailing `_`; explicit `""` → no prefix. `runSetup` in `worker/src/lib/setup.ts` detects existing initialized schemas under other prefixes via `detectTablePrefixes()` and aborts with 409 `PREFIX_CONFLICT` instead of silently re-initializing; CI maps unset/empty vars to `enotify` and the reserved word `none` to `""`.
@@ -72,18 +73,29 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 
 **Notification services** (`worker/src/services/notify/`): Each channel (Telegram, Webhook, Email, Bark, Slack, Feishu, Discord, WeChatBot) is a separate file. `index.ts` sends to selected enabled channels via the `channels` parameter, or only to the user's default channel when no channels are selected.
 
-**Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly via Cloudflare Cron Trigger (`0 * * * *`). For each active user it:
+**Scheduler** (`worker/src/services/scheduler.ts`): Runs hourly. For each active user it:
 
 1. Checks their allowed notification hours (per-timezone).
 2. Auto-renews expired items (with KV deduplication).
 3. Sends reminders for items expiring within the user's configured threshold (with per-hour KV deduplication). If an item has specific channels configured (`channels` column), only those channels are used; otherwise only the user's default channel receives the notification.
+
+`services/scheduler.ts` is the single business implementation. Both schedule entries go through `services/scheduler-tick.ts` `runSchedulerTick(env, { source, scheduledFor })`:
+
+- **native entry**: `scheduled()` in `index.ts`, `source: "cron"`, `scheduledFor: event.scheduledTime` (awaited, not `waitUntil`);
+- **waker entry**: `services/waker-callback.ts`, job `hourly-reminder-sweep`, `source: "waker"`, `scheduledFor: ctx.scheduledFor`; mounted at `/_waker` by `routes/waker.ts` using the verbatim SDK copy in `worker/src/waker/` (waker-client 2.0.0 — never hand-edit that directory).
+
+The guard in front of the business pass is one atomic D1 claim per UTC hour (`{prefix}scheduler_tick_claims`, `INSERT … ON CONFLICT(tick_key) DO NOTHING` + `meta.changes`), so cron and waker can never sweep the same hour twice; the SDK's own `{prefix}waker_executions` ledger dedupes executionId retries. Failure semantics: cron keeps the claim on failure (no re-run that could double-send), waker releases it and rethrows so the platform retry (same executionId) completes the hour. Claims are pruned after 7 days.
+
+Two cases go beyond the plain table: manual triggers and dead-letter replays arrive with `trigger: "manual"` and `scheduledFor` = the dispatch time, so they run the sweep **without taking the hourly slot** (the executionId ledger and KV dedupe keep them idempotent) — otherwise the console's "run now" would be swallowed by the cron claim of that hour. And when the platform aborts an execution (timeout / evicted isolate) the claim is never released, so a waker retry may take over its own orphaned claim after `WAKER_STALE_CLAIM_SECONDS` (20s, smaller than `backoffSeconds` 30) and finish the hour; a cron claim is never taken over.
+
+Waker is optional and the **only** setting is `WAKER_SIGNING_KEY` (GitHub Secret → `wrangler deploy --secrets-file`): unset/blank/`*_PLACEHOLDER` means native cron only. The gate is `wakerSigningKey()` in `services/scheduler-tick.ts`; the receiver stays mounted and fails closed with 500 JSON `signing_key_missing`. Do not reintroduce `WAKER_MODE`/`WAKER_URL`/project tokens — the SDK's `mountWakerReceiver`, `createWakerClient*`, `syncManifest` and `resolveWakerMode` must stay uncalled.
 
 **Cloudflare bindings**:
 
 - `DB` — D1 database
 - `KV` — KV namespace (used for scheduler deduplication and status)
 - `ASSETS` — static file serving
-- Secrets: `JWT_SECRET`, `SETUP_SECRET`
+- Secrets: `JWT_SECRET`, `SETUP_SECRET`, and optional `WAKER_SIGNING_KEY` (empty ⇒ native cron only)
 - Env var: `TABLE_PREFIX` (three states: unset → default `enotify`, tables like `enotify_users`; custom value → verbatim with trailing `_`; explicit `""`/CI `none` → no prefix; allows shared DB with prefix isolation)
 
 ### Frontend (`web/`)
