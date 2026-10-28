@@ -67,15 +67,44 @@ jobs:
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SETUP_SECRET: ${{ secrets.SETUP_SECRET }}
+          WAKER_SIGNING_KEY: ${{ secrets.WAKER_SIGNING_KEY }}
         run: |
           node -e '
             const fs = require("fs");
+            const secrets = {
+              JWT_SECRET: process.env.JWT_SECRET,
+              SETUP_SECRET: process.env.SETUP_SECRET,
+            };
+
+            // Optional waker callback signing key — the only waker-related
+            // setting this project has. Only its presence is logged, never its
+            // value; the trimmed value is what the receiver verifies with.
+            // Same rule as the runtime gate (wakerSigningKey()): a trimmed value
+            // ending in _PLACEHOLDER is still a placeholder, i.e. unconfigured.
+            const wakerKey = (process.env.WAKER_SIGNING_KEY || "").trim();
+            const wakerConfigured =
+              wakerKey.length > 0 && !wakerKey.endsWith("_PLACEHOLDER");
+            if (wakerConfigured) {
+              secrets.WAKER_SIGNING_KEY = wakerKey;
+              console.log("WAKER_SIGNING_KEY: configured");
+            } else {
+              console.log("WAKER_SIGNING_KEY: not configured (native cron only)");
+            }
+
+            // Interlock: once wrangler.toml has no [triggers], the waker task is
+            // the only schedule source. Losing the key as well would silently
+            // stop every hourly sweep, so fail the deploy instead.
+            const wranglerToml = fs.readFileSync("wrangler.toml", "utf8");
+            if (!wakerConfigured && !/^\[triggers\]/m.test(wranglerToml)) {
+              console.error(
+                "neither [triggers] nor WAKER_SIGNING_KEY is configured: nothing would run",
+              );
+              process.exit(1);
+            }
+
             fs.writeFileSync(
               process.env.RUNNER_TEMP + "/secrets.json",
-              JSON.stringify({
-                JWT_SECRET: process.env.JWT_SECRET,
-                SETUP_SECRET: process.env.SETUP_SECRET,
-              }),
+              JSON.stringify(secrets),
               { mode: 0o600 },
             );
           '

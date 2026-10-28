@@ -238,6 +238,7 @@ describe("runSetup anti-silent-switch guard", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -265,6 +266,7 @@ describe("runSetup anti-silent-switch guard", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -312,6 +314,7 @@ describe("admin setup route surfaces prefix conflicts", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
   });

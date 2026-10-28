@@ -280,9 +280,13 @@ describe("migrationsTable name formula", () => {
 });
 
 describe("migration list", () => {
-  it("keeps schema_v1 as the base and appends schema_v2", () => {
+  it("keeps schema_v1 as the base and appends schema_v2 / schema_v3", () => {
     const migrations = getMigrations("enotify_");
-    expect(migrations.map((m) => m.name)).toEqual(["schema_v1", "schema_v2"]);
+    expect(migrations.map((m) => m.name)).toEqual([
+      "schema_v1",
+      "schema_v2",
+      "schema_v3",
+    ]);
     // `{prefix}` is resolved for the caller, the DDL itself carries no placeholder.
     expect(migrations[0].sql).toContain(
       "CREATE TABLE IF NOT EXISTS enotify_users",
@@ -292,6 +296,16 @@ describe("migration list", () => {
       "ALTER TABLE enotify_notification_history ADD COLUMN trigger_source TEXT",
     );
     expect(migrations[1].sql).not.toContain("{prefix}");
+    expect(migrations[2].sql).toContain(
+      "CREATE TABLE IF NOT EXISTS enotify_waker_executions",
+    );
+    expect(migrations[2].sql).toContain(
+      "CREATE TABLE IF NOT EXISTS enotify_scheduler_tick_claims",
+    );
+    expect(migrations[2].sql).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_enotify_scheduler_tick_claims_claimed_at",
+    );
+    expect(migrations[2].sql).not.toContain("{prefix}");
   });
 
   it("migration SQL contains no ';' inside string literals", () => {
@@ -309,7 +323,7 @@ describe("migration list", () => {
 // ─── fresh install ────────────────────────────────────────────────────────────
 
 describe("fresh install through the ledger", () => {
-  it("creates the 7 tables, the ledger and the default settings", async () => {
+  it("creates the 7 business tables, the 2 waker tables, the ledger and the default settings", async () => {
     const d1 = new SqliteD1();
 
     const result = await runSetup(makeEnv(d1, "enotify"));
@@ -320,6 +334,7 @@ describe("fresh install through the ledger", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -332,6 +347,8 @@ describe("fresh install through the ledger", () => {
       "notification_configs",
       "system_settings",
       "notification_history",
+      "waker_executions",
+      "scheduler_tick_claims",
     ]) {
       expect(tables).toContain(`enotify_${table}`);
     }
@@ -339,6 +356,22 @@ describe("fresh install through the ledger", () => {
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
+    ]);
+    expect(
+      indexesOf(d1, "enotify_scheduler_tick_claims").map((i) => i.name),
+    ).toContain("idx_enotify_scheduler_tick_claims_claimed_at");
+    expect(
+      columnsOf(d1, "enotify_waker_executions").map((c) => c.name),
+    ).toEqual([
+      "execution_id",
+      "job_id",
+      "job_name",
+      "scheduled_for",
+      "status",
+      "response_json",
+      "claimed_at",
+      "completed_at",
     ]);
     expect(
       columnsOf(d1, "enotify_notification_history").map((c) => c.name),
@@ -375,6 +408,7 @@ describe("fresh install through the ledger", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
+        { name: "schema_v3", status: "skipped" },
       ],
     });
     expect(snapshot(d1)).toEqual(before);
@@ -555,6 +589,7 @@ describe("legacy database transition", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
 
@@ -567,6 +602,7 @@ describe("legacy database transition", () => {
       migrations: [
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
+        { name: "schema_v3", status: "skipped" },
       ],
     });
     expect(snapshot(d1)).toEqual(afterSecond);
@@ -699,11 +735,13 @@ describe("ledger consistency check", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
     expect(ledgerRows(d1, "_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
     ]);
     expect(exists(d1, "users")).toBe(true);
   });
@@ -721,8 +759,11 @@ describe("prefix variants", () => {
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
     ]);
     expect(exists(d1, "enotify_users")).toBe(true);
+    expect(exists(d1, "enotify_waker_executions")).toBe(true);
+    expect(exists(d1, "enotify_scheduler_tick_claims")).toBe(true);
   });
 
   it("uses _schema_migrations for an explicit empty prefix", async () => {
@@ -733,8 +774,11 @@ describe("prefix variants", () => {
     expect(ledgerRows(d1, "_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
     ]);
     expect(exists(d1, "users")).toBe(true);
+    expect(exists(d1, "waker_executions")).toBe(true);
+    expect(exists(d1, "scheduler_tick_claims")).toBe(true);
   });
 
   it("uses _X_schema_migrations for a custom prefix X", async () => {
@@ -745,8 +789,11 @@ describe("prefix variants", () => {
     expect(ledgerRows(d1, "_X_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
     ]);
     expect(exists(d1, "X_users")).toBe(true);
+    expect(exists(d1, "X_waker_executions")).toBe(true);
+    expect(exists(d1, "X_scheduler_tick_claims")).toBe(true);
   });
 
   it("leaves another prefix's tables and ledger untouched when two coexist", async () => {
@@ -814,6 +861,7 @@ describe("prefix conflict guard with the ledger", () => {
       migrations: [
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
       ],
     });
     // The foreign ledger is neither read nor written.
@@ -821,6 +869,7 @@ describe("prefix conflict guard with the ledger", () => {
     expect(ledgerRows(d1, "_enotify_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
+      { name: "schema_v3" },
     ]);
   });
 

@@ -13,7 +13,9 @@ import { adminRoutes } from "./routes/admin";
 import { adminBackupRoutes, meBackupRoutes } from "./routes/backup";
 import { notifyRoutes } from "./routes/notify";
 import { setupRoutes } from "./routes/setup";
-import { handleScheduled } from "./services/scheduler";
+import { wakerRoutes } from "./routes/waker";
+import { CALLBACK_MOUNT_PATH } from "./waker";
+import { runSchedulerTick } from "./services/scheduler-tick";
 import { getAllSettings } from "./db/queries/settings";
 import { isEmailConfigured } from "./services/email";
 
@@ -99,6 +101,12 @@ app.get("/api/system/info", async (c) => {
   }
 });
 
+// waker callback entry: the platform synchronously POSTs `/_waker/execute`.
+// Registered **before** the SPA fallback so a callback can never be answered
+// with 200 HTML; paths, signature checks, idempotency and error codes are the
+// SDK's (an unconfigured key fails closed there with 500/400/404 JSON).
+app.route(CALLBACK_MOUNT_PATH, wakerRoutes());
+
 // SPA fallback: serve static assets, fall back to index.html for client-side routing
 app.get("*", async (c) => {
   const res = await c.env.ASSETS.fetch(c.req.raw);
@@ -108,7 +116,13 @@ app.get("*", async (c) => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(handleScheduled(env));
+  // Native cron entry. Both entries share `runSchedulerTick` so one UTC hour is
+  // never swept twice (see services/scheduler-tick.ts); the business pass is
+  // still the unchanged `handleScheduled(env)`, awaited to completion.
+  async scheduled(event: ScheduledEvent, env: Env) {
+    await runSchedulerTick(env, {
+      source: "cron",
+      scheduledFor: event.scheduledTime,
+    });
   },
 };

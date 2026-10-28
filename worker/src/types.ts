@@ -4,6 +4,15 @@ export interface Env {
   JWT_SECRET: string;
   SETUP_SECRET: string;
   /**
+   * Waker callback signing key. Injected only from GitHub Secrets through
+   * `wrangler deploy --secrets-file`.
+   *
+   * Missing / blank / whitespace-only / `*_PLACEHOLDER` all mean "not
+   * configured" → native cron only; the receiver stays mounted but fails closed.
+   * See `wakerSigningKey()` in `services/scheduler-tick.ts` (the only gate).
+   */
+  WAKER_SIGNING_KEY?: string;
+  /**
    * Table prefix, three states:
    * - undefined/null (unset) → DEFAULT_TABLE_PREFIX ("enotify"), normalized to "enotify_"
    * - non-empty custom value → used verbatim with a trailing "_" appended

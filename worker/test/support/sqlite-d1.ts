@@ -3,8 +3,9 @@
  * (`node:sqlite`, built into Node 22+).
  *
  * Unlike the `MockD1` in helpers.ts this keeps real column defaults, row data,
- * foreign keys and PRAGMA output, which is what schema/migration assertions
- * need to stay honest. D1 is SQLite, so the SQL under test runs unchanged.
+ * foreign keys, PRAGMA output and `meta.changes`, which is what
+ * schema/migration/claim assertions need to stay honest. D1 is SQLite, so the
+ * SQL under test runs unchanged.
  */
 // @ts-expect-error node:sqlite ships with Node but is not in the Workers type set.
 import { DatabaseSync } from "node:sqlite";
@@ -24,15 +25,27 @@ export class SqliteD1 {
           results: statement().all(...(args as any[])) as T[],
         }),
         run: async () => {
-          statement().run(...(args as any[]));
-          return { success: true };
+          const result = statement().run(...(args as any[]));
+          return {
+            success: true,
+            meta: {
+              changes: Number(result.changes),
+              last_row_id: Number(result.lastInsertRowid),
+            },
+          };
         },
       }),
       first: async <T>() => (statement().get() ?? null) as T | null,
       all: async <T>() => ({ results: statement().all() as T[] }),
       run: async () => {
-        statement().run();
-        return { success: true };
+        const result = statement().run();
+        return {
+          success: true,
+          meta: {
+            changes: Number(result.changes),
+            last_row_id: Number(result.lastInsertRowid),
+          },
+        };
       },
     };
   }

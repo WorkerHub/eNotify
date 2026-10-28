@@ -112,3 +112,29 @@ CREATE TABLE IF NOT EXISTS {prefix}notification_history (
 
 CREATE INDEX IF NOT EXISTS idx_{prefix}notification_history_user_id
   ON {prefix}notification_history(user_id, created_at);
+
+-- Waker executionId idempotency ledger (SDK `createD1ExecutionLedger`).
+-- The eight columns are frozen verbatim from waker-client 2.0.0
+-- `executionLedgerDdl()` — schema_v3 creates the same table at runtime.
+-- (Keep semicolons out of these comment lines: tests split this file on them.)
+CREATE TABLE IF NOT EXISTS {prefix}waker_executions (
+  execution_id   TEXT PRIMARY KEY,
+  job_id         TEXT NOT NULL,
+  job_name       TEXT NOT NULL,
+  scheduled_for  INTEGER NOT NULL,
+  status         TEXT NOT NULL,
+  response_json  TEXT,
+  claimed_at     INTEGER NOT NULL,
+  completed_at   INTEGER
+);
+
+-- Cross-entry hourly tick claim: one row per claimed UTC hour, written by both
+-- the native cron and the waker callback (schema_v3).
+CREATE TABLE IF NOT EXISTS {prefix}scheduler_tick_claims (
+  tick_key   TEXT PRIMARY KEY,
+  source     TEXT NOT NULL,
+  claimed_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_{prefix}scheduler_tick_claims_claimed_at
+  ON {prefix}scheduler_tick_claims(claimed_at);
