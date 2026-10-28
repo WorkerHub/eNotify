@@ -46,7 +46,8 @@ class SqliteD1 {
       CREATE TABLE users (id TEXT PRIMARY KEY, timezone TEXT, language TEXT, is_active INTEGER);
       CREATE TABLE notification_history (
         id TEXT, user_id TEXT, item_id TEXT, channel TEXT, title TEXT,
-        body TEXT, success INTEGER, error TEXT, created_at TEXT
+        body TEXT, success INTEGER, error TEXT, trigger_source TEXT,
+        created_at TEXT
       );
     `);
   }
