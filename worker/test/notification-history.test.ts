@@ -185,7 +185,9 @@ describe("schema_v2", () => {
     expect(columns.map((column) => column.name)).toContain("trigger_source");
 
     const index = d1.db
-      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?`)
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?`,
+      )
       .get(FILTER_INDEX) as { name: string } | undefined;
     expect(index).toEqual({ name: FILTER_INDEX });
   });
