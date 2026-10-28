@@ -24,4 +24,7 @@ worker/dist
 # Logs
 *.log
 docs
+!docs/design-system.md
+!docs/migration-ledger-cutover-runbook.md
+!docs/history-tracing-research.md
 .claude
