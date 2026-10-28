@@ -7,6 +7,7 @@ import {
   releaseSchedulerTick,
   schedulerTickClaimsTable,
   schedulerTickKey,
+  takeoverSchedulerTick,
 } from "../src/db/queries/scheduler-ticks";
 import {
   runSchedulerTick,
@@ -291,6 +292,135 @@ describe("runSchedulerTick — failure semantics", () => {
     ).rejects.toThrow(/no such table/);
     expect(handleScheduledMock).not.toHaveBeenCalled();
     errorMock.mockRestore();
+  });
+});
+
+describe("runSchedulerTick — manual triggers and aborted executions", () => {
+  it("runs a manual trigger even when cron owns the hour, without taking the slot", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const env = makeTickEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "cron", Date.now());
+
+    // The platform sends the dispatch time (not the slot) for manual triggers.
+    const result = await runSchedulerTick(env, {
+      source: "waker",
+      scheduledFor: T0 + 40 * 60 * 1000,
+      trigger: "manual",
+    });
+
+    expect(result).toMatchObject({ executed: true, reason: "executed" });
+    expect(result.tickKey).toBeUndefined();
+    expect(result.trigger).toBe("manual");
+    expect(handleScheduledMock).toHaveBeenCalledTimes(1);
+    // The hourly claim is untouched.
+    expect(countRows(d1, "scheduler_tick_claims")).toBe(1);
+    expect(
+      await getSchedulerTickClaim(d1 as never, "", schedulerTickKey(T0)),
+    ).toMatchObject({ source: "cron" });
+  });
+
+  it("takes over its own stale waker claim so an aborted scan can finish", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const env = makeTickEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    const staleAt = Date.now() - 60_000;
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "waker", staleAt);
+
+    const result = await runSchedulerTick(env, {
+      source: "waker",
+      scheduledFor: T0,
+      staleClaimMs: 20_000,
+    });
+
+    expect(result).toMatchObject({
+      executed: true,
+      reason: "executed",
+      tickKey: schedulerTickKey(T0),
+    });
+    expect(handleScheduledMock).toHaveBeenCalledTimes(1);
+    const row = await getSchedulerTickClaim(
+      d1 as never,
+      "",
+      schedulerTickKey(T0),
+    );
+    expect(row?.source).toBe("waker");
+    expect(row?.claimed_at).toBeGreaterThan(staleAt);
+  });
+
+  it("does not take over a fresh waker claim", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const env = makeTickEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "waker", Date.now() - 1_000);
+
+    const result = await runSchedulerTick(env, {
+      source: "waker",
+      scheduledFor: T0,
+      staleClaimMs: 20_000,
+    });
+
+    expect(result).toMatchObject({
+      executed: false,
+      reason: "duplicate_tick",
+      claimedBy: "waker",
+    });
+    expect(handleScheduledMock).not.toHaveBeenCalled();
+  });
+
+  it("never takes over a cron claim, however old", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const env = makeTickEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "cron", Date.now() - 3 * HOUR_MS);
+
+    const result = await runSchedulerTick(env, {
+      source: "waker",
+      scheduledFor: T0,
+      staleClaimMs: 20_000,
+    });
+
+    expect(result).toMatchObject({
+      executed: false,
+      reason: "duplicate_tick",
+      claimedBy: "cron",
+    });
+    expect(handleScheduledMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the claimed_at compare-and-swap race-free", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const key = schedulerTickKey(T0);
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(key, "waker", 1_000);
+
+    // Someone else already refreshed the row: the stale snapshot must lose.
+    expect(
+      await takeoverSchedulerTick(d1 as never, "", key, "waker", 1_000, 5_000),
+    ).toBe(true);
+    expect(
+      await takeoverSchedulerTick(d1 as never, "", key, "waker", 1_000, 6_000),
+    ).toBe(false);
   });
 });
 

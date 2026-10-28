@@ -236,6 +236,8 @@ CI 部署约定（`.github/workflows/deploy.yml`）：GitHub Variables 中的 `T
 - **切换成 waker 独占**：先确认认领表每小时恰好一行（`SELECT tick_key, source, claimed_at FROM enotify_scheduler_tick_claims ORDER BY claimed_at DESC LIMIT 6`），再删除 `worker/wrangler.toml` 的 `[triggers]` 并部署。CI 有互锁：`[triggers]` 不存在且 `WAKER_SIGNING_KEY` 为空时部署直接失败（否则整点将没有任何调度入口）。
 - **停用回调**：`wrangler deploy --secrets-file` 是增量语义（省略某个键不会删除旧值），所以要恢复 `[triggers]` 部署，并显式执行 `npx wrangler secret delete WAKER_SIGNING_KEY`。即使忘记删，整点认领也保证不会重复执行。
 - **轮换 key**：在 waker 控制台轮换 → 旧 key 立即失效 → 更新 GitHub Secret `WAKER_SIGNING_KEY` → 重新部署。轮换窗口内的回调会因验签失败被拒（401），平台按策略重试。
+- **手动触发 / 死信重放**：平台对这类执行下发的是「投递时刻」而不是整点槽位（waker `manualTrigger` / `replayDeadLetter`），所以它们**不占用整点认领**，直接跑一轮扫描；executionId 已由 SDK 账本去重、提醒与续期仍有 KV 去重，因此不会重复推送。控制台的「立即执行」是真实运行（响应体 `trigger: "manual"`，执行日志里 `executed: true`），不是被 cron 认领吞掉的静默 no-op。
+- **超时 / 崩溃**：平台在 `timeoutSeconds` 后中断请求时没有机会释放认领，重试（同一 executionId）会在 20 秒后接管 SDK 账本占位与 `source=waker` 的整点认领，把这一小时补完；cron 的认领**永不**被接管（它没有重试，重跑会重复发送）。
 
 ## 许可证
 

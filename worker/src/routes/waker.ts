@@ -28,6 +28,13 @@ function forwardToReceiver(
   env: HonoEnv["Bindings"],
 ): Response | Promise<Response> {
   const host = new Hono<HonoEnv>();
+  // Same shape as the app-wide handler: an exception escaping the receiver (e.g.
+  // the ledger table is missing) must still be a JSON 500 the platform logs
+  // readably, not Hono's bare text/plain fallback. Nothing secret is echoed.
+  host.onError((err, c) => {
+    console.error("Unhandled error in waker receiver:", err);
+    return c.json({ error: "Internal server error" }, 500);
+  });
   host.route(
     CALLBACK_MOUNT_PATH,
     createWakerCallbackReceiver(env) as unknown as Hono<HonoEnv>,

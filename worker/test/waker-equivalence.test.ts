@@ -126,7 +126,12 @@ async function hmacHex(key: string, message: string): Promise<string> {
 }
 
 /** Deliver one signed waker callback through the real worker entry. */
-async function postWakerTick(env: Env, executionId: string) {
+async function postWakerTick(
+  env: Env,
+  executionId: string,
+  options: { scheduledFor?: number; trigger?: "schedule" | "manual" } = {},
+) {
+  const scheduledFor = options.scheduledFor ?? T0;
   const body = JSON.stringify({
     protocolVersion: 2,
     executionId,
@@ -134,11 +139,11 @@ async function postWakerTick(env: Env, executionId: string) {
     projectId: "project-enotify",
     jobName: WAKER_JOB_NAME,
     kind: "cron",
-    trigger: "schedule",
+    trigger: options.trigger ?? "schedule",
     misfire: false,
     attempt: 0,
-    scheduledFor: T0,
-    dispatchedAt: T0 + 1_000,
+    scheduledFor,
+    dispatchedAt: scheduledFor + 1_000,
     timeoutSeconds: 300,
     payload: {},
   });
@@ -236,6 +241,42 @@ describe("waker callback vs native cron business equivalence", () => {
     expect(second.json).toMatchObject({ ok: true, duplicate: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(historyOf(waker.d1)).toHaveLength(1);
+  });
+
+  it("runs a manual trigger through the real worker even when cron owns the hour", async () => {
+    const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const shared = await seededEnv({ WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    // Cron already claimed 10:00 (and has not swept yet).
+    shared.d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(`hour:${T0}`, "cron", Date.now());
+
+    // Console "run now" sends the dispatch time, not a slot.
+    const manual = await postWakerTick(shared.env, "exec-manual", {
+      scheduledFor: T0 + 40 * 60 * 1000,
+      trigger: "manual",
+    });
+
+    expect(manual.status).toBe(200);
+    expect(manual.json).toMatchObject({
+      ok: true,
+      executed: true,
+      reason: "executed",
+      trigger: "manual",
+    });
+    expect(manual.json.tickKey).toBeUndefined();
+    // The sweep really ran: one push and one history row.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(historyOf(shared.d1)).toHaveLength(1);
+    // …and it did not touch cron's hour claim.
+    expect(
+      shared.d1.db
+        .prepare("SELECT tick_key, source FROM scheduler_tick_claims")
+        .all(),
+    ).toEqual([{ tick_key: `hour:${T0}`, source: "cron" }]);
   });
 
   it("does not double-notify when both entries fire in the same hour", async () => {

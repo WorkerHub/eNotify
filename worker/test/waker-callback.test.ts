@@ -4,7 +4,10 @@ import { getMigrations } from "../src/lib/migrations";
 import type { Env } from "../src/types";
 import { CALLBACK_MOUNT_PATH } from "../src/waker";
 import { wakerRoutes } from "../src/routes/waker";
-import { WAKER_JOB_NAME } from "../src/services/waker-callback";
+import {
+  WAKER_JOB_NAME,
+  WAKER_STALE_CLAIM_SECONDS,
+} from "../src/services/waker-callback";
 import { schedulerTickKey } from "../src/db/queries/scheduler-ticks";
 import { MockKV, TEST_JWT_SECRET, TEST_SETUP_SECRET } from "./helpers";
 import { SqliteD1 } from "./support/sqlite-d1";
@@ -57,6 +60,7 @@ interface CallbackOptions {
   jobId?: string;
   jobName?: string;
   scheduledFor?: number;
+  trigger?: "schedule" | "manual";
   payload?: unknown;
 }
 
@@ -69,7 +73,7 @@ function callbackBody(options: CallbackOptions = {}): string {
     projectId: "project-1",
     jobName: options.jobName ?? WAKER_JOB_NAME,
     kind: "cron",
-    trigger: "schedule",
+    trigger: options.trigger ?? "schedule",
     misfire: false,
     attempt: 0,
     scheduledFor: options.scheduledFor ?? T0,
@@ -344,6 +348,53 @@ describe("cross-entry claim from the callback", () => {
     expect(handleScheduledMock).not.toHaveBeenCalled();
   });
 
+  it("resumes an execution that was aborted after the stale window", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    const env = makeEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    const staleAt = Date.now() - 60_000;
+    // A previous attempt started and never reported back (platform timeout / evicted isolate).
+    d1.db
+      .prepare(
+        `INSERT INTO waker_executions
+           (execution_id, job_id, job_name, scheduled_for, status, response_json, claimed_at, completed_at)
+         VALUES (?, ?, ?, ?, 'claimed', NULL, ?, NULL)`,
+      )
+      .run("exec-aborted", "job-1", WAKER_JOB_NAME, T0, staleAt);
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "waker", staleAt);
+
+    const body = callbackBody({ executionId: "exec-aborted" });
+    const result = await post(
+      env,
+      body,
+      await signedHeaders(body, { executionId: "exec-aborted" }),
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.json).toMatchObject({
+      ok: true,
+      executed: true,
+      reason: "executed",
+      tickKey: schedulerTickKey(T0),
+    });
+    expect(handleScheduledMock).toHaveBeenCalledTimes(1);
+    const ledger = d1.db
+      .prepare("SELECT status FROM waker_executions WHERE execution_id = ?")
+      .get("exec-aborted") as { status: string };
+    expect(ledger.status).toBe("succeeded");
+    const claim = d1.db
+      .prepare(
+        "SELECT claimed_at FROM scheduler_tick_claims WHERE tick_key = ?",
+      )
+      .get(schedulerTickKey(T0)) as { claimed_at: number };
+    expect(claim.claimed_at).toBeGreaterThan(staleAt);
+    expect(WAKER_STALE_CLAIM_SECONDS).toBeLessThan(30);
+  });
+
   it("releases the executionId and the hour on failure so a retry completes the job", async () => {
     const d1 = new SqliteD1();
     applySchemaV3(d1, "");
@@ -363,5 +414,67 @@ describe("cross-entry claim from the callback", () => {
     expect(retry.status).toBe(200);
     expect(retry.json).toMatchObject({ ok: true, executed: true });
     expect(handleScheduledMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs a manual trigger even when cron already owns the hour", async () => {
+    const d1 = new SqliteD1();
+    applySchemaV3(d1, "");
+    d1.db
+      .prepare(
+        "INSERT INTO scheduler_tick_claims (tick_key, source, claimed_at) VALUES (?, ?, ?)",
+      )
+      .run(schedulerTickKey(T0), "cron", Date.now());
+    const env = makeEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+
+    // Console "run now": the platform sends the dispatch time, not a slot.
+    const body = callbackBody({
+      executionId: "exec-manual",
+      scheduledFor: T0 + 40 * 60 * 1000,
+      trigger: "manual",
+    });
+    const result = await post(
+      env,
+      body,
+      await signedHeaders(body, { executionId: "exec-manual" }),
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.json).toMatchObject({
+      ok: true,
+      executed: true,
+      reason: "executed",
+      trigger: "manual",
+    });
+    expect(result.json.tickKey).toBeUndefined();
+    expect(handleScheduledMock).toHaveBeenCalledTimes(1);
+    expect(countRows(d1, "scheduler_tick_claims")).toBe(1);
+    expect(
+      d1.db
+        .prepare("SELECT source FROM scheduler_tick_claims WHERE tick_key = ?")
+        .get(schedulerTickKey(T0)),
+    ).toEqual({ source: "cron" });
+  });
+});
+
+describe("receiver internal errors", () => {
+  it("answers an escaping error with a JSON 500 instead of bare text", async () => {
+    // No schema_v3: the SDK ledger claim throws before the business handler.
+    const d1 = new SqliteD1();
+    const env = makeEnv(d1, { WAKER_SIGNING_KEY: TEST_WAKER_KEY });
+    const errorMock = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const body = callbackBody({ executionId: "exec-no-schema" });
+    const result = await post(
+      env,
+      body,
+      await signedHeaders(body, { executionId: "exec-no-schema" }),
+    );
+
+    expect(result.status).toBe(500);
+    expect(result.contentType).toContain("application/json");
+    expect(result.json).toEqual({ error: "Internal server error" });
+    expect(result.text).not.toContain(TEST_WAKER_KEY);
+    expect(handleScheduledMock).not.toHaveBeenCalled();
+    errorMock.mockRestore();
   });
 });

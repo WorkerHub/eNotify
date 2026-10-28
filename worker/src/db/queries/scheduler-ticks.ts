@@ -107,6 +107,34 @@ export async function releaseSchedulerTick(
     .run();
 }
 
+/**
+ * Take over a claim left behind by an execution that never reported back
+ * (platform timeout / evicted isolate). The hour slot still belongs to the same
+ * source; only a stale row of that source is replaced, atomically and only if
+ * nobody else changed it in the meantime (`claimed_at` compare-and-swap).
+ *
+ * A native cron claim is never taken over: it has no retry and must not re-sweep
+ * an hour it already touched, so callers only enable this for waker runs.
+ */
+export async function takeoverSchedulerTick(
+  db: D1Database,
+  prefix: string,
+  tickKey: string,
+  source: SchedulerTickSource,
+  staleClaimedAt: number,
+  now: number,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE ${schedulerTickClaimsTable(prefix)}
+          SET claimed_at = ?
+        WHERE tick_key = ? AND source = ? AND claimed_at = ?`,
+    )
+    .bind(now, tickKey, source, staleClaimedAt)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
 /** Delete claims older than `beforeEpochMs` (7-day retention, keeps the table small). */
 export async function pruneSchedulerTicks(
   db: D1Database,
