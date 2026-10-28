@@ -568,8 +568,8 @@ export function HistoryPage() {
                 <p className="text-xs text-muted-foreground mb-1">
                   {t("history.title_col")}
                 </p>
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <p className="min-w-0 truncate text-sm font-medium">
+                <div className="flex items-start gap-1.5">
+                  <p className="min-w-0 flex-1 break-words text-sm font-medium">
                     {selected.title}
                   </p>
                   <SourceBadge source={selected.trigger_source} />
