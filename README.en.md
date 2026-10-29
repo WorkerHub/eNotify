@@ -60,7 +60,7 @@ In your repository Settings → Secrets and variables → Actions, add:
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (needs Workers and D1 permissions) |
 | `JWT_SECRET`           | Any random 64-char string — e.g. `openssl rand -hex 32` |
 | `SETUP_SECRET`         | Any random string — e.g. `openssl rand -hex 16`         |
-| `WAKER_SIGNING_KEY`    | **Optional** waker callback signing key; leave unset to stay on native cron (see "Waker Scheduling") |
+| `WAKER_SIGNING_KEY`    | **Required** waker callback signing key — the only schedule entry for the hourly sweep (see "Waker Scheduling") |
 
 In Settings → Secrets and variables → Actions → Variables, add:
 
@@ -186,19 +186,21 @@ CI deployment convention (`.github/workflows/deploy.yml`): a GitHub Variables `T
 | `JWT_SECRET`   | JWT signing secret, any random 64-char string                                                            |
 | `SETUP_SECRET` | Database initialization route secret, any random string                                                  |
 | `TABLE_PREFIX` | Table prefix, three states: unset → default `enotify` (tables like `enotify_users`); explicit empty string / CI `none` → no prefix; custom value → verbatim with trailing `_` |
-| `WAKER_SIGNING_KEY` | Optional. Waker callback signing key; missing / blank / `*_PLACEHOLDER` means unconfigured → native cron only |
+| `WAKER_SIGNING_KEY` | **Required.** Waker callback signing key (the only schedule entry for the hourly sweep); missing / blank / `*_PLACEHOLDER` means unconfigured, and the CI interlock then fails the deploy |
 
-## Waker Scheduling (optional)
+## Waker Scheduling
 
-By default the hourly reminder sweep runs on the native Cloudflare Cron Trigger (`[triggers]` in `worker/wrangler.toml`, `0 * * * *` UTC). It can also be driven by the [waker](https://github.com/WorkerHub/waker) platform: **the only setting is `WAKER_SIGNING_KEY`** — leave it unset and the default cron keeps running; set it and both entries coexist, arbitrated by an hourly claim, so nothing is sent twice.
+The hourly reminder sweep is driven by the `hourly-reminder-sweep` job on the [waker](https://github.com/WorkerHub/waker) platform, and **the only setting is `WAKER_SIGNING_KEY`**. `worker/wrangler.toml` has no native Cron Trigger (`[triggers]` stays with `crons = []`), so Cloudflare runs no cron and the cron slot is free; without this key nothing would run at the top of the hour, so the CI interlock fails the deploy when it is missing.
+
+> Why `crons = []` instead of deleting the `[triggers]` section: per the [Cloudflare docs](https://developers.cloudflare.com/workers/wrangler/configuration/#triggers), commenting out or removing the `crons` key does **not** disable an existing Cron Trigger — only an explicit empty array does (wrangler only PUTs `/schedules` when `crons` is defined).
 
 > Signature verification, the timestamp window and executionId idempotency come from the official SDK source copy (`worker/src/waker/`, `@workerhub/waker-client` 2.0.0). That directory must not be edited by hand.
 
-### 1. Configure the signing key (optional)
+### 1. Configure the signing key (required)
 
 Add the GitHub Secret `WAKER_SIGNING_KEY` (value = the signing key the waker console shows **once** when the project is created; keep a copy in your password manager first). At deploy time it is only written to `$RUNNER_TEMP/secrets.json` (0600) and uploaded via `wrangler deploy --secrets-file`; CI logs only `configured` / `not configured`, **never the value**.
 
-Empty, whitespace-only, `undefined` and `*_PLACEHOLDER` values are all treated as "not configured". In that state the receiver is still mounted but fails closed: a real callback gets **500 JSON `signing_key_missing`**, a request without signature headers gets 400, and `GET /_waker/execute` gets 404 — it **never falls through to the SPA's 200 HTML**, never queries the DB, writes the ledger or runs business code. Deploying without the key always succeeds.
+Empty, whitespace-only, `undefined` and `*_PLACEHOLDER` values are all treated as "not configured". In that state the receiver is still mounted but fails closed: a real callback gets **500 JSON `signing_key_missing`**, a request without signature headers gets 400, and `GET /_waker/execute` gets 404 — it **never falls through to the SPA's 200 HTML**, never queries the DB, writes the ledger or runs business code. With no key and an empty `crons`, the CI interlock fails the deploy instead (otherwise nothing would run at the top of the hour); a local `pnpm deploy` bypasses that interlock, so confirm the secret is set before deploying.
 
 ### 2. Create the job in the waker console
 
@@ -223,13 +225,13 @@ There is no registration client, project token, dynamic registration/cancellatio
 
 ### 3. Database migration
 
-`schema_v3` adds two tables under the configured table prefix (default `enotify_waker_executions`, `enotify_scheduler_tick_claims`): the SDK's executionId idempotency ledger and the hourly claim table. After upgrading, call `POST /api/setup` once (or use "check and upgrade database" in the admin UI); migrations are additive and re-runnable. If the key is configured while the claim table does not exist yet, **both** entries stop safely (no double-send wins), so migrate before configuring the key.
+`schema_v3` adds two tables under the configured table prefix (default `enotify_waker_executions`, `enotify_scheduler_tick_claims`): the SDK's executionId idempotency ledger and the hourly claim table. After upgrading, call `POST /api/setup` once (or use "check and upgrade database" in the admin UI); migrations are additive and re-runnable. If the key is configured while the claim table does not exist yet, the waker entry stops safely (the claim runs before any send, so no double-send wins), so migrate before configuring the key.
 
-### 4. Dual run, cutover and disabling
+### 4. Current state, rollback and disabling
 
-- **Dual run**: while `[triggers]` stays, both entries exist. Each UTC hour exactly one of them wins the D1 claim and runs the sweep; the other one skips (the waker side answers `duplicate_tick`), so no notification or renewal happens twice. Claim rows are kept for 7 days for troubleshooting.
-- **Cut over to waker only**: first confirm exactly one claim row per hour (`SELECT tick_key, source, claimed_at FROM enotify_scheduler_tick_claims ORDER BY claimed_at DESC LIMIT 6`), then delete `[triggers]` from `worker/wrangler.toml` and deploy. CI interlocks: deploying with no `[triggers]` and no `WAKER_SIGNING_KEY` fails outright (otherwise nothing would run at the top of the hour).
-- **Disable callbacks**: `wrangler deploy --secrets-file` is additive (omitting a key does not delete the old value). Restore `[triggers]`, deploy, and explicitly run `npx wrangler secret delete WAKER_SIGNING_KEY`. Even if you forget, the hourly claim still prevents duplicate runs.
+- **Current state: waker only**: `worker/wrangler.toml` keeps `[triggers]` but with `crons = []` (an explicit empty array is what actually clears the Cron Trigger on Cloudflare's side), so the hourly sweep is driven by the waker job `hourly-reminder-sweep` alone.
+- **Roll back to dual run / cron only**: set `crons` back to `["0 * * * *"]` in `worker/wrangler.toml` and deploy. While both entries exist, each UTC hour exactly one of them wins the D1 claim and runs the sweep; the other one skips (the waker side answers `duplicate_tick`), so no notification or renewal happens twice. Claim rows are kept for 7 days for troubleshooting.
+- **Disable callbacks**: `wrangler deploy --secrets-file` is additive (omitting a key does not delete the old value). Restore `crons = ["0 * * * *"]` and deploy first, then explicitly run `npx wrangler secret delete WAKER_SIGNING_KEY`. Even if you forget, the hourly claim still prevents duplicate runs.
 - **Rotate the key**: rotate in the waker console → the old key stops working immediately → update the GitHub Secret `WAKER_SIGNING_KEY` → redeploy. Callbacks during the window are rejected (401) and retried by the platform.
 - **Manual trigger / dead-letter replay**: the platform sends the **dispatch time** for these runs, not a nominal slot (waker `manualTrigger` / `replayDeadLetter`), so they run the sweep **without taking the hourly claim**; the executionId ledger and the sweep's own KV dedupe keep them from sending anything twice. The console's "run now" therefore really runs (response `trigger: "manual"`, `executed: true` in the execution log) instead of being swallowed by the cron claim of that hour.
 - **Timeout / crash**: when the platform aborts a request after `timeoutSeconds` there is no chance to release the claim. A retry (same executionId) takes over the SDK ledger row and the `source=waker` hourly claim after 20 seconds and finishes the hour; a cron claim is **never** taken over (cron has no retry, and re-running would send twice).

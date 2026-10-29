@@ -60,7 +60,7 @@ npx wrangler kv namespace create ENOTIFY_KV
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 和 D1 权限）     |
 | `JWT_SECRET`           | 任意 64 位随机字符串，例如 `openssl rand -hex 32` |
 | `SETUP_SECRET`         | 任意随机字符串，例如 `openssl rand -hex 16`       |
-| `WAKER_SIGNING_KEY`    | **可选**，waker 回调验签密钥；不配则只用原生 cron（见「定时调度与 waker」） |
+| `WAKER_SIGNING_KEY`    | **必需**，waker 回调验签密钥——整点扫描的唯一调度入口（见「定时调度与 waker」） |
 
 在 Settings → Secrets and variables → Actions → Variables 中添加：
 
@@ -191,19 +191,21 @@ CI 部署约定（`.github/workflows/deploy.yml`）：GitHub Variables 中的 `T
 | `JWT_SECRET`   | JWT 签名密钥，任意 64 位随机字符串                                                                                       |
 | `SETUP_SECRET` | 数据库初始化路由密钥，任意随机字符串                                                                                     |
 | `TABLE_PREFIX` | 数据库表前缀，三态：未设置 → 默认 `enotify`（表名如 `enotify_users`）；显式空串/CI `none` → 无前缀；自定义值 → 原样补尾 `_` |
-| `WAKER_SIGNING_KEY` | 可选。waker 回调验签密钥；缺失/空白/`*_PLACEHOLDER` = 未配置，只走原生 cron |
+| `WAKER_SIGNING_KEY` | **必需**。waker 回调验签密钥（整点扫描的唯一调度入口）；缺失/空白/`*_PLACEHOLDER` = 未配置，CI 互锁会拦住部署 |
 
-## 定时调度与 waker（可选）
+## 定时调度与 waker
 
-默认用 Cloudflare 原生 Cron Trigger（`worker/wrangler.toml` 的 `[triggers]`，`0 * * * *` UTC）跑每小时提醒扫描。也可以改由 [waker](https://github.com/WorkerHub/waker) 平台调度：**唯一需要配置的只有 `WAKER_SIGNING_KEY`**——不配就走默认 cron，配了则两个入口并存、按整点认领互斥，不会重复推送。
+每小时提醒扫描由 [waker](https://github.com/WorkerHub/waker) 平台的 `hourly-reminder-sweep` 任务驱动，**唯一需要配置的只有 `WAKER_SIGNING_KEY`**。`worker/wrangler.toml` 里没有原生 Cron Trigger（`[triggers]` 保留、`crons = []`），Cloudflare 侧没有 cron、槽位已释放；没有这个 key 整点就没有任何调度入口，所以 CI 互锁会在缺 key 时直接让部署失败。
+
+> 为什么是 `crons = []` 而不是删掉 `[triggers]` 段：按 [Cloudflare 文档](https://developers.cloudflare.com/workers/wrangler/configuration/#triggers)，注释或删除 `crons` 键**不会**停用已存在的 Cron Trigger，只有显式写空数组才会清掉它（wrangler 仅在 `crons` 有定义时才 PUT `/schedules`）。
 
 > 回调的验签、时间窗与 executionId 幂等由官方 SDK 源码拷贝（`worker/src/waker/`，`@workerhub/waker-client` 2.0.0）负责，本仓不自己实现协议；该目录不得手改。
 
-### 1. 配置签名密钥（可选）
+### 1. 配置签名密钥（必需）
 
 在仓库 Settings → Secrets and variables → Actions 增加 Secret `WAKER_SIGNING_KEY`（值 = waker 控制台建项目时**一次性展示**的 signing key，先在密码管理器留底）。部署时它只写入 `$RUNNER_TEMP/secrets.json`（0600）再经 `wrangler deploy --secrets-file` 上传；CI 只打印 `configured` / `not configured` 状态，**永不打印值**。
 
-空值、纯空白、`undefined` 与以 `_PLACEHOLDER` 结尾的值一律视为「未配置」。未配置时 receiver 仍然挂载、但 fail closed：真回调返回 **500 JSON `signing_key_missing`**，缺签名头返回 400，`GET /_waker/execute` 返回 404——**绝不会落到 SPA 的 200 HTML**，也不会查库、写账本或触发业务。未配 key 的部署必然成功。
+空值、纯空白、`undefined` 与以 `_PLACEHOLDER` 结尾的值一律视为「未配置」。未配置时 receiver 仍然挂载、但 fail closed：真回调返回 **500 JSON `signing_key_missing`**，缺签名头返回 400，`GET /_waker/execute` 返回 404——**绝不会落到 SPA 的 200 HTML**，也不会查库、写账本或触发业务。此时 `[triggers]` 的 `crons` 也是空的，CI 会在部署前直接失败（防「两个调度都没了」的静默停跑）；本地 `pnpm deploy` 不经过这道互锁，部署前先确认 Secret 已配置。
 
 ### 2. 在 waker 控制台建任务
 
@@ -228,13 +230,13 @@ CI 部署约定（`.github/workflows/deploy.yml`）：GitHub Variables 中的 `T
 
 ### 3. 数据库迁移
 
-`schema_v3` 在项目的表前缀下新建两张表（默认 `enotify_waker_executions`、`enotify_scheduler_tick_claims`）：前者是 SDK 的 executionId 幂等账本，后者是整点认领表。升级部署后照常调一次 `POST /api/setup`（或管理面「检查并升级数据库」）即可；迁移只增不改、幂等可重跑。键已配但认领表还没建时，两个入口都会安全停跑（不重复发送优先），所以**先迁移再配 key**。
+`schema_v3` 在项目的表前缀下新建两张表（默认 `enotify_waker_executions`、`enotify_scheduler_tick_claims`）：前者是 SDK 的 executionId 幂等账本，后者是整点认领表。升级部署后照常调一次 `POST /api/setup`（或管理面「检查并升级数据库」）即可；迁移只增不改、幂等可重跑。键已配但认领表还没建时，waker 入口会安全停跑（认领先于发送，不重复发送优先），所以**先迁移再配 key**。
 
-### 4. 双跑、切换与停用
+### 4. 当前状态、回退与停用
 
-- **双跑**：`[triggers]` 保留期间两个入口并存。每个 UTC 整点只有一个入口在 D1 里认领成功并真正跑扫描，另一侧直接跳过（waker 侧响应 `duplicate_tick`），所以不会重复推送/重复续期；认领行保留 7 天用于排障。
-- **切换成 waker 独占**：先确认认领表每小时恰好一行（`SELECT tick_key, source, claimed_at FROM enotify_scheduler_tick_claims ORDER BY claimed_at DESC LIMIT 6`），再删除 `worker/wrangler.toml` 的 `[triggers]` 并部署。CI 有互锁：`[triggers]` 不存在且 `WAKER_SIGNING_KEY` 为空时部署直接失败（否则整点将没有任何调度入口）。
-- **停用回调**：`wrangler deploy --secrets-file` 是增量语义（省略某个键不会删除旧值），所以要恢复 `[triggers]` 部署，并显式执行 `npx wrangler secret delete WAKER_SIGNING_KEY`。即使忘记删，整点认领也保证不会重复执行。
+- **当前状态：waker 独占**：`worker/wrangler.toml` 保留 `[triggers]` 但 `crons = []`（显式置空才真正清掉 Cloudflare 侧的 Cron Trigger），整点扫描只由 waker 任务 `hourly-reminder-sweep` 驱动。
+- **回退到双跑 / 纯 cron**：把 `worker/wrangler.toml` 的 `crons` 改回 `["0 * * * *"]` 并部署。两个入口并存时每个 UTC 整点只有一个入口在 D1 里认领成功并真正跑扫描，另一侧直接跳过（waker 侧响应 `duplicate_tick`），所以不会重复推送/重复续期；认领行保留 7 天用于排障。
+- **停用回调**：`wrangler deploy --secrets-file` 是增量语义（省略某个键不会删除旧值），所以要先恢复 `crons = ["0 * * * *"]` 再部署，并显式执行 `npx wrangler secret delete WAKER_SIGNING_KEY`。即使忘记删，整点认领也保证不会重复执行。
 - **轮换 key**：在 waker 控制台轮换 → 旧 key 立即失效 → 更新 GitHub Secret `WAKER_SIGNING_KEY` → 重新部署。轮换窗口内的回调会因验签失败被拒（401），平台按策略重试。
 - **手动触发 / 死信重放**：平台对这类执行下发的是「投递时刻」而不是整点槽位（waker `manualTrigger` / `replayDeadLetter`），所以它们**不占用整点认领**，直接跑一轮扫描；executionId 已由 SDK 账本去重、提醒与续期仍有 KV 去重，因此不会重复推送。控制台的「立即执行」是真实运行（响应体 `trigger: "manual"`，执行日志里 `executed: true`），不是被 cron 认领吞掉的静默 no-op。
 - **超时 / 崩溃**：平台在 `timeoutSeconds` 后中断请求时没有机会释放认领，重试（同一 executionId）会在 20 秒后接管 SDK 账本占位与 `source=waker` 的整点认领，把这一小时补完；cron 的认领**永不**被接管（它没有重试，重跑会重复发送）。

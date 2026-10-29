@@ -88,16 +88,36 @@ jobs:
               secrets.WAKER_SIGNING_KEY = wakerKey;
               console.log("WAKER_SIGNING_KEY: configured");
             } else {
-              console.log("WAKER_SIGNING_KEY: not configured (native cron only)");
+              console.log("WAKER_SIGNING_KEY: not configured");
             }
 
-            // Interlock: once wrangler.toml has no [triggers], the waker task is
-            // the only schedule source. Losing the key as well would silently
-            // stop every hourly sweep, so fail the deploy instead.
+            // Interlock: a waker key and a native Cron Trigger are the only two
+            // schedule sources. `wrangler.toml` ships `[triggers] crons = []`
+            // (explicitly empty, which is what clears the deployed Cron
+            // Trigger), so losing the key as well would silently stop every
+            // hourly sweep — fail the deploy instead. Only a non-empty crons
+            // list counts: an absent or commented-out key sends no /schedules
+            // update at all (Cloudflare keeps the existing trigger).
             const wranglerToml = fs.readFileSync("wrangler.toml", "utf8");
-            if (!wakerConfigured && !/^\[triggers\]/m.test(wranglerToml)) {
+            const triggersHeader = wranglerToml.match(/^\[triggers\]\s*$/m);
+            const triggersBody = triggersHeader
+              ? wranglerToml
+                  .slice(triggersHeader.index + triggersHeader[0].length)
+                  .split(/^\[/m)[0]
+              : "";
+            const cronsList = triggersBody.match(/^crons\s*=\s*\[([\s\S]*?)\]/m);
+            // A comment inside the array is not an entry: strip comments before
+            // deciding whether the list actually holds a cron expression.
+            const cronsEntries = cronsList
+              ? cronsList[1].replace(/#[^\n]*/g, "")
+              : "";
+            const cronsConfigured = /[^,\s]/.test(cronsEntries);
+            console.log(
+              `native cron: ${cronsConfigured ? "configured" : "disabled"}`,
+            );
+            if (!wakerConfigured && !cronsConfigured) {
               console.error(
-                "neither [triggers] nor WAKER_SIGNING_KEY is configured: nothing would run",
+                "neither a Cron Trigger (crons) nor WAKER_SIGNING_KEY is configured: nothing would run",
               );
               process.exit(1);
             }
