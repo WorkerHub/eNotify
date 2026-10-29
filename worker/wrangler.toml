@@ -25,7 +25,12 @@ id = "KV_NAMESPACE_ID_PLACEHOLDER"
 [vars]
 TABLE_PREFIX = "TABLE_PREFIX_PLACEHOLDER"
 
+# No native Cron Trigger: the hourly reminder sweep is driven by the waker job
+# `hourly-reminder-sweep` (see README "定时调度与 waker"). Keep the section and
+# empty `crons` instead of deleting it — per Cloudflare docs, removing or
+# commenting out the `crons` key does NOT disable an existing Cron Trigger;
+# only `crons = []` does (wrangler only PUTs /schedules when `crons` is set).
 [triggers]
-crons = ["0 * * * *"]
+crons = []
 
 

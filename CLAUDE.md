@@ -81,21 +81,21 @@ The worker serves the frontend's static assets from `web/dist/` via the `ASSETS`
 
 `services/scheduler.ts` is the single business implementation. Both schedule entries go through `services/scheduler-tick.ts` `runSchedulerTick(env, { source, scheduledFor })`:
 
-- **native entry**: `scheduled()` in `index.ts`, `source: "cron"`, `scheduledFor: event.scheduledTime` (awaited, not `waitUntil`);
+- **native entry**: `scheduled()` in `index.ts`, `source: "cron"`, `scheduledFor: event.scheduledTime` (awaited, not `waitUntil`). Not scheduled in production any more — `worker/wrangler.toml` ships `crons = []`; it stays in code for the rollback path;
 - **waker entry**: `services/waker-callback.ts`, job `hourly-reminder-sweep`, `source: "waker"`, `scheduledFor: ctx.scheduledFor`; mounted at `/_waker` by `routes/waker.ts` using the verbatim SDK copy in `worker/src/waker/` (waker-client 2.0.0 — never hand-edit that directory).
 
 The guard in front of the business pass is one atomic D1 claim per UTC hour (`{prefix}scheduler_tick_claims`, `INSERT … ON CONFLICT(tick_key) DO NOTHING` + `meta.changes`), so cron and waker can never sweep the same hour twice; the SDK's own `{prefix}waker_executions` ledger dedupes executionId retries. Failure semantics: cron keeps the claim on failure (no re-run that could double-send), waker releases it and rethrows so the platform retry (same executionId) completes the hour. Claims are pruned after 7 days.
 
 Two cases go beyond the plain table: manual triggers and dead-letter replays arrive with `trigger: "manual"` and `scheduledFor` = the dispatch time, so they run the sweep **without taking the hourly slot** (the executionId ledger and KV dedupe keep them idempotent) — otherwise the console's "run now" would be swallowed by the cron claim of that hour. And when the platform aborts an execution (timeout / evicted isolate) the claim is never released, so a waker retry may take over its own orphaned claim after `WAKER_STALE_CLAIM_SECONDS` (20s, smaller than `backoffSeconds` 30) and finish the hour; a cron claim is never taken over.
 
-Waker is optional and the **only** setting is `WAKER_SIGNING_KEY` (GitHub Secret → `wrangler deploy --secrets-file`): unset/blank/`*_PLACEHOLDER` means native cron only. The gate is `wakerSigningKey()` in `services/scheduler-tick.ts`; the receiver stays mounted and fails closed with 500 JSON `signing_key_missing`. Do not reintroduce `WAKER_MODE`/`WAKER_URL`/project tokens — the SDK's `mountWakerReceiver`, `createWakerClient*`, `syncManifest` and `resolveWakerMode` must stay uncalled.
+The hourly sweep is driven by the waker job alone. `worker/wrangler.toml` keeps `[triggers]` with `crons = []` — an explicit empty array, because per Cloudflare docs removing or commenting out the `crons` key does **not** disable an existing Cron Trigger (wrangler only PUTs `/schedules` when `crons` is defined), so deleting the section would leave the old cron running. The **only** setting is `WAKER_SIGNING_KEY` (GitHub Secret → `wrangler deploy --secrets-file`): unset/blank/`*_PLACEHOLDER` means unconfigured, and `deploy.yml` then fails the deploy because no non-empty `crons` exists either. The gate is `wakerSigningKey()` in `services/scheduler-tick.ts`; the receiver stays mounted and fails closed with 500 JSON `signing_key_missing`. Do not reintroduce `WAKER_MODE`/`WAKER_URL`/project tokens — the SDK's `mountWakerReceiver`, `createWakerClient*`, `syncManifest` and `resolveWakerMode` must stay uncalled.
 
 **Cloudflare bindings**:
 
 - `DB` — D1 database
 - `KV` — KV namespace (used for scheduler deduplication and status)
 - `ASSETS` — static file serving
-- Secrets: `JWT_SECRET`, `SETUP_SECRET`, and optional `WAKER_SIGNING_KEY` (empty ⇒ native cron only)
+- Secrets: `JWT_SECRET`, `SETUP_SECRET`, and `WAKER_SIGNING_KEY` (required in production — the hourly sweep's only entry point; empty ⇒ `deploy.yml` fails unless `crons` is non-empty)
 - Env var: `TABLE_PREFIX` (three states: unset → default `enotify`, tables like `enotify_users`; custom value → verbatim with trailing `_`; explicit `""`/CI `none` → no prefix; allows shared DB with prefix isolation)
 
 ### Frontend (`web/`)
