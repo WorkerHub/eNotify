@@ -4,6 +4,16 @@
 
 A smart notification management system that helps you track expiry dates and expenses, sending reminders through multiple channels.
 
+## Screenshots
+
+<p align="center">
+  <img src=".github/assets/imgs/home.webp" alt="eNotify dashboard: next due countdown, monthly spend and subscription reminders at a glance" width="100%">
+</p>
+
+| Notifications | Admin |
+| --- | --- |
+| ![Notification list: due dates with lunar calendar, status, reminder settings and actions](.github/assets/imgs/items.webp) | ![Admin user management: roles, status and verification](.github/assets/imgs/admin.webp) |
+
 ## Features
 
 - **Multi-user** — Registration/login, first user becomes admin automatically

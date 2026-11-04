@@ -4,6 +4,16 @@
 
 智能通知管理系统，帮助您追踪各类到期事项/提醒事项与费用，并通过多种渠道发送提醒通知。
 
+## 界面预览
+
+<p align="center">
+  <img src=".github/assets/imgs/home.webp" alt="eNotify 仪表盘：最近到期倒计时、本月支出与订阅提醒概览" width="100%">
+</p>
+
+| 通知管理 | 管理后台 |
+| --- | --- |
+| ![通知管理：列表展示到期日期与农历、状态、提醒设置和操作](.github/assets/imgs/items.webp) | ![管理后台：用户管理的角色、状态与验证情况](.github/assets/imgs/admin.webp) |
+
 ## 功能特性
 
 - **多用户支持** — 注册/登录，首位用户自动成为管理员
