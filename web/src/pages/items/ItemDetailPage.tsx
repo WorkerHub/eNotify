@@ -1125,290 +1125,290 @@ export function ItemDetailPage() {
               </form>
             </section>
           )}
-
-          {/* Payment / Renewal history */}
-          <section className="bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
-            <h2 className="text-title">{t("items.renewHistory")}</h2>
-
-            {payments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("dashboard.noData")}
-              </p>
-            ) : (
-              <>
-                {/* Desktop */}
-                <div className="hidden md:block rounded-lg border overflow-hidden text-sm">
-                  <table className="w-full">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        {[
-                          t("common.date"),
-                          t("items.amount"),
-                          t("items.type"),
-                          t("common.note"),
-                          t("common.period"),
-                          t("common.actions"),
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-3 py-2 text-caption font-medium text-muted-foreground"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {payments.map((p) =>
-                        editingPayment?.id === p.id ? (
-                          <tr key={p.id} className="bg-muted/20">
-                            <td className="px-3 py-2">
-                              <input
-                                type="date"
-                                className={cn(INPUT, "py-1")}
-                                value={editingPayment.date}
-                                onChange={(e) =>
-                                  setEditingPayment({
-                                    ...editingPayment,
-                                    date: e.target.value,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                className={cn(INPUT, "py-1 w-24")}
-                                value={editingPayment.amount}
-                                onChange={(e) =>
-                                  setEditingPayment({
-                                    ...editingPayment,
-                                    amount: e.target.value,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {t(`items.paymentType.${p.type}`)}
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                className={cn(INPUT, "py-1")}
-                                value={editingPayment.note}
-                                onChange={(e) =>
-                                  setEditingPayment({
-                                    ...editingPayment,
-                                    note: e.target.value,
-                                  })
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
-                              {p.period_start && p.period_end
-                                ? `${p.period_start} → ${p.period_end}`
-                                : "—"}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={handleSavePayment}
-                                  className="p-1 rounded hover:bg-accent text-success"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingPayment(null)}
-                                  className="p-1 rounded hover:bg-accent"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          <tr key={p.id} className="hover:bg-muted/20">
-                            <td className="px-3 py-2 tabular-nums">
-                              {p.date.slice(0, 10)}
-                            </td>
-                            <td className="px-3 py-2 font-medium tabular-nums">
-                              {p.currency} {p.amount.toFixed(2)}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {t(`items.paymentType.${p.type}`)}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {p.note || "—"}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
-                              {p.period_start && p.period_end
-                                ? `${p.period_start} → ${p.period_end}`
-                                : "—"}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setEditingPayment({
-                                      id: p.id,
-                                      date: p.date.slice(0, 10),
-                                      amount: String(p.amount),
-                                      note: p.note,
-                                    })
-                                  }
-                                  className="p-1 rounded hover:bg-accent"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePayment(p.id)}
-                                  className="p-1 rounded hover:bg-accent text-destructive"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ),
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile */}
-                <div className="md:hidden space-y-2">
-                  {payments.map((p) =>
-                    editingPayment?.id === p.id ? (
-                      <div
-                        key={p.id}
-                        className="rounded-lg border border-primary/30 p-3 text-sm space-y-2 bg-muted/20"
-                      >
-                        <div className="space-y-2">
-                          <input
-                            type="date"
-                            className={cn(INPUT, "py-1.5 w-full")}
-                            value={editingPayment.date}
-                            onChange={(e) =>
-                              setEditingPayment({
-                                ...editingPayment,
-                                date: e.target.value,
-                              })
-                            }
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
-                            className={cn(INPUT, "py-1.5 w-full")}
-                            value={editingPayment.amount}
-                            onChange={(e) =>
-                              setEditingPayment({
-                                ...editingPayment,
-                                amount: e.target.value,
-                              })
-                            }
-                            placeholder={t("items.amount")}
-                          />
-                          <input
-                            className={cn(INPUT, "py-1.5 w-full")}
-                            value={editingPayment.note}
-                            onChange={(e) =>
-                              setEditingPayment({
-                                ...editingPayment,
-                                note: e.target.value,
-                              })
-                            }
-                            placeholder={t("common.note")}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={handleSavePayment}
-                            className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground"
-                          >
-                            {t("common.save")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingPayment(null)}
-                            className="text-xs px-3 py-1.5 rounded bg-accent"
-                          >
-                            {t("common.cancel")}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        key={p.id}
-                        className="rounded-lg border p-3 text-sm space-y-1"
-                      >
-                        <div className="flex justify-between font-medium">
-                          <span>{p.date.slice(0, 10)}</span>
-                          <span className="tabular-nums">
-                            {p.currency} {p.amount.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground text-xs">
-                          <span>
-                            {t(`items.paymentType.${p.type}`)}
-                            {p.note ? ` · ${p.note}` : ""}
-                          </span>
-                          {p.period_start && p.period_end && (
-                            <span>
-                              {p.period_start} → {p.period_end}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditingPayment({
-                                id: p.id,
-                                date: p.date.slice(0, 10),
-                                amount: String(p.amount),
-                                note: p.note,
-                              })
-                            }
-                            className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/70"
-                          >
-                            {t("common.edit")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePayment(p.id)}
-                            className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20"
-                          >
-                            {t("common.delete")}
-                          </button>
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* Delete */}
-          <section className="flex">
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-4 py-2 rounded-md border border-destructive/30 text-destructive text-body-sm font-medium hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              {t("common.delete")}
-            </button>
-          </section>
         </div>
 
+        {/* Payment / Renewal history */}
+        <section className="md:col-span-2 mt-8 md:mt-0 bg-card rounded-lg border shadow-1 p-4 md:p-6 space-y-4">
+          <h2 className="text-title">{t("items.renewHistory")}</h2>
+
+          {payments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("dashboard.noData")}
+            </p>
+          ) : (
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block rounded-lg border overflow-x-auto text-sm">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {[
+                        t("common.date"),
+                        t("items.amount"),
+                        t("items.type"),
+                        t("common.note"),
+                        t("common.period"),
+                        t("common.actions"),
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="text-left px-3 py-2 text-caption font-medium text-muted-foreground whitespace-nowrap"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {payments.map((p) =>
+                      editingPayment?.id === p.id ? (
+                        <tr key={p.id} className="bg-muted/20">
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <input
+                              type="date"
+                              className={cn(INPUT, "py-1")}
+                              value={editingPayment.date}
+                              onChange={(e) =>
+                                setEditingPayment({
+                                  ...editingPayment,
+                                  date: e.target.value,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className={cn(INPUT, "py-1 w-24")}
+                              value={editingPayment.amount}
+                              onChange={(e) =>
+                                setEditingPayment({
+                                  ...editingPayment,
+                                  amount: e.target.value,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                            {t(`items.paymentType.${p.type}`)}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <input
+                              className={cn(INPUT, "py-1")}
+                              value={editingPayment.note}
+                              onChange={(e) =>
+                                setEditingPayment({
+                                  ...editingPayment,
+                                  note: e.target.value,
+                                })
+                              }
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
+                            {p.period_start && p.period_end
+                              ? `${p.period_start} → ${p.period_end}`
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={handleSavePayment}
+                                className="p-1 rounded hover:bg-accent text-success"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingPayment(null)}
+                                className="p-1 rounded hover:bg-accent"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={p.id} className="hover:bg-muted/20">
+                          <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                            {p.date.slice(0, 10)}
+                          </td>
+                          <td className="px-3 py-2 font-medium tabular-nums whitespace-nowrap">
+                            {p.currency} {p.amount.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                            {t(`items.paymentType.${p.type}`)}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                            {p.note || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground text-caption whitespace-nowrap tabular-nums">
+                            {p.period_start && p.period_end
+                              ? `${p.period_start} → ${p.period_end}`
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingPayment({
+                                    id: p.id,
+                                    date: p.date.slice(0, 10),
+                                    amount: String(p.amount),
+                                    note: p.note,
+                                  })
+                                }
+                                className="p-1 rounded hover:bg-accent"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePayment(p.id)}
+                                className="p-1 rounded hover:bg-accent text-destructive"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile */}
+              <div className="md:hidden space-y-2">
+                {payments.map((p) =>
+                  editingPayment?.id === p.id ? (
+                    <div
+                      key={p.id}
+                      className="rounded-lg border border-primary/30 p-3 text-sm space-y-2 bg-muted/20"
+                    >
+                      <div className="space-y-2">
+                        <input
+                          type="date"
+                          className={cn(INPUT, "py-1.5 w-full")}
+                          value={editingPayment.date}
+                          onChange={(e) =>
+                            setEditingPayment({
+                              ...editingPayment,
+                              date: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          className={cn(INPUT, "py-1.5 w-full")}
+                          value={editingPayment.amount}
+                          onChange={(e) =>
+                            setEditingPayment({
+                              ...editingPayment,
+                              amount: e.target.value,
+                            })
+                          }
+                          placeholder={t("items.amount")}
+                        />
+                        <input
+                          className={cn(INPUT, "py-1.5 w-full")}
+                          value={editingPayment.note}
+                          onChange={(e) =>
+                            setEditingPayment({
+                              ...editingPayment,
+                              note: e.target.value,
+                            })
+                          }
+                          placeholder={t("common.note")}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSavePayment}
+                          className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground"
+                        >
+                          {t("common.save")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingPayment(null)}
+                          className="text-xs px-3 py-1.5 rounded bg-accent"
+                        >
+                          {t("common.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      key={p.id}
+                      className="rounded-lg border p-3 text-sm space-y-1"
+                    >
+                      <div className="flex justify-between font-medium">
+                        <span>{p.date.slice(0, 10)}</span>
+                        <span className="tabular-nums">
+                          {p.currency} {p.amount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground text-xs">
+                        <span>
+                          {t(`items.paymentType.${p.type}`)}
+                          {p.note ? ` · ${p.note}` : ""}
+                        </span>
+                        {p.period_start && p.period_end && (
+                          <span>
+                            {p.period_start} → {p.period_end}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditingPayment({
+                              id: p.id,
+                              date: p.date.slice(0, 10),
+                              amount: String(p.amount),
+                              note: p.note,
+                            })
+                          }
+                          className="text-xs px-2 py-1 rounded bg-accent hover:bg-accent/70"
+                        >
+                          {t("common.edit")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePayment(p.id)}
+                          className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20"
+                        >
+                          {t("common.delete")}
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Delete */}
+        <section className="flex mt-8 md:mt-0">
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-destructive/30 text-destructive text-body-sm font-medium hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            {t("common.delete")}
+          </button>
+        </section>
+
         {/* Right rail: due summary card (§5 items/:id) */}
-        <aside className="mt-8 md:mt-0 md:sticky md:top-6">
+        <aside className="md:col-start-2 md:row-start-1 mt-8 md:mt-0 md:sticky md:top-6">
           <div className="rounded-lg border bg-card p-4 shadow-1 md:p-6 space-y-4">
             <h2 className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
               {t("detail.summary")}
