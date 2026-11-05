@@ -26,6 +26,7 @@ A smart notification management system that helps you track expiry dates and exp
 - **Per-Item Channel Selection** — Each notification item can select multiple channels; if unset, only the default channel is used
 - **Scheduled Reminders** — Hourly auto-check with global notification hours and per-item override
 - **Notification History** — View all sent notifications with delivery status
+- **Vikunja Integration** — Vikunja task reminders and overdue events are pushed through the eNotify default channel and logged in the history
 - **Two-Factor Auth** — TOTP (authenticator app), Email OTP, Passkey
 - **Password Reset** — Reset password via email verification code
 - **Admin Panel** — User management, system settings, user impersonation
@@ -174,6 +175,51 @@ curl https://your-worker.workers.dev/api/me/api-keys -H "Cookie: access_token=..
 # Revoke, effective immediately
 curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: access_token=..."
 ```
+
+## Vikunja Integration (inbound webhook)
+
+A self-hosted [Vikunja](https://vikunja.io) instance can push task reminders and overdue events to eNotify, which fans them out through the user's default channel (the same default-channel semantics as `POST /api/notify`). Every delivery is recorded in the notification history with the source `vikunja`.
+
+**Apply the migration after upgrading.** The feature depends on the `{prefix}vikunja_integrations` table created by `schema_v4`: after deploying, an admin runs "Check and upgrade database" once (or `POST /api/setup` / `POST /api/admin/setup`) so the migration reaches `schema_v4`. A legacy database that the in-place transition only stamped with `schema_v1` needs one more run to apply `schema_v2`–`schema_v4`.
+
+**Prerequisite: enable webhooks on the Vikunja server.** The feature is controlled by the `webhooks.enabled` config option (enabled by default); if it was turned off, set `webhooks.enabled: true` in `config.yml` (or `VIKUNJA_WEBHOOKS_ENABLED=true`) and restart, then Vikunja shows the Webhooks section under the account settings. Each user creates one webhook there with the URL and secret generated below.
+
+**1. Create the integration** (requires a login session)
+
+```bash
+curl -X POST https://your-worker.workers.dev/api/me/integrations/vikunja \
+  -H "Content-Type: application/json" \
+  -H "Cookie: access_token=<access_token after login>" \
+  -d '{"base_url": "https://vikunja.example.com"}'
+```
+
+`base_url` is optional and is used to build the task link `{base_url}/tasks/{task.id}` in the push (empty means no link). The `secret` in the response is shown **only once** — paste it into the Vikunja webhook's Secret field; a lost secret can only be rotated. The `hook_token` is safe to display and forms the inbound URL:
+
+`https://your-worker.workers.dev/api/integrations/vikunja/<hook_token>`
+
+Each user has at most one integration (a second create returns 409). Management endpoints (same session-only auth as `/api/me/api-keys`):
+
+| Method and path | Description |
+| --- | --- |
+| `POST /api/me/integrations/vikunja` | Create; 201 returns `hook_token` and the one-time `secret`; 409 if it already exists |
+| `GET /api/me/integrations/vikunja` | Read; `{configured:false}` when absent, **never returns the secret** (only `secret_configured:true`) |
+| `PUT /api/me/integrations/vikunja` | Update `enabled` (boolean) and `base_url` (must be `http://` or `https://`, trailing slashes trimmed, empty string clears it) |
+| `POST /api/me/integrations/vikunja/regenerate-secret` | Rotate the secret, returning the new plaintext once; 404 if absent |
+| `DELETE /api/me/integrations/vikunja` | Delete the integration (inbound requests then return 404); 404 if absent |
+
+**2. Create the webhook in Vikunja**
+
+- Target URL: the inbound URL above;
+- Secret: the secret returned on create/rotation;
+- Events: select only `task.reminder.fired` (reminder fired) and `tasks.overdue` (overdue summary). `task.overdue` overlaps with `tasks.overdue`; selecting both delivers two messages, so keep only the summary.
+
+**3. Inbound contract**
+
+- Endpoint: `POST /api/integrations/vikunja/:hookToken`. It accepts neither a session nor an API key — only the HMAC signature.
+- Signature: Vikunja sends HMAC-SHA256 of the raw request body in `X-Vikunja-Signature` (lowercase hex); eNotify compares it in constant time with that integration's secret. A missing, malformed or mismatching signature always yields `401 {"error":"Invalid signature"}`.
+- Events: the three adapted User webhooks events are `task.reminder.fired`, `task.overdue` and `tasks.overdue`; any other `event_name` returns 200 `{ignored:true}` without sending.
+- Delivery semantics match `/api/notify`: only the default channel, 400 without a default channel and no send, no notification-hours gate, no eNotify items created, no dedupe, and the response waits for delivery (`200 {success:true, results}`).
+- Status codes: unknown hookToken 404, integration disabled 403, bad signature 401, body not JSON or missing `event_name` 400, known event with incomplete data 200 `{ignored:true}` (logged only), unknown event 200 `{ignored:true}`. Rate limit: 60 requests/minute per hookToken.
 
 ## Environment Variables
 

@@ -1,4 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getMigrations } from "../src/lib/migrations";
+import {
+  ensureLedgerTable,
+  recordMigration,
+  splitStatements,
+} from "../src/lib/migrations-runner";
 import { runSetup } from "../src/lib/setup";
 import { sendNotifications } from "../src/services/notify/index";
 import type { Env, NotificationConfig } from "../src/types";
@@ -235,6 +241,7 @@ describe("notification_configs slack_config migration", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -243,6 +250,7 @@ describe("notification_configs slack_config migration", () => {
       { name: "schema_v1", status: "skipped" },
       { name: "schema_v2", status: "skipped" },
       { name: "schema_v3", status: "skipped" },
+      { name: "schema_v4", status: "skipped" },
     ]);
 
     const rows = d1.db
@@ -419,6 +427,7 @@ describe("retired channel cleanup migration", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -427,6 +436,7 @@ describe("retired channel cleanup migration", () => {
       { name: "schema_v1", status: "skipped" },
       { name: "schema_v2", status: "skipped" },
       { name: "schema_v3", status: "skipped" },
+      { name: "schema_v4", status: "skipped" },
     ]);
 
     expect(enabledChannelsOf(d1, "u1")).toBe('["telegram"]');
@@ -487,6 +497,7 @@ describe("fresh install schema", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -502,5 +513,200 @@ describe("fresh install schema", () => {
     expect(names).toContain("slack_config");
     expect(names).toContain("feishu_config");
     expect(names).toContain("discord_config");
+  });
+});
+
+// ─── Vikunja integration (schema_v4) ─────────────────────────────────────────
+
+const VIKUNJA_TABLE = `${PREFIX}vikunja_integrations`;
+const VIKUNJA_INDEX = `idx_${PREFIX}vikunja_integrations_hook_token`;
+
+function hasTable(d1: SqliteD1, name: string): boolean {
+  return (
+    d1.db
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+      )
+      .get(name) !== undefined
+  );
+}
+
+function indexInfo(
+  d1: SqliteD1,
+  table: string,
+): { name: string; unique: number }[] {
+  return d1.db.prepare(`PRAGMA index_list(${table})`).all() as {
+    name: string;
+    unique: number;
+  }[];
+}
+
+/**
+ * Apply only the named migrations — real DDL plus real ledger rows — which is
+ * exactly the state a database left behind by an older release is in.
+ */
+async function applyMigrationsOnly(
+  d1: SqliteD1,
+  names: string[],
+): Promise<void> {
+  const db = d1 as unknown as D1Database;
+  await ensureLedgerTable(db, PREFIX);
+  const wanted = getMigrations(PREFIX).filter((m) => names.includes(m.name));
+  for (const migration of wanted) {
+    for (const statement of splitStatements(migration.sql)) {
+      d1.db.exec(statement);
+    }
+    await recordMigration(db, PREFIX, migration.name);
+  }
+}
+
+function seedVikunjaUserRow(d1: SqliteD1, id: string): void {
+  d1.db
+    .prepare(
+      `INSERT INTO ${PREFIX}users (id, email, password_hash, created_at, updated_at)
+       VALUES (?, ?, 'hash', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    )
+    .run(id, `${id}@example.com`);
+}
+
+function seedVikunjaRow(d1: SqliteD1, userId: string, hookToken: string): void {
+  d1.db
+    .prepare(
+      `INSERT INTO ${VIKUNJA_TABLE}
+         (user_id, hook_token, secret, base_url, enabled, created_at, updated_at)
+       VALUES (?, ?, 'secret-value', 'https://vikunja.example.com', 1, ?, ?)`,
+    )
+    .run(
+      userId,
+      hookToken,
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    );
+}
+
+describe("vikunja_integrations migration (schema_v4)", () => {
+  it("creates the table and the unique hook_token index on a fresh install", async () => {
+    const d1 = new SqliteD1();
+
+    const result = await runSetup(makeEnv(d1));
+    expect(result).toEqual({
+      success: true,
+      effectivePrefix: "en_",
+      migrations: [
+        { name: "schema_v1", status: "applied" },
+        { name: "schema_v2", status: "applied" },
+        { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
+      ],
+    });
+
+    expect(hasTable(d1, VIKUNJA_TABLE)).toBe(true);
+    const columns = d1.db
+      .prepare(`PRAGMA table_info(${VIKUNJA_TABLE})`)
+      .all() as ColumnInfo[];
+    expect(columns.map((c) => c.name)).toEqual([
+      "user_id",
+      "hook_token",
+      "secret",
+      "base_url",
+      "enabled",
+      "created_at",
+      "updated_at",
+    ]);
+    const hookTokenIndex = indexInfo(d1, VIKUNJA_TABLE).find(
+      (index) => index.name === VIKUNJA_INDEX,
+    );
+    expect(hookTokenIndex).toMatchObject({ unique: 1 });
+  });
+
+  it("enforces the unique hook token", async () => {
+    const d1 = new SqliteD1();
+    await runSetup(makeEnv(d1));
+    seedVikunjaUserRow(d1, "u1");
+    seedVikunjaUserRow(d1, "u2");
+    seedVikunjaRow(d1, "u1", "vhk_one");
+
+    expect(() => seedVikunjaRow(d1, "u2", "vhk_one")).toThrow(/UNIQUE/);
+    expect(
+      d1.db.prepare(`SELECT COUNT(*) AS count FROM ${VIKUNJA_TABLE}`).get(),
+    ).toEqual({ count: 1 });
+  });
+
+  it("upgrades a v3 database in place, keeps its data and is idempotent", async () => {
+    const d1 = new SqliteD1();
+    await applyMigrationsOnly(d1, ["schema_v1", "schema_v2", "schema_v3"]);
+    seedVikunjaUserRow(d1, "u1");
+    d1.db
+      .prepare(
+        `INSERT INTO ${PREFIX}notification_configs
+           (user_id, enabled_channels, default_channel, updated_at)
+         VALUES ('u1', '["telegram"]', 'telegram', '2026-01-01T00:00:00.000Z')`,
+      )
+      .run();
+    expect(hasTable(d1, VIKUNJA_TABLE)).toBe(false);
+
+    const upgraded = await runSetup(makeEnv(d1));
+    expect(upgraded).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "en_",
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "skipped" },
+        { name: "schema_v3", status: "skipped" },
+        { name: "schema_v4", status: "applied" },
+      ],
+    });
+    expect(hasTable(d1, VIKUNJA_TABLE)).toBe(true);
+    expect(
+      indexInfo(d1, VIKUNJA_TABLE).some(
+        (index) => index.name === VIKUNJA_INDEX && index.unique === 1,
+      ),
+    ).toBe(true);
+    // Pre-existing rows survive the upgrade untouched.
+    expect(
+      d1.db
+        .prepare(`SELECT id, email FROM ${PREFIX}users WHERE id = 'u1'`)
+        .get(),
+    ).toEqual({ id: "u1", email: "u1@example.com" });
+    expect(
+      d1.db
+        .prepare(
+          `SELECT enabled_channels, default_channel FROM ${PREFIX}notification_configs WHERE user_id = 'u1'`,
+        )
+        .get(),
+    ).toEqual({
+      enabled_channels: '["telegram"]',
+      default_channel: "telegram",
+    });
+
+    seedVikunjaRow(d1, "u1", "vhk_upgrade");
+
+    const second = await runSetup(makeEnv(d1));
+    expect(second).toEqual({
+      success: true,
+      alreadyInitialized: true,
+      effectivePrefix: "en_",
+      migrations: [
+        { name: "schema_v1", status: "skipped" },
+        { name: "schema_v2", status: "skipped" },
+        { name: "schema_v3", status: "skipped" },
+        { name: "schema_v4", status: "skipped" },
+      ],
+    });
+    expect(
+      d1.db
+        .prepare(
+          `SELECT user_id, hook_token, base_url, enabled FROM ${VIKUNJA_TABLE}`,
+        )
+        .all(),
+    ).toEqual([
+      {
+        user_id: "u1",
+        hook_token: "vhk_upgrade",
+        base_url: "https://vikunja.example.com",
+        enabled: 1,
+      },
+    ]);
   });
 });

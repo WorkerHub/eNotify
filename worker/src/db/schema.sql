@@ -138,3 +138,20 @@ CREATE TABLE IF NOT EXISTS {prefix}scheduler_tick_claims (
 
 CREATE INDEX IF NOT EXISTS idx_{prefix}scheduler_tick_claims_claimed_at
   ON {prefix}scheduler_tick_claims(claimed_at);
+
+-- Vikunja inbound webhook integration: one row per user (schema_v4).
+-- The hook token only locates the user, every delivery must pass the HMAC
+-- check with the secret. The secret is intentionally stored in plaintext
+-- (HMAC needs the raw key), so the management API never returns it.
+CREATE TABLE IF NOT EXISTS {prefix}vikunja_integrations (
+  user_id    TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
+  hook_token TEXT NOT NULL,
+  secret     TEXT NOT NULL,
+  base_url   TEXT NOT NULL DEFAULT '',
+  enabled    INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{prefix}vikunja_integrations_hook_token
+  ON {prefix}vikunja_integrations(hook_token);

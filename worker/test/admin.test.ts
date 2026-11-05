@@ -31,6 +31,7 @@ describe("POST /api/admin/setup", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -120,6 +121,7 @@ describe("POST /api/admin/setup", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
   });
