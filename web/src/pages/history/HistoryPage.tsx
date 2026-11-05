@@ -25,6 +25,7 @@ const SOURCE_LABEL_KEYS: Record<string, string> = {
   item: "history.sourceItem",
   api: "history.sourceApi",
   test: "history.sourceTest",
+  vikunja: "history.sourceVikunja",
 };
 
 function SourceBadge({ source }: { source: string | null }) {
