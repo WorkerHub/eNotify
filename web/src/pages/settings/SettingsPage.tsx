@@ -1287,7 +1287,10 @@ function IntegrationsTab() {
     } catch (err: any) {
       if (err?.status === 409) {
         setError(t("integrations.existsError"));
-        await fetchIntegration();
+        // 409 means the server already has one (e.g. the first GET failed), so
+        // this refresh must also seed the address field — otherwise the input
+        // shows empty and the next save would wipe the stored base_url.
+        await fetchIntegration({ syncInput: true });
       } else {
         setError(err.message || t("common.error"));
       }
@@ -1972,17 +1975,33 @@ export function SettingsPage() {
     if (!btn || !bar) return;
     const b = btn.getBoundingClientRect();
     const r = bar.getBoundingClientRect();
-    setUnderline({
+    const next = {
       left: b.left - r.left,
       top: b.bottom - r.top - 2,
       width: b.width,
-    });
+    };
+    // Keep the previous object when nothing moved: the observer below can fire
+    // more than once for a single layout change.
+    setUnderline((prev) =>
+      prev.left === next.left &&
+      prev.top === next.top &&
+      prev.width === next.width
+        ? prev
+        : next,
+    );
   }, [activeTab]);
   useLayoutEffect(() => {
     measureUnderline();
-    // A resize can move the active tab to another row of the wrapped bar.
-    window.addEventListener("resize", measureUnderline);
-    return () => window.removeEventListener("resize", measureUnderline);
+    // Re-measure whenever the strip or any tab changes size: switching the app
+    // language re-labels every tab (new widths, and the wrapped bar can change
+    // row count, so the line would otherwise stay under the wrong row), and a
+    // window resize can move the active tab to another row as well.
+    const observer = new ResizeObserver(measureUnderline);
+    if (tabBarRef.current) observer.observe(tabBarRef.current);
+    for (const el of Object.values(tabRefs.current)) {
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
   }, [measureUnderline]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
