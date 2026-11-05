@@ -65,18 +65,22 @@
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_notification_history RENAME TO enotify_notification_history_bak_<YYYYMMDD>"
    ```
 
-   另有一张表必须单独确认：`enotify_vikunja_integrations`（本版 `schema_v4` 新建，带指向 `enotify_users` 的外键）。部署后点过「检查并升级数据库」的库才会有它；存在时必须一起改名，否则第 3 步会因为「表已存在」跳过建表，而它的外键已经被 `RENAME TO` 改写指向备份用户表，之后新建用户的集成记录会报 `FOREIGN KEY constraint failed`。先查它是否存在：
+   另有一张表必须单独确认：`enotify_vikunja_integrations`（本版 `schema_v4` 新建，带指向 `enotify_users` 的外键）。部署后点过「检查并升级数据库」的库才会有它；存在时必须一起改名（并按下面三条命令处理索引），否则第 3 步会因为「表已存在」跳过建表，而它的外键已经被 `RENAME TO` 改写指向备份用户表，之后新建用户的集成记录会报 `FOREIGN KEY constraint failed`。先查它是否存在：
 
    ```bash
    npx wrangler d1 execute <D1_NAME> --remote --command \
      "SELECT name FROM sqlite_master WHERE type='table' AND name='enotify_vikunja_integrations'"
    ```
 
-   有返回就执行下面这条（无返回则跳过，第 3 步会新建）：
+   有返回就按顺序执行下面三条（无返回则全部跳过，第 3 步会新建）：
 
    ```bash
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_vikunja_integrations RENAME TO enotify_vikunja_integrations_bak_<YYYYMMDD>"
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_vikunja_integrations_hook_token"
+   npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_bak_hook_token ON enotify_vikunja_integrations_bak_<YYYYMMDD>(hook_token)"
    ```
+
+   **为什么不能只改名**：SQLite 的 `ALTER TABLE ... RENAME TO` 会把带显式名字的索引跟着表保留在原名字下，`idx_enotify_vikunja_integrations_hook_token` 会留在备份表上；第 3 步新装的 `CREATE UNIQUE INDEX IF NOT EXISTS` 见到名字已存在会**静默跳过**，活表就没有 `hook_token` 唯一约束（重复 token 能插入，入站按 token 查用户会变成不确定）。因此必须先释放规范索引名，再给备份快照另建一个改名后的唯一索引；三条命令的顺序不能调换。
 
    该表由 `schema_v4` 新建，切换前没有需要迁移的历史数据（全站档导出也不含它）；如果你在切换前已经建过集成，切换完成后重新创建一次即可（新 secret 只显示一次）。
 
@@ -91,7 +95,14 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 
 应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。
 
-**回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`），并把第 1 小步挪开的账本表改回原名；然后重跑一次 setup 让它按当前真实结构决定打戳或跳过。
+**回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`）。集成表改回后再把索引名恢复成规范名：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_vikunja_integrations_bak_hook_token"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_hook_token ON enotify_vikunja_integrations(hook_token)"
+```
+
+最后把第 1 小步挪开的账本表改回原名；然后重跑一次 setup 让它按当前真实结构决定打戳或跳过。
 
 ## 3. 触发 setup，走新装路径生成全量结构（schema_v1–schema_v4）+ 账本
 
@@ -110,7 +121,16 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 
 应有 `schema_v1`、`schema_v2`、`schema_v3`、`schema_v4` 四行。同一条查询里的 `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'enotify_%'` 会同时列出第 2 步改名留下的 `enotify_*_bak_<YYYYMMDD>`；排除这些备份表后应正好是 10 张：7 张核心业务表 + `waker_executions` + `scheduler_tick_claims` + `vikunja_integrations`。
 
-**回滚**：把这一步新建的核心业务表与集成表改名或删除（`DROP TABLE enotify_users` … `DROP TABLE enotify_vikunja_integrations`；`enotify_waker_*` 若切换前已存在则未被重建），把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名。库即回到切换前状态（数据仍在备份表里）。
+再确认活表的 `hook_token` 唯一索引已经建回：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='enotify_vikunja_integrations'"
+```
+
+结果里必须有 `idx_enotify_vikunja_integrations_hook_token`；缺少它说明第 2 步没释放索引名，回到第 2 步补做那两条索引语句后重新触发本步。
+
+**回滚**：先删子表、再删父表：`DROP TABLE enotify_vikunja_integrations`，再 `DROP TABLE enotify_users` …（`enotify_waker_*` 若切换前已存在则未被重建）。把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名（含集成表），并按第 2 步回滚的两条语句把集成表的索引名恢复成 `idx_enotify_vikunja_integrations_hook_token`。库即回到切换前状态（数据仍在备份表里）。
 
 ## 4. 用全站档「恢复模式」导入第 1 步的 JSON
 
@@ -146,7 +166,7 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 
 ## 7. 备份表族的去留
 
-`enotify_*_bak_<YYYYMMDD>` 与 `_enotify_schema_migrations_bak_<YYYYMMDD>` 在验收通过后**保留不删**，去留由用户另行决定（删掉即失去手动回退能力；如需删除，先用 `SELECT COUNT(*)` 确认新表数据完整）。其中 `enotify_vikunja_integrations_bak_<YYYYMMDD>`（仅当第 2 步检测到该表时存在）只是切换前的集成配置快照，新库的集成表已由 `schema_v4` 建出、旧 secret 不会被复用；需要集成时在设置页重新创建一次即可，旧快照表确认不再需要后可以单独删除。
+`enotify_*_bak_<YYYYMMDD>` 与 `_enotify_schema_migrations_bak_<YYYYMMDD>` 在验收通过后**保留不删**，去留由用户另行决定（删掉即失去手动回退能力；如需删除，先用 `SELECT COUNT(*)` 确认新表数据完整）。其中 `enotify_vikunja_integrations_bak_<YYYYMMDD>`（仅当第 2 步检测到该表时存在）只是切换前的集成配置快照，新库的集成表已由 `schema_v4` 建出、旧 secret 不会被复用。注意它仍挂着指向 `enotify_users_bak_<YYYYMMDD>` 的 `ON DELETE CASCADE` 外键：一旦删除 bak 用户表，快照行会被级联清空（表还在、数据没了），所以它本就不承载需要保留的数据；需要集成时在设置页重新创建一次即可。
 
 ---
 
