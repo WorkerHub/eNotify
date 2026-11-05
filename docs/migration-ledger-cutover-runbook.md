@@ -103,7 +103,7 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 ```
 
-应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。备份表族只保留表与行数据：它们的具名二级索引已在第 2 步被释放、不再复制，这是为了让第 3 步能把规范索引建到活表上，不是数据损坏。
+应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。7 张核心业务表的备份表只保留表与行数据：它们的具名二级索引已在第 2 步被释放、不再复制；集成表的备份表则保留一个改名后的唯一索引 `idx_enotify_vikunja_integrations_bak_hook_token`。这样第 3 步才能把规范索引建到活表上，不是数据损坏。
 
 **回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`）。第 2 步已把规范索引名从备份表上释放，所以改回后必须把 5 个核心二级索引和集成表的唯一索引重新建回：
 
@@ -116,6 +116,8 @@ npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS
 npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_vikunja_integrations_bak_hook_token"
 npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_hook_token ON enotify_vikunja_integrations(hook_token)"
 ```
+
+（最后两条只适用于第 2 步检测到集成表、执行过那三条命令的库；切换前没有该表时跳过这两条，否则会报 `no such table: main.enotify_vikunja_integrations`。）
 
 最后把第 1 小步挪开的账本表改回原名；然后重跑一次 setup 让它按当前真实结构决定打戳或跳过。
 
@@ -162,7 +164,22 @@ npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT
 npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_bak_hook_token ON enotify_vikunja_integrations_bak_<YYYYMMDD>(hook_token)"
 ```
 
-5 个核心索引同理：直接执行第 2 步回滚里的 5 条 `CREATE INDEX IF NOT EXISTS …` 在活表上重建；若报「there is already an index with that name」，先 `DROP INDEX IF EXISTS <该名字>`（它挂在备份表上）再建。若在索引缺失期间已经写入重复的 `hook_token`，先清掉重复行（`SELECT hook_token, COUNT(*) AS n FROM enotify_vikunja_integrations GROUP BY hook_token HAVING n > 1`，保留一行再删其余）再建唯一索引，否则建索引会失败。
+5 个核心索引同理，必须**先释放名字、再建**。`CREATE INDEX IF NOT EXISTS` 的名字检查是全库的：规范名此刻还挂在备份表上，直接建会被静默跳过；带 `IF NOT EXISTS` 时不会报错，去掉它时 SQLite 的报错原文是 `index <名字> already exists`（不是「already an index with that name」）。按下面的顺序执行：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_items_user_id"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_payment_history_item_id"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_payment_history_user_id"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_notification_history_user_id"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_notification_history_filter"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_items_user_id ON enotify_items(user_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_payment_history_item_id ON enotify_payment_history(item_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_payment_history_user_id ON enotify_payment_history(user_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_notification_history_user_id ON enotify_notification_history(user_id, created_at)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_notification_history_filter ON enotify_notification_history(user_id, channel, success, created_at)"
+```
+
+若在索引缺失期间已经写入重复的 `hook_token`，先清掉重复行（`SELECT hook_token, COUNT(*) AS n FROM enotify_vikunja_integrations GROUP BY hook_token HAVING n > 1`，保留一行再删其余）再建唯一索引，否则建索引会失败。
 
 **回滚**：按下面的顺序删除第 3 步新建的表（先子表、后父表，每一张都要删，否则改回备份时会重名）：
 
