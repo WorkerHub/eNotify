@@ -35,7 +35,7 @@
 **核对**：文件能打开、`format`/`version` 字段存在、`users`／`items`／`notification_configs` 等条目数与第 0 步的数字对得上。
 **回滚**：无（只读，不改库）。这份 JSON 是后续所有步骤的兜底。
 
-## 2. 把业务表逐张 RENAME 到备份命名（不直删）
+## 2. 把业务表逐张 RENAME 到备份命名，并释放具名索引（不直删）
 
 > ⚠️ **命名方式与规格 §2 的字面写法不同，原因写在这里**：`runSetup` 的前缀冲突守卫用 `detectTablePrefixes()` 识别「另一套 eNotify 表族」——只要库里存在 ≥4 张 `<前缀>_users` / `<前缀>_items` 这类命名的表且含 `users`，就会被判为另一个前缀并返回 409 `PREFIX_CONFLICT`。若把业务表改名成 `bak_users`、`bak_items` 这类**前缀形式**，第 3 步的新装会被守卫拦下。因此备份命名统一采用**后缀形式**：`enotify_<table>_bak_<YYYYMMDD>`，语义仍是「改名而不是删除」、随时可改回，但不会命中守卫的识别规则。
 
@@ -63,6 +63,16 @@
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_notification_configs RENAME TO enotify_notification_configs_bak_<YYYYMMDD>"
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_system_settings RENAME TO enotify_system_settings_bak_<YYYYMMDD>"
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_notification_history RENAME TO enotify_notification_history_bak_<YYYYMMDD>"
+   ```
+
+   这 7 张表各自带具名二级索引，`RENAME TO` 会把索引连同**原名字**一起留在备份表上。第 3 步新装的 `CREATE INDEX IF NOT EXISTS` 见到名字已存在会静默跳过，活表就会永久缺少这些索引（`items.user_id`、`payment_history.item_id/user_id`、`notification_history.user_id/filter` 的查询都会退化为全表扫描）。所以改名后要立刻释放这 5 个规范索引名（备份表不再保留这些二级索引，行数据本身完整）：
+
+   ```bash
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_items_user_id"
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_payment_history_item_id"
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_payment_history_user_id"
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_notification_history_user_id"
+   npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_notification_history_filter"
    ```
 
    另有一张表必须单独确认：`enotify_vikunja_integrations`（本版 `schema_v4` 新建，带指向 `enotify_users` 的外键）。部署后点过「检查并升级数据库」的库才会有它；存在时必须一起改名（并按下面三条命令处理索引），否则第 3 步会因为「表已存在」跳过建表，而它的外键已经被 `RENAME TO` 改写指向备份用户表，之后新建用户的集成记录会报 `FOREIGN KEY constraint failed`。先查它是否存在：
@@ -93,11 +103,16 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 ```
 
-应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。
+应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。备份表族只保留表与行数据：它们的具名二级索引已在第 2 步被释放、不再复制，这是为了让第 3 步能把规范索引建到活表上，不是数据损坏。
 
-**回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`）。集成表改回后再把索引名恢复成规范名：
+**回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`）。第 2 步已把规范索引名从备份表上释放，所以改回后必须把 5 个核心二级索引和集成表的唯一索引重新建回：
 
 ```bash
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_items_user_id ON enotify_items(user_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_payment_history_item_id ON enotify_payment_history(item_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_payment_history_user_id ON enotify_payment_history(user_id)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_notification_history_user_id ON enotify_notification_history(user_id, created_at)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE INDEX IF NOT EXISTS idx_enotify_notification_history_filter ON enotify_notification_history(user_id, channel, success, created_at)"
 npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_vikunja_integrations_bak_hook_token"
 npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_hook_token ON enotify_vikunja_integrations(hook_token)"
 ```
@@ -121,16 +136,48 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 
 应有 `schema_v1`、`schema_v2`、`schema_v3`、`schema_v4` 四行。同一条查询里的 `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'enotify_%'` 会同时列出第 2 步改名留下的 `enotify_*_bak_<YYYYMMDD>`；排除这些备份表后应正好是 10 张：7 张核心业务表 + `waker_executions` + `scheduler_tick_claims` + `vikunja_integrations`。
 
-再确认活表的 `hook_token` 唯一索引已经建回：
+再确认活表带回了全部具名索引。5 个核心二级索引：
 
 ```bash
 npx wrangler d1 execute <D1_NAME> --remote --command \
-  "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='enotify_vikunja_integrations'"
+  "SELECT name, tbl_name FROM sqlite_master WHERE type='index' AND name IN ('idx_enotify_items_user_id','idx_enotify_payment_history_item_id','idx_enotify_payment_history_user_id','idx_enotify_notification_history_user_id','idx_enotify_notification_history_filter')"
 ```
 
-结果里必须有 `idx_enotify_vikunja_integrations_hook_token`；缺少它说明第 2 步没释放索引名，回到第 2 步补做那两条索引语句后重新触发本步。
+应返回 5 行，且 `tbl_name` 分别是 `enotify_items`、`enotify_payment_history`（两条）、`enotify_notification_history`（两条），不能是 `*_bak_<YYYYMMDD>`。
 
-**回滚**：先删子表、再删父表：`DROP TABLE enotify_vikunja_integrations`，再 `DROP TABLE enotify_users` …（`enotify_waker_*` 若切换前已存在则未被重建）。把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名（含集成表），并按第 2 步回滚的两条语句把集成表的索引名恢复成 `idx_enotify_vikunja_integrations_hook_token`。库即回到切换前状态（数据仍在备份表里）。
+集成表的唯一索引（`sqlite_master` 看不出唯一性，用 `PRAGMA index_list`）：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command \
+  "PRAGMA index_list(enotify_vikunja_integrations)"
+```
+
+结果里必须有 `name = idx_enotify_vikunja_integrations_hook_token` 且 `unique = 1` 的一行。
+
+**如果索引缺失**（例如第 2 步漏做了释放）：重跑 setup 不会补救——`schema_v1`–`schema_v4` 已记入账本，返回全是 `skipped`，DDL 不会再执行。请在**活表**上直接重建；SQLite 的索引名是全库唯一的，若规范名仍被备份表占用，必须先释放，建完再把备份表的索引补回：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP INDEX IF EXISTS idx_enotify_vikunja_integrations_hook_token"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_hook_token ON enotify_vikunja_integrations(hook_token)"
+npx wrangler d1 execute <D1_NAME> --remote --command "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_bak_hook_token ON enotify_vikunja_integrations_bak_<YYYYMMDD>(hook_token)"
+```
+
+5 个核心索引同理：直接执行第 2 步回滚里的 5 条 `CREATE INDEX IF NOT EXISTS …` 在活表上重建；若报「there is already an index with that name」，先 `DROP INDEX IF EXISTS <该名字>`（它挂在备份表上）再建。若在索引缺失期间已经写入重复的 `hook_token`，先清掉重复行（`SELECT hook_token, COUNT(*) AS n FROM enotify_vikunja_integrations GROUP BY hook_token HAVING n > 1`，保留一行再删其余）再建唯一索引，否则建索引会失败。
+
+**回滚**：按下面的顺序删除第 3 步新建的表（先子表、后父表，每一张都要删，否则改回备份时会重名）：
+
+```bash
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_vikunja_integrations"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_user_2fa"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_notification_configs"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_payment_history"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_items"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_notification_history"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_system_settings"
+npx wrangler d1 execute <D1_NAME> --remote --command "DROP TABLE enotify_users"
+```
+
+`enotify_waker_*` 不参与本流程：切换前已有的保留原样；切换前没有的（第 3 步新建）一并 `DROP TABLE enotify_waker_executions` 与 `DROP TABLE enotify_scheduler_tick_claims`。把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名（含集成表），并按第 2 步回滚的全部索引语句把 5 个核心二级索引和集成表的规范唯一索引建回。库即回到切换前状态（数据仍在备份表里）。
 
 ## 4. 用全站档「恢复模式」导入第 1 步的 JSON
 
