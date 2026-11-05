@@ -1204,46 +1204,68 @@ function IntegrationsTab() {
   const [confirmRotate, setConfirmRotate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const flashTimerRef = useRef<number | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
+  // One timer per feedback channel: a second copy/flash inside the previous
+  // window must not be cleared early by the stale timer of the first one.
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
   const flash = (message: string) => {
     setSuccessMsg(message);
-    setTimeout(() => setSuccessMsg(""), 3000);
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setSuccessMsg(""), 3000);
   };
 
-  const fetchIntegration = useCallback(async () => {
-    try {
-      const data = await api.get<VikunjaIntegrationResponse>(
-        VIKUNJA_INTEGRATION_PATH,
-      );
-      if (data.configured) {
-        const next: VikunjaIntegration = {
-          hook_token: data.hook_token ?? "",
-          base_url: data.base_url ?? "",
-          enabled: !!data.enabled,
-          created_at: data.created_at ?? "",
-          updated_at: data.updated_at ?? "",
-        };
-        setIntegration(next);
-        setBaseUrl(next.base_url);
-      } else {
-        setIntegration(null);
-        setBaseUrl("");
+  /**
+   * `syncInput` seeds the address field from the server. Refreshes that follow
+   * a toggle / rotate leave it alone, so an in-progress edit is never discarded
+   * by an unrelated round-trip.
+   */
+  const fetchIntegration = useCallback(
+    async ({ syncInput = false }: { syncInput?: boolean } = {}) => {
+      try {
+        const data = await api.get<VikunjaIntegrationResponse>(
+          VIKUNJA_INTEGRATION_PATH,
+        );
+        if (data.configured) {
+          const next: VikunjaIntegration = {
+            hook_token: data.hook_token ?? "",
+            base_url: data.base_url ?? "",
+            enabled: !!data.enabled,
+            created_at: data.created_at ?? "",
+            updated_at: data.updated_at ?? "",
+          };
+          setIntegration(next);
+          if (syncInput) setBaseUrl(next.base_url);
+        } else {
+          setIntegration(null);
+          setBaseUrl("");
+        }
+      } catch (err: any) {
+        setError(err.message || t("common.error"));
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || t("common.error"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   useEffect(() => {
-    fetchIntegration();
+    fetchIntegration({ syncInput: true });
   }, [fetchIntegration]);
 
   const copyValue = async (kind: "secret" | "url", value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(kind);
-      setTimeout(() => setCopied(null), 2000);
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopied(null), 2000);
     } catch {
       setError(t("integrations.copyFailed"));
     }
@@ -1261,7 +1283,7 @@ function IntegrationsTab() {
       );
       setRevealed({ secret: created.secret, kind: "created" });
       flash(t("integrations.createSuccess"));
-      await fetchIntegration();
+      await fetchIntegration({ syncInput: true });
     } catch (err: any) {
       if (err?.status === 409) {
         setError(t("integrations.existsError"));
@@ -1282,11 +1304,9 @@ function IntegrationsTab() {
     // Optimistic, reverted below if the request fails.
     setIntegration((prev) => (prev ? { ...prev, enabled } : prev));
     try {
-      // Both fields go out, so a PUT never depends on which one changed.
-      await api.put(VIKUNJA_INTEGRATION_PATH, {
-        enabled,
-        base_url: baseUrl.trim(),
-      });
+      // Only `enabled` goes out: the address is saved by its own form, so a
+      // toggle must neither persist an unsaved edit nor fail on its validation.
+      await api.put(VIKUNJA_INTEGRATION_PATH, { enabled });
       flash(
         enabled
           ? t("integrations.enabledSuccess")
@@ -1316,11 +1336,10 @@ function IntegrationsTab() {
     setSuccessMsg("");
     setSavingBaseUrl(true);
     try {
-      await api.put(VIKUNJA_INTEGRATION_PATH, {
-        enabled: integration.enabled,
-        base_url: trimmed,
-      });
+      await api.put(VIKUNJA_INTEGRATION_PATH, { base_url: trimmed });
       flash(t("integrations.baseUrlSuccess"));
+      // Reflect what was persisted (normalized, no trailing slash).
+      setBaseUrl(trimmed);
       await fetchIntegration();
     } catch (err: any) {
       setBaseUrlError("");
@@ -1553,7 +1572,9 @@ function IntegrationsTab() {
 
           {/* Webhook URL */}
           <div>
-            <Label>{t("integrations.webhookUrl")}</Label>
+            <p className="text-body-sm font-medium leading-none">
+              {t("integrations.webhookUrl")}
+            </p>
             <div className="mt-1.5 flex flex-col sm:flex-row gap-2">
               <code className="flex-1 min-w-0 px-3 py-2 rounded-md border bg-background font-mono text-xs break-all select-all">
                 {webhookUrl}
@@ -1581,7 +1602,7 @@ function IntegrationsTab() {
           </div>
 
           {/* Vikunja base URL, used for task links */}
-          <form onSubmit={handleSaveBaseUrl} className="space-y-1.5">
+          <form onSubmit={handleSaveBaseUrl} noValidate className="space-y-1.5">
             <Label htmlFor="vikunja-base-url">
               {t("integrations.baseUrl")}
             </Label>
@@ -1599,6 +1620,11 @@ function IntegrationsTab() {
                 }}
                 placeholder={t("integrations.baseUrlPlaceholder")}
                 aria-invalid={!!baseUrlError}
+                aria-describedby={
+                  baseUrlError
+                    ? "vikunja-base-url-error"
+                    : "vikunja-base-url-hint"
+                }
                 className="flex-1"
               />
               <Button
@@ -1611,9 +1637,17 @@ function IntegrationsTab() {
               </Button>
             </div>
             {baseUrlError ? (
-              <p className="text-xs text-destructive">{baseUrlError}</p>
+              <p
+                id="vikunja-base-url-error"
+                className="text-xs text-destructive"
+              >
+                {baseUrlError}
+              </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p
+                id="vikunja-base-url-hint"
+                className="text-xs text-muted-foreground"
+              >
                 {t("integrations.baseUrlHint")}
               </p>
             )}
@@ -1654,25 +1688,27 @@ function IntegrationsTab() {
         </div>
       )}
 
-      {/* How to wire it up in Vikunja (static) */}
-      <div className="bg-card border rounded-lg p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-1">
-          {t("integrations.guideTitle")}
-        </h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t("integrations.guideIntro")}
-        </p>
-        <ol className="list-decimal pl-4 space-y-1.5 text-xs text-muted-foreground">
-          <li>{t("integrations.guideStep1")}</li>
-          <li>{t("integrations.guideStep2")}</li>
-          <li>{t("integrations.guideStep3")}</li>
-          <li>{t("integrations.guideStep4")}</li>
-        </ol>
-        <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
-          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          <p>{t("integrations.guideNote")}</p>
+      {/* How to wire it up in Vikunja — only once there is something to paste */}
+      {integration && (
+        <div className="bg-card border rounded-lg p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-1">
+            {t("integrations.guideTitle")}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            {t("integrations.guideIntro")}
+          </p>
+          <ol className="list-decimal pl-4 space-y-1.5 text-xs text-muted-foreground">
+            <li>{t("integrations.guideStep1")}</li>
+            <li>{t("integrations.guideStep2")}</li>
+            <li>{t("integrations.guideStep3")}</li>
+            <li>{t("integrations.guideStep4")}</li>
+          </ol>
+          <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <p>{t("integrations.guideNote")}</p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1925,23 +1961,29 @@ export function SettingsPage() {
 
   // Sliding underline for the desktop tab bar (contract §5: 200ms,
   // transform/width-only). Position is measured from the active button so
-  // label-length / language changes re-center correctly.
+  // label-length / language changes re-center correctly, and the vertical
+  // offset follows the button's row when the bar wraps.
   const tabBarRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  const [underline, setUnderline] = useState({ left: 0, width: 0 });
-  useLayoutEffect(() => {
+  const [underline, setUnderline] = useState({ left: 0, top: 0, width: 0 });
+  const measureUnderline = useCallback(() => {
     const btn = tabRefs.current[activeTab];
     const bar = tabBarRef.current;
     if (!btn || !bar) return;
     const b = btn.getBoundingClientRect();
     const r = bar.getBoundingClientRect();
-    setUnderline({ left: b.left - r.left + bar.scrollLeft, width: b.width });
-    // Seven tabs no longer always fit (English labels overflow even on a wide
-    // window), and the bar scrolls without a visible scrollbar — keep the
-    // active tab scrolled into view so a deep link / long label stays visible.
-    if (b.left < r.left) bar.scrollLeft += b.left - r.left;
-    else if (b.right > r.right) bar.scrollLeft += b.right - r.right;
+    setUnderline({
+      left: b.left - r.left,
+      top: b.bottom - r.top - 2,
+      width: b.width,
+    });
   }, [activeTab]);
+  useLayoutEffect(() => {
+    measureUnderline();
+    // A resize can move the active tab to another row of the wrapped bar.
+    window.addEventListener("resize", measureUnderline);
+    return () => window.removeEventListener("resize", measureUnderline);
+  }, [measureUnderline]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     {
@@ -2039,10 +2081,12 @@ export function SettingsPage() {
         )}
 
         {/* Tab bar - desktop only: shared underline slides to the active tab
-            (contract §5: 200ms ease-out, transform/width-only) */}
+            (contract §5: 200ms ease-out, transform/width-only). Seven tabs do
+            not fit on one line in every language, so the bar wraps instead of
+            scrolling off-screen behind an invisible scrollbar. */}
         <div
           ref={tabBarRef}
-          className="relative hidden md:flex gap-1 border-b mb-6 overflow-x-auto no-scrollbar"
+          className="relative hidden md:flex flex-wrap gap-1 border-b mb-6"
         >
           {tabs.map((tab) => (
             <button
@@ -2053,7 +2097,7 @@ export function SettingsPage() {
               type="button"
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap -mb-px transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                "flex items-center gap-1.5 px-3 py-2 text-body-sm whitespace-nowrap transition-colors duration-(--duration-standard) ease-(--ease-standard) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                 activeTab === tab.id
                   ? "text-primary font-semibold"
                   : "text-muted-foreground font-medium hover:text-foreground",
@@ -2065,10 +2109,10 @@ export function SettingsPage() {
           ))}
           <span
             aria-hidden="true"
-            className="absolute bottom-0 h-0.5 rounded-full bg-primary transition-[transform,width] duration-(--duration-standard) ease-(--ease-out)"
+            className="absolute left-0 top-0 h-0.5 rounded-full bg-primary transition-[transform,width] duration-(--duration-standard) ease-(--ease-out)"
             style={{
               width: underline.width,
-              transform: `translateX(${underline.left}px)`,
+              transform: `translate(${underline.left}px, ${underline.top}px)`,
             }}
           />
         </div>

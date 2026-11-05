@@ -456,7 +456,6 @@
     "daysUnit": "d"
   },
   "integrations": {
-    "title": "Integrations",
     "description": "Connect external services to eNotify. Vikunja is supported today: its task reminders and overdue events are pushed to you through your default channel.",
     "vikunjaTitle": "Vikunja",
     "createTitle": "Create a Vikunja integration",

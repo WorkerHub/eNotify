@@ -456,7 +456,6 @@
     "daysUnit": "天"
   },
   "integrations": {
-    "title": "集成",
     "description": "把外部服务接到 eNotify。目前支持 Vikunja：它的任务提醒与逾期事件会经你的默认渠道推送给你。",
     "vikunjaTitle": "Vikunja",
     "createTitle": "创建 Vikunja 集成",
