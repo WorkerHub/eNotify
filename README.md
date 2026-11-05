@@ -185,6 +185,8 @@ curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: 
 
 用户自托管的 [Vikunja](https://vikunja.io) 可以把任务提醒与逾期事件推给 eNotify，由 eNotify 的默认渠道（与 `POST /api/notify` 相同的默认渠道语义）扇出；每次推送都会以来源 `vikunja` 记入通知历史。
 
+**升级后先应用迁移。** 本功能依赖 `schema_v4` 新建的 `{prefix}vikunja_integrations` 表：部署新版本后，管理员需在后台执行一次「检查并升级数据库」（或调用 `POST /api/setup` / `POST /api/admin/setup`）把迁移补到 `schema_v4`。就地过渡的存量库第一次只打戳 `schema_v1`，需要再点一次补齐 `schema_v2`–`schema_v4`。
+
 **前置：在 Vikunja 服务端开启 webhooks。** 该功能由配置项 `webhooks.enabled` 控制（默认开启）；若实例已关闭，需在 `config.yml` 里设置 `webhooks.enabled: true`（或环境变量 `VIKUNJA_WEBHOOKS_ENABLED=true`）并重启服务，账户设置里才会出现 Webhooks 入口。每个用户在自己的 Vikunja「设置 → Webhooks」中新建 webhook，填入下面生成的地址与 secret。
 
 **1. 创建集成**（需登录，cookie 会话）

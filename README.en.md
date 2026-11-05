@@ -180,6 +180,8 @@ curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: 
 
 A self-hosted [Vikunja](https://vikunja.io) instance can push task reminders and overdue events to eNotify, which fans them out through the user's default channel (the same default-channel semantics as `POST /api/notify`). Every delivery is recorded in the notification history with the source `vikunja`.
 
+**Apply the migration after upgrading.** The feature depends on the `{prefix}vikunja_integrations` table created by `schema_v4`: after deploying, an admin runs "Check and upgrade database" once (or `POST /api/setup` / `POST /api/admin/setup`) so the migration reaches `schema_v4`. A legacy database that the in-place transition only stamped with `schema_v1` needs one more run to apply `schema_v2`–`schema_v4`.
+
 **Prerequisite: enable webhooks on the Vikunja server.** The feature is controlled by the `webhooks.enabled` config option (enabled by default); if it was turned off, set `webhooks.enabled: true` in `config.yml` (or `VIKUNJA_WEBHOOKS_ENABLED=true`) and restart, then Vikunja shows the Webhooks section under the account settings. Each user creates one webhook there with the URL and secret generated below.
 
 **1. Create the integration** (requires a login session)

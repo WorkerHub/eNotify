@@ -7,18 +7,18 @@
 ## 两条路径的关系（先读这一段）
 
 - **合并即自动部署**（`main` 推送触发 deploy）。部署完成、用户执行下文切换之前，生产库处于「旧代码已下线、新代码待过渡」状态：新代码对存量库走的是**就地过渡分支**（旧补丁集最后跑一遍 → 验形 → 打戳 `schema_v1`），所以即使有人先点了「检查并升级数据库」，也只会安全打戳完成过渡，不会损坏数据。
-- 本文的 §8 完整关口（导出 → 改名 → 新装 → 恢复导入 → 验收 → 重签 Key）是当初定下的**从严路径**：它给出的是一份「干净的新 schema_v1 结构 + 官方恢复通道」的库，代价是需要重导入与重签 API Key。
+- 本文的 §8 完整关口（导出 → 改名 → 新装 → 恢复导入 → 验收 → 重签 Key）是当初定下的**从严路径**：它给出的是一份「干净的新版全量结构（`schema_v1`–`schema_v4`）+ 官方恢复通道」的库，代价是需要重导入与重签 API Key。
 - **二选一由用户在关口决定**：
-  - 选「就地过渡」：部署后点一次「检查并升级数据库」，核对账本出现 `schema_v1` 即可收工，不动数据、不重签 Key；
+  - 选「就地过渡」：部署后点一次「检查并升级数据库」，核对账本出现 `schema_v1`；再点一次把 `schema_v2`–`schema_v4` 补齐（建出 waker 表与 Vikunja 集成表）即可收工，不动数据、不重签 Key；
   - 选「§8 完整切换」：按下面 0–7 步执行。
 
-  两条路径最终都是「7 张业务表 + `_enotify_schema_migrations` 账本含一条 `schema_v1`」，结构一致；区别只在于数据是怎么进新表的（就地 vs 导出再导入）。
+  两条路径最终都是「同一套业务表（含 `schema_v4` 新建的 `vikunja_integrations`）+ `_enotify_schema_migrations` 账本含 `schema_v1` 起的全部迁移」，结构一致；区别只在于数据是怎么进新表的（就地 vs 导出再导入）。
 
 ---
 
 ## 0. 前置检查（不改动任何东西）
 
-1. 确认已部署的版本包含本次改动：管理面板「检查并升级数据库」的返回里应带 `migrations` 字段（就地过渡会是 `[{"name":"schema_v1","status":"stamped"}]`，新装是 `applied`，之后是 `skipped`）。
+1. 确认已部署的版本包含本次改动：管理面板「检查并升级数据库」的返回里应带 `migrations` 字段（就地过渡会是 `[{"name":"schema_v1","status":"stamped"}]`，新装是 `schema_v1`–`schema_v4` 全部 `applied`，之后是 `skipped`）。
 2. 记录切换前的基线数字（第 5 步要逐项对照）：
 
    ```bash
@@ -35,9 +35,9 @@
 **核对**：文件能打开、`format`/`version` 字段存在、`users`／`items`／`notification_configs` 等条目数与第 0 步的数字对得上。
 **回滚**：无（只读，不改库）。这份 JSON 是后续所有步骤的兜底。
 
-## 2. 把 7 张业务表逐张 RENAME 到备份命名（不直删）
+## 2. 把业务表逐张 RENAME 到备份命名（不直删）
 
-> ⚠️ **命名方式与规格 §2 的字面写法不同，原因写在这里**：`runSetup` 的前缀冲突守卫用 `detectTablePrefixes()` 识别「另一套 eNotify 表族」——只要库里存在 ≥4 张 `<前缀>_users` / `<前缀>_items` 这类命名的表且含 `users`，就会被判为另一个前缀并返回 409 `PREFIX_CONFLICT`。若把 7 张表改名成 `bak_users`、`bak_items` 这类**前缀形式**，第 3 步的新装会被守卫拦下。因此备份命名统一采用**后缀形式**：`enotify_<table>_bak_<YYYYMMDD>`，语义仍是「改名而不是删除」、随时可改回，但不会命中守卫的识别规则。
+> ⚠️ **命名方式与规格 §2 的字面写法不同，原因写在这里**：`runSetup` 的前缀冲突守卫用 `detectTablePrefixes()` 识别「另一套 eNotify 表族」——只要库里存在 ≥4 张 `<前缀>_users` / `<前缀>_items` 这类命名的表且含 `users`，就会被判为另一个前缀并返回 409 `PREFIX_CONFLICT`。若把业务表改名成 `bak_users`、`bak_items` 这类**前缀形式**，第 3 步的新装会被守卫拦下。因此备份命名统一采用**后缀形式**：`enotify_<table>_bak_<YYYYMMDD>`，语义仍是「改名而不是删除」、随时可改回，但不会命中守卫的识别规则。
 
 1. 先看账本表是否存在（部署后有人点过「检查并升级数据库」就会有）：
 
@@ -53,7 +53,7 @@
      "ALTER TABLE _enotify_schema_migrations RENAME TO _enotify_schema_migrations_bak_<YYYYMMDD>"
    ```
 
-2. 逐张改名（7 条，`<YYYYMMDD>` 由执行时确定并记入交付评论）：
+2. 逐张改名（7 张核心业务表 + 部署后可能已建的 `vikunja_integrations`，`<YYYYMMDD>` 由执行时确定并记入交付评论）：
 
    ```bash
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_users RENAME TO enotify_users_bak_<YYYYMMDD>"
@@ -65,6 +65,21 @@
    npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_notification_history RENAME TO enotify_notification_history_bak_<YYYYMMDD>"
    ```
 
+   另有一张表必须单独确认：`enotify_vikunja_integrations`（本版 `schema_v4` 新建，带指向 `enotify_users` 的外键）。部署后点过「检查并升级数据库」的库才会有它；存在时必须一起改名，否则第 3 步会因为「表已存在」跳过建表，而它的外键已经被 `RENAME TO` 改写指向备份用户表，之后新建用户的集成记录会报 `FOREIGN KEY constraint failed`。先查它是否存在：
+
+   ```bash
+   npx wrangler d1 execute <D1_NAME> --remote --command \
+     "SELECT name FROM sqlite_master WHERE type='table' AND name='enotify_vikunja_integrations'"
+   ```
+
+   有返回就执行下面这条（无返回则跳过，第 3 步会新建）：
+
+   ```bash
+   npx wrangler d1 execute <D1_NAME> --remote --command "ALTER TABLE enotify_vikunja_integrations RENAME TO enotify_vikunja_integrations_bak_<YYYYMMDD>"
+   ```
+
+   该表由 `schema_v4` 新建，切换前没有需要迁移的历史数据（全站档导出也不含它）；如果你在切换前已经建过集成，切换完成后重新创建一次即可（新 secret 只显示一次）。
+
    注意：SQLite 的 `RENAME TO` 会把其他表里指向它的外键定义一并改写到新名字，所以备份表族内部仍然自洽（改回时同样自动还原）。
 
 **核对**：
@@ -74,11 +89,11 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 ```
 
-应看到 7 张 `enotify_*_bak_<YYYYMMDD>`，且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。
+应看到 7 张核心业务表的 `enotify_*_bak_<YYYYMMDD>`（若第 2 步检测到集成表，还会多一张 `enotify_vikunja_integrations_bak_<YYYYMMDD>`），且**没有**任何以 `users`/`user_2fa`/`items`/`payment_history`/`notification_configs`/`system_settings`/`notification_history`/`vikunja_integrations` 结尾或等值的表名（这是第 3 步能顺利新装的关键）。
 
-**回滚**：把这 7 条改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理），并把第 1 小步挪开的账本表改回原名；然后重跑一次 setup 让它按当前真实结构决定打戳或跳过。
+**回滚**：把这批改名改回去（`ALTER TABLE enotify_users_bak_<YYYYMMDD> RENAME TO enotify_users`，其余同理；若曾改过集成表，同样改回 `enotify_vikunja_integrations`），并把第 1 小步挪开的账本表改回原名；然后重跑一次 setup 让它按当前真实结构决定打戳或跳过。
 
-## 3. 触发 setup，走新装路径生成 schema_v1 全量结构 + 账本
+## 3. 触发 setup，走新装路径生成全量结构（schema_v1–schema_v4）+ 账本
 
 管理面板「检查并升级数据库」，或：
 
@@ -86,16 +101,16 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 curl -X POST https://<你的域名>/api/setup -H "X-Setup-Secret: <SETUP_SECRET>"
 ```
 
-**核对**：返回 `{"success":true,"effectivePrefix":"enotify_","migrations":[{"name":"schema_v1","status":"applied"}]}`（此路径**不应**出现 `alreadyInitialized`）；
+**核对**：返回 `{"success":true,"effectivePrefix":"enotify_","migrations":[{"name":"schema_v1","status":"applied"},{"name":"schema_v2","status":"applied"},{"name":"schema_v3","status":"applied"},{"name":"schema_v4","status":"applied"}]}`（此路径**不应**出现 `alreadyInitialized`）；
 
 ```bash
 npx wrangler d1 execute <D1_NAME> --remote --command \
   "SELECT name FROM _enotify_schema_migrations"
 ```
 
-应只有一行 `schema_v1`；`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'enotify_%'` 应是 7 张业务表。
+应有 `schema_v1`、`schema_v2`、`schema_v3`、`schema_v4` 四行。同一条查询里的 `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'enotify_%'` 会同时列出第 2 步改名留下的 `enotify_*_bak_<YYYYMMDD>`；排除这些备份表后应正好是 10 张：7 张核心业务表 + `waker_executions` + `scheduler_tick_claims` + `vikunja_integrations`。
 
-**回滚**：把这一步新生成的 7 张空表改名或删除（`DROP TABLE enotify_users` …），把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名。库即回到切换前状态（数据仍在备份表里）。
+**回滚**：把这一步新建的核心业务表与集成表改名或删除（`DROP TABLE enotify_users` … `DROP TABLE enotify_vikunja_integrations`；`enotify_waker_*` 若切换前已存在则未被重建），把 `_enotify_schema_migrations` 改名为 `_enotify_schema_migrations_discard_<YYYYMMDD>`，再把第 2 步的备份表族改回原名。库即回到切换前状态（数据仍在备份表里）。
 
 ## 4. 用全站档「恢复模式」导入第 1 步的 JSON
 
@@ -117,8 +132,8 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
      "SELECT name, applied_at FROM _enotify_schema_migrations"
    ```
 
-   应有且仅有 `schema_v1`。
-5. 再次点「检查并升级数据库」应返回 `migrations:[{"name":"schema_v1","status":"skipped"}]`（幂等、无副作用）。
+   应有且仅有 `schema_v1`、`schema_v2`、`schema_v3`、`schema_v4` 四行。
+5. 再次点「检查并升级数据库」应返回四条 `skipped`（`schema_v1`–`schema_v4`，幂等、无副作用）。
 
 **任一项不过**：立即执行第 3 步的回滚，把备份表族改回原名，回到切换前状态，并把失败项记入交付评论。
 
@@ -131,7 +146,7 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 
 ## 7. 备份表族的去留
 
-`enotify_*_bak_<YYYYMMDD>` 与 `_enotify_schema_migrations_bak_<YYYYMMDD>` 在验收通过后**保留不删**，去留由用户另行决定（删掉即失去手动回退能力；如需删除，先用 `SELECT COUNT(*)` 确认新表数据完整）。
+`enotify_*_bak_<YYYYMMDD>` 与 `_enotify_schema_migrations_bak_<YYYYMMDD>` 在验收通过后**保留不删**，去留由用户另行决定（删掉即失去手动回退能力；如需删除，先用 `SELECT COUNT(*)` 确认新表数据完整）。其中 `enotify_vikunja_integrations_bak_<YYYYMMDD>`（仅当第 2 步检测到该表时存在）只是切换前的集成配置快照，新库的集成表已由 `schema_v4` 建出、旧 secret 不会被复用；需要集成时在设置页重新创建一次即可，旧快照表确认不再需要后可以单独删除。
 
 ---
 
@@ -142,6 +157,6 @@ npx wrangler d1 execute <D1_NAME> --remote --command \
 - 返回 `migrations:[{"name":"schema_v1","status":"stamped"}]`；
 - 旧补丁集最后跑一遍（补齐历史增量、清理退役渠道 ID），验形通过后写入账本一条 `schema_v1`；
 - 数据原地不动，无需重签 API Key；
-- 之后每次升级再点一次，返回 `skipped` 或新迁移的 `applied`。
+- 打戳只记录 `schema_v1`；再点一次会把 `schema_v2`–`schema_v4` 补上（建出 waker 表与 Vikunja 集成表），返回里是它们的 `applied`，之后再点返回全部 `skipped`。
 
 若验形失败，setup 返回 `SCHEMA_VERIFY_FAILED` 并列出缺失的表/列，**账本不会被打戳**；按错误提示修复后重试即可，旧补丁产生的增量都是幂等的、无害的。

@@ -699,7 +699,13 @@ meRoutes.post(VIKUNJA_PATH, async (c) => {
     throw err;
   }
 
-  // The plaintext secret is only ever returned here (and on rotation).
+  // The plaintext secret is only ever returned here (and on rotation). The
+  // rest of the body is the same view GET returns, so a client can treat the
+  // create result as a cached read.
+  const created = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+  if (created) {
+    return c.json({ ...vikunjaIntegrationJson(created), secret }, 201);
+  }
   return c.json(
     { hook_token: hookToken, secret, base_url: baseUrl, enabled: true },
     201,

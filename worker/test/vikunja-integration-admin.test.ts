@@ -148,6 +148,10 @@ describe("POST /api/me/integrations/vikunja", () => {
     expect(JSON.stringify(view.body)).not.toContain(created.body.secret);
     expect(view.body.created_at).toBeTypeOf("string");
     expect(view.body.updated_at).toBeTypeOf("string");
+
+    // The create body is the GET view plus the one-time secret.
+    const { secret: _secret, ...createdView } = created.body;
+    expect(createdView).toEqual(view.body);
   });
 
   it("accepts base_url, trims trailing slashes and rejects non-http(s)", async () => {
