@@ -42,11 +42,20 @@ export async function sha256Hex(input: string): Promise<string> {
   ).join("");
 }
 
-export function generateApiKey(): string {
+/**
+ * High-entropy URL-safe token: 32 random bytes (256 bits) from WebCrypto,
+ * base64url-encoded without padding. `prefix` makes the token recognisable
+ * (e.g. `enk_`, `vhk_`); the randomness never comes from Math.random.
+ */
+export function generateRandomToken(prefix = ""): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const b64 = btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-  return `${API_KEY_PREFIX}${b64}`;
+  return `${prefix}${b64}`;
+}
+
+export function generateApiKey(): string {
+  return generateRandomToken(API_KEY_PREFIX);
 }

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { getTablePrefix, VALID_CHANNELS } from "../types";
-import type { HonoEnv, JWTPayload } from "../types";
+import type { HonoEnv, JWTPayload, VikunjaIntegration } from "../types";
 import { authMiddleware, getEffectiveUserId } from "../middleware/auth";
 import { rateLimit } from "../middleware/ratelimit";
 import { findUserById, updateUser } from "../db/queries/users";
@@ -42,6 +43,17 @@ import {
   sha256Hex,
 } from "../core/apiKey";
 import { sendToChannel, type NotifyMessage } from "../services/notify/index";
+import {
+  generateVikunjaHookToken,
+  generateVikunjaSecret,
+  normalizeVikunjaBaseUrl,
+} from "../services/vikunja-webhook";
+import {
+  createVikunjaIntegration,
+  deleteVikunjaIntegration,
+  getVikunjaIntegrationByUser,
+  updateVikunjaIntegration,
+} from "../db/queries/vikunja-integrations";
 import { getCookie, setCookie } from "hono/cookie";
 
 export const meRoutes = new Hono<HonoEnv>();
@@ -604,6 +616,149 @@ meRoutes.delete("/api-keys/:id", async (c) => {
     c.env.KV.delete(apiKeyKvKey(index.hash)),
     c.env.KV.delete(idxKey),
   ]);
+  return c.json({ success: true });
+});
+
+// ── Vikunja integration ───────────────────────────────────────────────────
+
+const VIKUNJA_PATH = "/integrations/vikunja";
+
+/** Read a JSON object body; an empty body is `{}`, malformed JSON is null. */
+async function readOptionalJsonObject(
+  c: Context<HonoEnv>,
+): Promise<Record<string, unknown> | null> {
+  const raw = await c.req.text();
+  if (raw.trim() === "") return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Public view of the integration: the secret is never included. */
+function vikunjaIntegrationJson(row: VikunjaIntegration) {
+  return {
+    configured: true,
+    hook_token: row.hook_token,
+    base_url: row.base_url ?? "",
+    enabled: !!row.enabled,
+    secret_configured: true,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+meRoutes.get(VIKUNJA_PATH, async (c) => {
+  const userId = getEffectiveUserId(c);
+  const prefix = getTablePrefix(c.env);
+  const row = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+  if (!row) return c.json({ configured: false });
+  return c.json(vikunjaIntegrationJson(row));
+});
+
+meRoutes.post(VIKUNJA_PATH, async (c) => {
+  const userId = getEffectiveUserId(c);
+  const prefix = getTablePrefix(c.env);
+  const body = await readOptionalJsonObject(c);
+  if (body === null) return c.json({ error: "Invalid JSON" }, 400);
+
+  let baseUrl = "";
+  if (body.base_url !== undefined) {
+    const normalized = normalizeVikunjaBaseUrl(body.base_url);
+    if (normalized === null) return c.json({ error: "Invalid base_url" }, 400);
+    baseUrl = normalized;
+  }
+
+  const existing = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+  if (existing) {
+    return c.json({ error: "Integration already exists" }, 409);
+  }
+
+  const hookToken = generateVikunjaHookToken();
+  const secret = generateVikunjaSecret();
+  try {
+    await createVikunjaIntegration(c.env.DB, prefix, {
+      user_id: userId,
+      hook_token: hookToken,
+      secret,
+      base_url: baseUrl,
+    });
+  } catch (err) {
+    // Two concurrent creates: the primary key decides, the loser sees 409.
+    const raced = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+    if (raced) return c.json({ error: "Integration already exists" }, 409);
+    throw err;
+  }
+
+  // The plaintext secret is only ever returned here (and on rotation).
+  return c.json(
+    { hook_token: hookToken, secret, base_url: baseUrl, enabled: true },
+    201,
+  );
+});
+
+meRoutes.put(VIKUNJA_PATH, async (c) => {
+  const userId = getEffectiveUserId(c);
+  const prefix = getTablePrefix(c.env);
+  const existing = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+  if (!existing) return c.json({ error: "Not found" }, 404);
+
+  const body = await readOptionalJsonObject(c);
+  if (body === null) return c.json({ error: "Invalid JSON" }, 400);
+
+  const updates: { enabled?: number; base_url?: string } = {};
+  if (body.enabled !== undefined) {
+    if (typeof body.enabled !== "boolean") {
+      return c.json({ error: "enabled must be a boolean" }, 400);
+    }
+    updates.enabled = body.enabled ? 1 : 0;
+  }
+  if (body.base_url !== undefined) {
+    const normalized = normalizeVikunjaBaseUrl(body.base_url);
+    if (normalized === null) return c.json({ error: "Invalid base_url" }, 400);
+    updates.base_url = normalized;
+  }
+  if (Object.keys(updates).length === 0) {
+    return c.json({ error: "No valid fields to update" }, 400);
+  }
+
+  await updateVikunjaIntegration(c.env.DB, prefix, userId, updates);
+  return c.json({
+    success: true,
+    enabled:
+      updates.enabled === undefined
+        ? !!existing.enabled
+        : updates.enabled === 1,
+    base_url: updates.base_url ?? existing.base_url ?? "",
+  });
+});
+
+meRoutes.post(`${VIKUNJA_PATH}/regenerate-secret`, async (c) => {
+  const userId = getEffectiveUserId(c);
+  const prefix = getTablePrefix(c.env);
+  const existing = await getVikunjaIntegrationByUser(c.env.DB, prefix, userId);
+  if (!existing) return c.json({ error: "Not found" }, 404);
+
+  const secret = generateVikunjaSecret();
+  await updateVikunjaIntegration(c.env.DB, prefix, userId, { secret });
+  // Rotation is the only other time the plaintext secret leaves the server.
+  return c.json({ secret });
+});
+
+meRoutes.delete(VIKUNJA_PATH, async (c) => {
+  const userId = getEffectiveUserId(c);
+  const prefix = getTablePrefix(c.env);
+  const deleted = await deleteVikunjaIntegration(c.env.DB, prefix, userId);
+  if (!deleted) return c.json({ error: "Not found" }, 404);
   return c.json({ success: true });
 });
 

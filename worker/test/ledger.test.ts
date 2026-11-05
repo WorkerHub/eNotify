@@ -280,12 +280,13 @@ describe("migrationsTable name formula", () => {
 });
 
 describe("migration list", () => {
-  it("keeps schema_v1 as the base and appends schema_v2 / schema_v3", () => {
+  it("keeps schema_v1 as the base and appends schema_v2 / schema_v3 / schema_v4", () => {
     const migrations = getMigrations("enotify_");
     expect(migrations.map((m) => m.name)).toEqual([
       "schema_v1",
       "schema_v2",
       "schema_v3",
+      "schema_v4",
     ]);
     // `{prefix}` is resolved for the caller, the DDL itself carries no placeholder.
     expect(migrations[0].sql).toContain(
@@ -306,6 +307,13 @@ describe("migration list", () => {
       "CREATE INDEX IF NOT EXISTS idx_enotify_scheduler_tick_claims_claimed_at",
     );
     expect(migrations[2].sql).not.toContain("{prefix}");
+    expect(migrations[3].sql).toContain(
+      "CREATE TABLE IF NOT EXISTS enotify_vikunja_integrations",
+    );
+    expect(migrations[3].sql).toContain(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_enotify_vikunja_integrations_hook_token",
+    );
+    expect(migrations[3].sql).not.toContain("{prefix}");
   });
 
   it("migration SQL contains no ';' inside string literals", () => {
@@ -323,7 +331,7 @@ describe("migration list", () => {
 // ─── fresh install ────────────────────────────────────────────────────────────
 
 describe("fresh install through the ledger", () => {
-  it("creates the 7 business tables, the 2 waker tables, the ledger and the default settings", async () => {
+  it("creates the 7 business tables, the waker and Vikunja tables, the ledger and the default settings", async () => {
     const d1 = new SqliteD1();
 
     const result = await runSetup(makeEnv(d1, "enotify"));
@@ -335,6 +343,7 @@ describe("fresh install through the ledger", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -349,6 +358,7 @@ describe("fresh install through the ledger", () => {
       "notification_history",
       "waker_executions",
       "scheduler_tick_claims",
+      "vikunja_integrations",
     ]) {
       expect(tables).toContain(`enotify_${table}`);
     }
@@ -357,6 +367,7 @@ describe("fresh install through the ledger", () => {
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
     expect(
       indexesOf(d1, "enotify_scheduler_tick_claims").map((i) => i.name),
@@ -379,6 +390,9 @@ describe("fresh install through the ledger", () => {
     expect(
       indexesOf(d1, "enotify_notification_history").map((i) => i.name),
     ).toContain("idx_enotify_notification_history_filter");
+    expect(
+      indexesOf(d1, "enotify_vikunja_integrations").map((i) => i.name),
+    ).toContain("idx_enotify_vikunja_integrations_hook_token");
 
     const settings = rowsOf(d1, "enotify_system_settings", "key").map(
       (r) => r.key,
@@ -409,6 +423,7 @@ describe("fresh install through the ledger", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
         { name: "schema_v3", status: "skipped" },
+        { name: "schema_v4", status: "skipped" },
       ],
     });
     expect(snapshot(d1)).toEqual(before);
@@ -590,6 +605,7 @@ describe("legacy database transition", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -603,6 +619,7 @@ describe("legacy database transition", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
         { name: "schema_v3", status: "skipped" },
+        { name: "schema_v4", status: "skipped" },
       ],
     });
     expect(snapshot(d1)).toEqual(afterSecond);
@@ -736,12 +753,14 @@ describe("ledger consistency check", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
     expect(ledgerRows(d1, "_schema_migrations")).toEqual([
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
     expect(exists(d1, "users")).toBe(true);
   });
@@ -760,6 +779,7 @@ describe("prefix variants", () => {
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
     expect(exists(d1, "enotify_users")).toBe(true);
     expect(exists(d1, "enotify_waker_executions")).toBe(true);
@@ -775,6 +795,7 @@ describe("prefix variants", () => {
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
     expect(exists(d1, "users")).toBe(true);
     expect(exists(d1, "waker_executions")).toBe(true);
@@ -790,6 +811,7 @@ describe("prefix variants", () => {
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
     expect(exists(d1, "X_users")).toBe(true);
     expect(exists(d1, "X_waker_executions")).toBe(true);
@@ -862,6 +884,7 @@ describe("prefix conflict guard with the ledger", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
     // The foreign ledger is neither read nor written.
@@ -870,6 +893,7 @@ describe("prefix conflict guard with the ledger", () => {
       { name: "schema_v1" },
       { name: "schema_v2" },
       { name: "schema_v3" },
+      { name: "schema_v4" },
     ]);
   });
 

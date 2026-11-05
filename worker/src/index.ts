@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/admin";
 import { adminBackupRoutes, meBackupRoutes } from "./routes/backup";
 import { notifyRoutes } from "./routes/notify";
 import { setupRoutes } from "./routes/setup";
+import { integrationRoutes } from "./routes/integrations";
 import { wakerRoutes } from "./routes/waker";
 import { CALLBACK_MOUNT_PATH } from "./waker";
 import { runSchedulerTick } from "./services/scheduler-tick";
@@ -22,7 +23,10 @@ import { isEmailConfigured } from "./services/email";
 const app = new Hono<HonoEnv>();
 
 const redactSecrets = (line: string) =>
-  line.replace(/(\/api\/(?:setup|notify)\/)[^\s/?]+/g, "$1[redacted]");
+  line.replace(
+    /(\/api\/(?:setup|notify|integrations\/vikunja)\/)[^\s/?]+/g,
+    "$1[redacted]",
+  );
 app.use(
   "*",
   logger((line, ...rest) => console.log(redactSecrets(line), ...rest)),
@@ -75,6 +79,7 @@ app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/notify", notifyRoutes);
 app.route("/api/setup", setupRoutes);
+app.route("/api/integrations", integrationRoutes);
 
 app.get("/api/health", (c) =>
   c.json({ status: "ok", timestamp: new Date().toISOString() }),

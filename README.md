@@ -26,6 +26,7 @@
 - **按项选择渠道** — 每个通知项可单独多选使用哪些渠道，未指定则只使用默认渠道
 - **定时提醒** — 每小时自动检查并发送到期提醒，支持全局时段配置和每项独立覆盖
 - **通知历史** — 查看所有已发送通知的记录与状态
+- **Vikunja 集成** — Vikunja 的任务提醒与逾期事件经 eNotify 默认渠道推送，历史可查
 - **两步验证** — TOTP（验证器应用）、邮箱验证码、Passkey
 - **密码重置** — 通过邮箱验证码重置密码
 - **管理员后台** — 用户管理、系统设置、模拟登录
@@ -179,6 +180,49 @@ curl https://your-worker.workers.dev/api/me/api-keys -H "Cookie: access_token=..
 # 吊销，立即生效
 curl -X DELETE https://your-worker.workers.dev/api/me/api-keys/<id> -H "Cookie: access_token=..."
 ```
+
+## Vikunja 集成（入站 webhook）
+
+用户自托管的 [Vikunja](https://vikunja.io) 可以把任务提醒与逾期事件推给 eNotify，由 eNotify 的默认渠道（与 `POST /api/notify` 相同的默认渠道语义）扇出；每次推送都会以来源 `vikunja` 记入通知历史。
+
+**前置：在 Vikunja 服务端开启 webhooks。** 该功能由配置项 `webhooks.enabled` 控制（默认开启）；若实例已关闭，需在 `config.yml` 里设置 `webhooks.enabled: true`（或环境变量 `VIKUNJA_WEBHOOKS_ENABLED=true`）并重启服务，账户设置里才会出现 Webhooks 入口。每个用户在自己的 Vikunja「设置 → Webhooks」中新建 webhook，填入下面生成的地址与 secret。
+
+**1. 创建集成**（需登录，cookie 会话）
+
+```bash
+curl -X POST https://your-worker.workers.dev/api/me/integrations/vikunja \
+  -H "Content-Type: application/json" \
+  -H "Cookie: access_token=<登录后的 access_token>" \
+  -d '{"base_url": "https://vikunja.example.com"}'
+```
+
+`base_url` 可选，用于拼推送里的任务链接 `{base_url}/tasks/{task.id}`（留空则不带链接）。响应中的 `secret` **只出现这一次**，请填入 Vikunja webhook 的 Secret 字段，丢失只能轮换。`hook_token` 可以回显，用来拼入站地址：
+
+`https://your-worker.workers.dev/api/integrations/vikunja/<hook_token>`
+
+每个用户只有一个集成（重复创建返回 409）。管理接口（鉴权与 `/api/me/api-keys` 一致，仅认登录会话）：
+
+| 方法与路径 | 说明 |
+| --- | --- |
+| `POST /api/me/integrations/vikunja` | 创建；201 返回 `hook_token` 与一次性 `secret`；已存在 409 |
+| `GET /api/me/integrations/vikunja` | 查询；未创建返回 `{configured:false}`，**永不返回 secret 明文**（只有 `secret_configured:true`） |
+| `PUT /api/me/integrations/vikunja` | 修改 `enabled`（布尔）与 `base_url`（须 `http://` 或 `https://`，自动去尾斜杠，空串表示清空） |
+| `POST /api/me/integrations/vikunja/regenerate-secret` | 轮换 secret，仅此一次返回新明文；未创建 404 |
+| `DELETE /api/me/integrations/vikunja` | 删除集成；删除后入站请求返回 404；未创建 404 |
+
+**2. 在 Vikunja 里建 webhook**
+
+- Target URL：上面的入站地址；
+- Secret：创建或轮换时拿到的 secret；
+- 事件：只勾 `task.reminder.fired`（提醒到点）与 `tasks.overdue`（逾期汇总）。`task.overdue` 与 `tasks.overdue` 内容重叠，同时勾选会收到两条，建议只留汇总。
+
+**3. 入站约定**
+
+- 端点：`POST /api/integrations/vikunja/:hookToken`，不使用会话或 API Key，只认 HMAC 验签。
+- 验签：Vikunja 对未解析的请求 body 计算 HMAC-SHA256，放在 `X-Vikunja-Signature` 头（hex 小写）；eNotify 用该集成对应的 secret 做常量时间比对。签名头缺失、格式不合或比对失败一律 `401 {"error":"Invalid signature"}`。
+- 事件：已适配 `task.reminder.fired`、`task.overdue`、`tasks.overdue` 三个 User webhooks 事件；其他 `event_name` 返回 200 `{ignored:true}` 且不发送。
+- 发送语义与 `/api/notify` 一致：只发默认渠道；未设默认渠道返回 400 且不发送；不做通知时段门控；不创建 eNotify 事项；不去重；等发送完成才回响应（`200 {success:true, results}`）。
+- 状态码：hookToken 不存在 404、集成已停用 403、验签失败 401、body 非 JSON 或缺 `event_name` 400、已知事件但 data 缺关键字段 200 `{ignored:true}`（仅记日志）、未知事件 200 `{ignored:true}`。按 hookToken 限流 60 次/分钟。
 
 ## 环境变量
 

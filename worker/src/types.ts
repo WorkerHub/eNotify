@@ -105,6 +105,23 @@ export interface NotificationConfig {
   updated_at: string;
 }
 
+/**
+ * One inbound Vikunja webhook integration per user (table
+ * `{prefix}vikunja_integrations`). `hook_token` only locates the user; every
+ * delivery must still pass the HMAC check with `secret`. The secret is stored
+ * in plaintext because HMAC needs the raw key material — the management API
+ * therefore never returns it after creation/rotation.
+ */
+export interface VikunjaIntegration {
+  user_id: string;
+  hook_token: string;
+  secret: string;
+  base_url: string;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SystemSetting {
   key: string;
   value: string;

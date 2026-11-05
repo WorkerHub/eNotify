@@ -175,6 +175,24 @@ CREATE TABLE IF NOT EXISTS {prefix}scheduler_tick_claims (
 CREATE INDEX IF NOT EXISTS idx_{prefix}scheduler_tick_claims_claimed_at
   ON {prefix}scheduler_tick_claims(claimed_at)`;
 
+/**
+ * schema_v4 — Vikunja inbound webhook integration: one row per user. The hook
+ * token only locates the user; the per-user HMAC secret authenticates every
+ * delivery, so the secret is stored in plaintext (HMAC needs the raw key) and
+ * the management API never returns it after creation/rotation.
+ */
+const SCHEMA_V4 = `CREATE TABLE IF NOT EXISTS {prefix}vikunja_integrations (
+  user_id    TEXT PRIMARY KEY REFERENCES {prefix}users(id) ON DELETE CASCADE,
+  hook_token TEXT NOT NULL,
+  secret     TEXT NOT NULL,
+  base_url   TEXT NOT NULL DEFAULT '',
+  enabled    INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{prefix}vikunja_integrations_hook_token
+  ON {prefix}vikunja_integrations(hook_token)`;
+
 export function getMigrations(prefix: string): Migration[] {
   return [
     {
@@ -188,6 +206,10 @@ export function getMigrations(prefix: string): Migration[] {
     {
       name: "schema_v3",
       sql: SCHEMA_V3.replace(/\{prefix\}/g, prefix),
+    },
+    {
+      name: "schema_v4",
+      sql: SCHEMA_V4.replace(/\{prefix\}/g, prefix),
     },
   ];
 }

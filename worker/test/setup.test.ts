@@ -167,6 +167,7 @@ describe("POST /api/setup (regression)", () => {
         { name: "schema_v1", status: "applied" },
         { name: "schema_v2", status: "applied" },
         { name: "schema_v3", status: "applied" },
+        { name: "schema_v4", status: "applied" },
       ],
     });
 
@@ -176,6 +177,7 @@ describe("POST /api/setup (regression)", () => {
       "schema_v1",
       "schema_v2",
       "schema_v3",
+      "schema_v4",
     ]);
   });
 
@@ -200,6 +202,7 @@ describe("POST /api/setup (regression)", () => {
         { name: "schema_v1", status: "skipped" },
         { name: "schema_v2", status: "skipped" },
         { name: "schema_v3", status: "skipped" },
+        { name: "schema_v4", status: "skipped" },
       ],
     });
   });
