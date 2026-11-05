@@ -21,6 +21,8 @@ import {
   Check,
   AlertTriangle,
   DatabaseBackup,
+  Webhook,
+  Info,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api } from "@/lib/api";
@@ -31,6 +33,10 @@ import { useEmailConfigured } from "@/hooks/useEmailConfigured";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { BackupSection } from "@/components/backup/BackupSection";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   cn,
   serializeRegistrationCredential,
@@ -46,6 +52,7 @@ type TabId =
   | "security"
   | "sessions"
   | "apiKeys"
+  | "integrations"
   | "backup"
   | "preferences";
 
@@ -1131,6 +1138,546 @@ function ApiKeysTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Integrations Tab
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /api/me/integrations/vikunja`: `{configured: false}` until the account
+ * creates one. The secret never comes back here (`secret_configured` only) —
+ * it is returned exactly once, by create and by regenerate-secret.
+ */
+interface VikunjaIntegrationResponse {
+  configured: boolean;
+  hook_token?: string;
+  base_url?: string | null;
+  enabled?: boolean;
+  secret_configured?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface VikunjaIntegration {
+  hook_token: string;
+  base_url: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+const VIKUNJA_INTEGRATION_PATH = "/me/integrations/vikunja";
+/** Inbound route served by the worker: token locates the account, the secret
+ * signs each delivery (HMAC-SHA256), so no session/API key is involved. */
+const VIKUNJA_WEBHOOK_PATH = "/api/integrations/vikunja";
+/** The backend accepts an http(s) URL, or an empty string to clear it. */
+const HTTP_URL_PATTERN = /^https?:\/\/\S+$/i;
+
+function formatDateTime(value: string) {
+  return value ? new Date(value).toLocaleString() : "-";
+}
+
+function IntegrationsTab() {
+  const { t } = useTranslation();
+
+  const [integration, setIntegration] = useState<VikunjaIntegration | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // The plaintext secret lives in the browser only between create/rotate and
+  // the moment the one-time panel is dismissed (same rule as a new API key).
+  const [revealed, setRevealed] = useState<{
+    secret: string;
+    kind: "created" | "rotated";
+  } | null>(null);
+  const [copied, setCopied] = useState<"secret" | "url" | null>(null);
+
+  const [baseUrl, setBaseUrl] = useState("");
+  const [baseUrlError, setBaseUrlError] = useState("");
+
+  const [creating, setCreating] = useState(false);
+  const [savingBaseUrl, setSavingBaseUrl] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmRotate, setConfirmRotate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const flash = (message: string) => {
+    setSuccessMsg(message);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const fetchIntegration = useCallback(async () => {
+    try {
+      const data = await api.get<VikunjaIntegrationResponse>(
+        VIKUNJA_INTEGRATION_PATH,
+      );
+      if (data.configured) {
+        const next: VikunjaIntegration = {
+          hook_token: data.hook_token ?? "",
+          base_url: data.base_url ?? "",
+          enabled: !!data.enabled,
+          created_at: data.created_at ?? "",
+          updated_at: data.updated_at ?? "",
+        };
+        setIntegration(next);
+        setBaseUrl(next.base_url);
+      } else {
+        setIntegration(null);
+        setBaseUrl("");
+      }
+    } catch (err: any) {
+      setError(err.message || t("common.error"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchIntegration();
+  }, [fetchIntegration]);
+
+  const copyValue = async (kind: "secret" | "url", value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setError(t("integrations.copyFailed"));
+    }
+  };
+
+  const handleCreate = async () => {
+    setError("");
+    setSuccessMsg("");
+    setCopied(null);
+    setCreating(true);
+    try {
+      const created = await api.post<{ secret: string }>(
+        VIKUNJA_INTEGRATION_PATH,
+        {},
+      );
+      setRevealed({ secret: created.secret, kind: "created" });
+      flash(t("integrations.createSuccess"));
+      await fetchIntegration();
+    } catch (err: any) {
+      if (err?.status === 409) {
+        setError(t("integrations.existsError"));
+        await fetchIntegration();
+      } else {
+        setError(err.message || t("common.error"));
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleToggle = async (enabled: boolean) => {
+    if (!integration) return;
+    setError("");
+    setSuccessMsg("");
+    setToggling(true);
+    // Optimistic, reverted below if the request fails.
+    setIntegration((prev) => (prev ? { ...prev, enabled } : prev));
+    try {
+      // Both fields go out, so a PUT never depends on which one changed.
+      await api.put(VIKUNJA_INTEGRATION_PATH, {
+        enabled,
+        base_url: baseUrl.trim(),
+      });
+      flash(
+        enabled
+          ? t("integrations.enabledSuccess")
+          : t("integrations.disabledSuccess"),
+      );
+      await fetchIntegration();
+    } catch (err: any) {
+      setIntegration((prev) => (prev ? { ...prev, enabled: !enabled } : prev));
+      setError(err.message || t("common.error"));
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  const handleSaveBaseUrl = async (
+    e: React.SyntheticEvent<HTMLFormElement>,
+  ) => {
+    e.preventDefault();
+    if (!integration) return;
+    const trimmed = baseUrl.trim().replace(/\/+$/, "");
+    if (trimmed && !HTTP_URL_PATTERN.test(trimmed)) {
+      setBaseUrlError(t("integrations.baseUrlInvalid"));
+      return;
+    }
+    setBaseUrlError("");
+    setError("");
+    setSuccessMsg("");
+    setSavingBaseUrl(true);
+    try {
+      await api.put(VIKUNJA_INTEGRATION_PATH, {
+        enabled: integration.enabled,
+        base_url: trimmed,
+      });
+      flash(t("integrations.baseUrlSuccess"));
+      await fetchIntegration();
+    } catch (err: any) {
+      setBaseUrlError("");
+      setError(err.message || t("common.error"));
+    } finally {
+      setSavingBaseUrl(false);
+    }
+  };
+
+  const handleRotate = async () => {
+    setConfirmRotate(false);
+    setError("");
+    setSuccessMsg("");
+    setCopied(null);
+    setRotating(true);
+    try {
+      const data = await api.post<{ secret: string }>(
+        `${VIKUNJA_INTEGRATION_PATH}/regenerate-secret`,
+      );
+      setRevealed({ secret: data.secret, kind: "rotated" });
+      flash(t("integrations.rotateSuccess"));
+      await fetchIntegration();
+    } catch (err: any) {
+      if (err?.status === 404) {
+        setError(t("integrations.notFound"));
+        await fetchIntegration();
+      } else {
+        setError(err.message || t("common.error"));
+      }
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    setError("");
+    setSuccessMsg("");
+    setCopied(null);
+    setDeleting(true);
+    try {
+      await api.delete(VIKUNJA_INTEGRATION_PATH);
+      setIntegration(null);
+      setRevealed(null);
+      setBaseUrl("");
+      setBaseUrlError("");
+      flash(t("integrations.deleteSuccess"));
+    } catch (err: any) {
+      if (err?.status === 404) {
+        setIntegration(null);
+        setRevealed(null);
+        setBaseUrl("");
+        flash(t("integrations.deleteSuccess"));
+      } else {
+        setError(err.message || t("common.error"));
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/4 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted" />
+        </div>
+      </div>
+    );
+  }
+
+  const webhookUrl = integration
+    ? `${window.location.origin}${VIKUNJA_WEBHOOK_PATH}/${integration.hook_token}`
+    : "";
+
+  return (
+    <div className="space-y-4">
+      <ConfirmDialog
+        open={confirmRotate}
+        title={t("integrations.rotate")}
+        message={t("integrations.rotateConfirm")}
+        confirmLabel={t("integrations.rotate")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={() => void handleRotate()}
+        onCancel={() => setConfirmRotate(false)}
+      />
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t("integrations.deleteTitle")}
+        message={t("integrations.deleteConfirm")}
+        variant="danger"
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
+      <p className="text-xs text-muted-foreground">
+        {t("integrations.description")}
+      </p>
+
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+          {error}
+        </p>
+      )}
+      {successMsg && (
+        <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
+          {successMsg}
+        </p>
+      )}
+
+      {/* Secret revealed once, on create and on rotate */}
+      {revealed && (
+        <div className="border border-primary/40 bg-primary/5 rounded-lg p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {revealed.kind === "created"
+                  ? t("integrations.createdTitle")
+                  : t("integrations.rotatedTitle")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t("integrations.secretOnceWarning")}
+              </p>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-foreground mb-1.5">
+              {t("integrations.secretLabel")}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <code className="flex-1 min-w-0 px-3 py-2 rounded-md border bg-background font-mono text-xs break-all select-all">
+                {revealed.secret}
+              </code>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                onClick={() => void copyValue("secret", revealed.secret)}
+              >
+                {copied === "secret" ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                {copied === "secret"
+                  ? t("integrations.copied")
+                  : t("integrations.copy")}
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setRevealed(null);
+                setCopied(null);
+              }}
+            >
+              {t("integrations.saved")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!integration ? (
+        <div className="bg-card border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Webhook className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("integrations.createTitle")}
+            </h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            {t("integrations.createDescription")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            disabled={creating}
+            onClick={() => void handleCreate()}
+          >
+            {creating ? t("common.loading") : t("integrations.create")}
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-card border rounded-lg p-5 space-y-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Webhook className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">
+                {t("integrations.vikunjaTitle")}
+              </h3>
+            </div>
+            <StatusBadge ok={integration.enabled} />
+          </div>
+
+          {/* Enable / disable */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <Label htmlFor="vikunja-enabled">
+                {t("integrations.enabledLabel")}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("integrations.enabledDescription")}
+              </p>
+            </div>
+            <Switch
+              id="vikunja-enabled"
+              checked={integration.enabled}
+              disabled={toggling}
+              onCheckedChange={(checked) => void handleToggle(checked)}
+            />
+          </div>
+
+          {/* Webhook URL */}
+          <div>
+            <Label>{t("integrations.webhookUrl")}</Label>
+            <div className="mt-1.5 flex flex-col sm:flex-row gap-2">
+              <code className="flex-1 min-w-0 px-3 py-2 rounded-md border bg-background font-mono text-xs break-all select-all">
+                {webhookUrl}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => void copyValue("url", webhookUrl)}
+              >
+                {copied === "url" ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                {copied === "url"
+                  ? t("integrations.copied")
+                  : t("integrations.copy")}
+              </Button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("integrations.webhookUrlHint")}
+            </p>
+          </div>
+
+          {/* Vikunja base URL, used for task links */}
+          <form onSubmit={handleSaveBaseUrl} className="space-y-1.5">
+            <Label htmlFor="vikunja-base-url">
+              {t("integrations.baseUrl")}
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                id="vikunja-base-url"
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+                value={baseUrl}
+                onChange={(e) => {
+                  setBaseUrl(e.target.value);
+                  setBaseUrlError("");
+                }}
+                placeholder={t("integrations.baseUrlPlaceholder")}
+                aria-invalid={!!baseUrlError}
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                className="shrink-0"
+                disabled={savingBaseUrl}
+              >
+                {savingBaseUrl ? t("common.loading") : t("common.save")}
+              </Button>
+            </div>
+            {baseUrlError ? (
+              <p className="text-xs text-destructive">{baseUrlError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {t("integrations.baseUrlHint")}
+              </p>
+            )}
+          </form>
+
+          <div className="border-t pt-3 text-xs text-muted-foreground space-y-0.5">
+            <p>
+              {t("integrations.createdAt")}:{" "}
+              {formatDateTime(integration.created_at)}
+            </p>
+            <p>
+              {t("integrations.updatedAt")}:{" "}
+              {formatDateTime(integration.updated_at)}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={rotating}
+              onClick={() => setConfirmRotate(true)}
+            >
+              {rotating ? t("common.loading") : t("integrations.rotate")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              disabled={deleting}
+              onClick={() => setConfirmDelete(true)}
+            >
+              {deleting ? t("common.loading") : t("integrations.delete")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* How to wire it up in Vikunja (static) */}
+      <div className="bg-card border rounded-lg p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-1">
+          {t("integrations.guideTitle")}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          {t("integrations.guideIntro")}
+        </p>
+        <ol className="list-decimal pl-4 space-y-1.5 text-xs text-muted-foreground">
+          <li>{t("integrations.guideStep1")}</li>
+          <li>{t("integrations.guideStep2")}</li>
+          <li>{t("integrations.guideStep3")}</li>
+          <li>{t("integrations.guideStep4")}</li>
+        </ol>
+        <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <p>{t("integrations.guideNote")}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Preferences Tab
 // ---------------------------------------------------------------------------
 
@@ -1362,6 +1909,7 @@ export function SettingsPage() {
     "account",
     "security",
     "apiKeys",
+    "integrations",
     "backup",
     "sessions",
     "preferences",
@@ -1388,6 +1936,11 @@ export function SettingsPage() {
     const b = btn.getBoundingClientRect();
     const r = bar.getBoundingClientRect();
     setUnderline({ left: b.left - r.left + bar.scrollLeft, width: b.width });
+    // Seven tabs no longer always fit (English labels overflow even on a wide
+    // window), and the bar scrolls without a visible scrollbar — keep the
+    // active tab scrolled into view so a deep link / long label stays visible.
+    if (b.left < r.left) bar.scrollLeft += b.left - r.left;
+    else if (b.right > r.right) bar.scrollLeft += b.right - r.right;
   }, [activeTab]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -1405,6 +1958,11 @@ export function SettingsPage() {
       id: "apiKeys",
       label: t("settings.apiKeys"),
       icon: <KeyRound className="w-4 h-4" />,
+    },
+    {
+      id: "integrations",
+      label: t("settings.integrations"),
+      icon: <Webhook className="w-4 h-4" />,
     },
     {
       id: "backup",
@@ -1427,6 +1985,11 @@ export function SettingsPage() {
     { id: "account" as TabId, label: t("settings.account"), icon: User },
     { id: "security" as TabId, label: t("settings.security"), icon: Shield },
     { id: "apiKeys" as TabId, label: t("settings.apiKeys"), icon: KeyRound },
+    {
+      id: "integrations" as TabId,
+      label: t("settings.integrations"),
+      icon: Webhook,
+    },
     {
       id: "backup" as TabId,
       label: t("settings.backup"),
@@ -1514,6 +2077,7 @@ export function SettingsPage() {
         {activeTab === "account" && <AccountTab />}
         {activeTab === "security" && <SecurityTab />}
         {activeTab === "apiKeys" && <ApiKeysTab />}
+        {activeTab === "integrations" && <IntegrationsTab />}
         {activeTab === "backup" && <BackupSection scope="user" />}
         {activeTab === "sessions" && <SessionsTab />}
         {activeTab === "preferences" && <PreferencesTab />}
